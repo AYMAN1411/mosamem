@@ -12,6 +12,7 @@
   import { crop } from './crop.svelte';
   import { textTool } from './text.svelte';
   import TextEditor from './TextEditor.svelte';
+  import { shapeTool, SHAPE_TOOLS } from './shapes.svelte';
   import { nudge } from '../actions';
 
   let stage = $state<HTMLDivElement>();
@@ -31,6 +32,7 @@
   transform.setRedraw(() => overlayTick++);
   crop.setRedraw(() => overlayTick++);
   textTool.setRedraw(() => overlayTick++);
+  shapeTool.setRedraw(() => overlayTick++);
 
   // leaving the Text tool (or the document) commits what was typed
   $effect(() => {
@@ -106,6 +108,7 @@
     paintTool.draw(ctx);
     transform.draw(ctx);
     textTool.draw(ctx);
+    shapeTool.draw(ctx);
     if (app.tool === 'crop') {
       void crop.rect;
       crop.draw(ctx);
@@ -198,6 +201,10 @@
       void textTool.down(e, p);
       return;
     }
+    if (SHAPE_TOOLS.includes(effectiveTool)) {
+      shapeTool.down(e, p);
+      return;
+    }
     if (SELECTION_TOOLS.includes(effectiveTool)) {
       void selTool.down(e, p);
       return;
@@ -227,6 +234,10 @@
     }
     if (!drag && effectiveTool === 'text') {
       textTool.move(e, p);
+      return;
+    }
+    if (!drag && SHAPE_TOOLS.includes(effectiveTool)) {
+      shapeTool.move(e, p);
       return;
     }
     if (SELECTION_TOOLS.includes(effectiveTool) && !drag) {
@@ -271,6 +282,10 @@
     }
     if (!drag && effectiveTool === 'text') {
       textTool.up();
+      return;
+    }
+    if (!drag && SHAPE_TOOLS.includes(effectiveTool)) {
+      void shapeTool.up(e, local(e));
       return;
     }
     if (SELECTION_TOOLS.includes(effectiveTool) && !drag) {
@@ -372,6 +387,11 @@
       case 'lasso':
       case 'lassoPolygon':
       case 'magicWand':
+      case 'shapeRect':
+      case 'shapeEllipse':
+      case 'shapePolygon':
+      case 'shapeStar':
+      case 'shapeLine':
         return 'crosshair';
       case 'quickSelect':
         return 'none';
@@ -405,6 +425,7 @@
     onpointercancel={() => {
       drag = null;
       selTool.cancel();
+      shapeTool.cancel();
     }}
     onpointerleave={() => {
       selTool.hover = null;

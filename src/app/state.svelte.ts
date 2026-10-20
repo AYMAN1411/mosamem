@@ -22,6 +22,11 @@ export type ToolId =
   | 'gradient'
   | 'bucket'
   | 'text'
+  | 'shapeRect'
+  | 'shapeEllipse'
+  | 'shapePolygon'
+  | 'shapeStar'
+  | 'shapeLine'
   | 'hand'
   | 'zoom'
   | 'rotateView';

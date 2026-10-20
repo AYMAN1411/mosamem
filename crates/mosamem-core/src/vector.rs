@@ -212,7 +212,7 @@ impl Path {
 pub const KAPPA: f64 = 0.552_284_749_830_793_4;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "kind")]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase", tag = "kind")]
 pub enum Shape {
     /// `radius` rounds every corner (clamped to half the short side).
     Rect { x: f64, y: f64, w: f64, h: f64, radius: f64 },
@@ -664,6 +664,9 @@ mod tests {
         let s = Shape::Star { cx: 1.0, cy: 2.0, r: 3.0, inner: 0.5, points: 5, angle: 0.0 };
         let p = ShapePaint { fill: Some(Fill::Linear { stops: vec![GradientStop { pos: 0.0, color: [1, 2, 3] }, GradientStop { pos: 1.0, color: [4, 5, 6] }], angle: 90.0 }), stroke: Some(Stroke { color: [0, 0, 0, 255], width: 2.0, align: Align::Outside, cap: Cap::Round, join: Join::Bevel, dash: vec![1.0, 2.0] }) };
         let js = serde_json::to_string(&(s.clone(), p.clone())).unwrap();
+        // the interface spells fields in camelCase
+        let line: Shape = serde_json::from_str(r#"{"kind":"line","a":[0,0],"b":[1,1],"arrowStart":true,"arrowEnd":false}"#).unwrap();
+        assert!(matches!(line, Shape::Line { arrow_start: true, arrow_end: false, .. }));
         assert!(js.contains("\"kind\":\"star\"") && js.contains("\"align\":\"outside\""), "{js}");
         assert_eq!(serde_json::from_str::<(Shape, ShapePaint)>(&js).unwrap(), (s, p));
     }

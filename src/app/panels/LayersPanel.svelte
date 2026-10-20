@@ -131,6 +131,13 @@
   }
   const groups: string[][] = [['normal', 'dissolve'], ['darken', 'multiply', 'colorBurn', 'linearBurn', 'darkerColor'], ['lighten', 'screen', 'colorDodge', 'linearDodge', 'lighterColor'], ['overlay', 'softLight', 'hardLight', 'vividLight', 'linearLight', 'pinLight', 'hardMix'], ['difference', 'exclusion', 'subtract', 'divide'], ['hue', 'saturation', 'color', 'luminosity']];
   void BLEND_MODES;
+
+  /** A shape layer's thumbnail takes its fill color (or its stroke's, for a line or an outline). */
+  function shapeColor(l: LayerInfo): string | undefined {
+    const p = l.shape?.paint;
+    const c = p?.fill?.kind === 'solid' ? p.fill.color : p?.fill?.kind === 'linear' ? p.fill.stops[0]?.color : p?.stroke?.color;
+    return c ? `rgb(${c[0]}, ${c[1]}, ${c[2]})` : undefined;
+  }
 </script>
 
 <svelte:window onpointermove={move} onpointerup={up} onclick={() => (adjMenu = false)} />
@@ -204,6 +211,15 @@
               onclick={(e) => { e.stopPropagation(); app.maskTarget = false; select(e, l.id); }}
               ondblclick={(e) => { e.stopPropagation(); app.tool = 'text'; void textTool.edit(l); }}
             ><Icon name="textLayer" size={18} /></button>
+          {:else if l.kind === 'shape'}
+            <button
+              class="thumb-btn adj-thumb"
+              class:target={l.id === doc.info.active && !app.maskTarget}
+              title={t('shape.layer')}
+              style:color={shapeColor(l)}
+              onclick={(e) => { e.stopPropagation(); app.maskTarget = false; select(e, l.id); }}
+              ondblclick={(e) => { e.stopPropagation(); dock.show('properties'); }}
+            ><Icon name="shapeLayer" size={18} /></button>
           {:else if l.kind === 'adjustment' && l.adjustment}
             <button
               class="thumb-btn adj-thumb"
@@ -267,7 +283,7 @@
           </ul>
         {/if}
       </span>
-      <button class="icon-btn fx-btn" title={t('style.title')} disabled={active.kind !== 'pixel' && active.kind !== 'text'} onclick={() => act.style()}>fx</button>
+      <button class="icon-btn fx-btn" title={t('style.title')} disabled={active.kind !== 'pixel' && active.kind !== 'text' && active.kind !== 'shape'} onclick={() => act.style()}>fx</button>
       <button class="icon-btn" title={`${t('mask.add')} — ${t('mask.addHint')}`} disabled={!!active.mask} onclick={(e) => maskAct.addAuto(e.altKey)}><Icon name="mask" size={16} /></button>
       <button class="icon-btn" title={t('layer.newGroup')} onclick={act.newGroup}><Icon name="folder" size={16} /></button>
       <button class="icon-btn" title={t('layer.new')} onclick={act.new}><Icon name="plus" size={16} /></button>

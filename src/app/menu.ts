@@ -13,6 +13,8 @@ import { aiActions } from './ai.svelte';
 
 const isMac = navigator.userAgent.includes('Mac');
 
+const activeKind = () => (app.active ? findLayer(app.active.info.layers, app.active.info.active)?.kind : undefined);
+
 async function item(text: string, action: () => unknown, accelerator?: string, enabled = true) {
   return MenuItem.new({ text, action: () => void action(), accelerator, enabled });
 }
@@ -125,7 +127,8 @@ export async function buildMenu() {
       await sep(),
       await item(t('style.menu'), () => act.layer.style(), undefined, hasDoc),
       await item(t('style.clear'), act.layer.clearStyle, undefined, hasDoc),
-      await item(t('text.rasterize'), act.layer.rasterize, undefined, hasDoc && (app.active ? findLayer(app.active.info.layers, app.active.info.active)?.kind === 'text' : false)),
+      await item(t('text.rasterize'), act.layer.rasterize, undefined, hasDoc && activeKind() === 'text'),
+      await item(t('shape.rasterize'), act.layer.rasterize, undefined, hasDoc && activeKind() === 'shape'),
       await item(t('layer.mergeDown'), act.layer.mergeDown, 'CmdOrCtrl+E', hasDoc),
       await item(t('layer.mergeVisible'), act.layer.mergeVisible, 'CmdOrCtrl+Shift+E', hasDoc),
       await item(t('layer.flatten'), act.layer.flatten, undefined, hasDoc),

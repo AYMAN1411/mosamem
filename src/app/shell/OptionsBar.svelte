@@ -9,6 +9,8 @@
   import TransformOptions from './TransformOptions.svelte';
   import CropOptions from './CropOptions.svelte';
   import TextOptions from './TextOptions.svelte';
+  import ShapeOptions from './ShapeOptions.svelte';
+  import { SHAPE_TOOLS } from '../canvas/shapes.svelte';
   import { transform } from '../canvas/transform.svelte';
   import { PAINT_TOOLS } from '../canvas/paintTools';
   import { SELECTION_TOOLS } from '../canvas/selectionTools';
@@ -27,6 +29,8 @@
     <CropOptions />
   {:else if app.tool === 'text'}
     <TextOptions />
+  {:else if SHAPE_TOOLS.includes(app.tool)}
+    <ShapeOptions />
   {:else if app.tool === 'zoom'}
     <button class="icon-btn" title={t('opt.zoomIn')} onclick={act.view.zoomIn}><Icon name="zoom" /></button>
     <button class="icon-btn" title={t('opt.zoomOut')} onclick={act.view.zoomOut}><Icon name="zoomOut" /></button>

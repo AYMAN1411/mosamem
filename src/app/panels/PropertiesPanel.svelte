@@ -5,6 +5,7 @@
   import { mask } from '../actions';
   import Scrub from './Scrub.svelte';
   import AdjustmentEditor from './adjust/AdjustmentEditor.svelte';
+  import ShapeProps from './ShapeProps.svelte';
 
   const active = $derived(app.active ? findLayer(app.active.info.layers, app.active.info.active) : null);
 
@@ -31,6 +32,8 @@
         <button class="btn" onclick={mask.delete}>{t('mask.delete')}</button>
       </div>
     </section>
+  {:else if active?.kind === 'shape' && active.shape}
+    <ShapeProps layer={active} />
   {:else if active?.kind === 'adjustment' && active.adjustment}
     <AdjustmentEditor doc={info.id} layer={active} historyIndex={info.history.current} />
   {:else}

@@ -2,6 +2,7 @@
 import type { Adjustment, Histogram } from './adjust';
 import type { Filter } from './filter';
 import type { TextData, TextStyle } from './text';
+import type { ShapeData } from './vector';
 import type { LayerStyle } from './style';
 import { invoke, Channel } from '@tauri-apps/api/core';
 import type { BlendMode } from './blend';
@@ -15,7 +16,7 @@ export interface Locks {
 export interface LayerInfo {
   id: number;
   name: string;
-  kind: 'pixel' | 'group' | 'adjustment' | 'text';
+  kind: 'pixel' | 'group' | 'adjustment' | 'text' | 'shape';
   visible: boolean;
   opacity: number;
   fill: number;
@@ -31,6 +32,8 @@ export interface LayerInfo {
   adjustment?: Adjustment;
   /** Text, style and placement of a text layer. */
   text?: TextData;
+  /** Geometry, fill and stroke of a shape layer. */
+  shape?: ShapeData;
   /** Layer effects. */
   style?: LayerStyle;
   /** Top to bottom. */
@@ -261,6 +264,8 @@ export const engine = {
   debugFlatten: (doc: number) => invoke<ArrayBuffer>('debug_flatten', { doc }),
   textNew: (doc: number, data: TextData) => invoke<DocInfo>('text_new', { doc, data }),
   textSet: (doc: number, id: number, data: TextData, transient: boolean) => invoke<DocInfo>('text_set', { doc, id, data, transient }),
+  shapeNew: (doc: number, data: ShapeData, name: string) => invoke<DocInfo>('shape_new', { doc, data, name }),
+  shapeSet: (doc: number, id: number, data: ShapeData, transient: boolean) => invoke<DocInfo>('shape_set', { doc, id, data, transient }),
   layerRasterize: (doc: number, id: number) => invoke<DocInfo>('layer_rasterize', { doc, id }),
   /** [ascent, descent] in px for a style's font and size. */
   textMetrics: (style: TextStyle) => invoke<[number, number]>('text_metrics', { style }),

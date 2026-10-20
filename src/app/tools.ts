@@ -19,7 +19,7 @@ export interface ToolGroup {
 }
 
 /** Tools whose milestone is at or below this are working. */
-export const DONE_MILESTONE = 10;
+export const DONE_MILESTONE = 12;
 
 export const TOOL_GROUPS: ToolGroup[] = [
   { code: 'KeyV', letter: 'V', tools: [{ id: 'move', icon: 'move', title: 'tool.move', milestone: 2 }] },
@@ -50,6 +50,13 @@ export const TOOL_GROUPS: ToolGroup[] = [
     { id: 'bucket', icon: 'bucket', title: 'tool.bucket', milestone: 4 },
   ] },
   { code: 'KeyT', letter: 'T', tools: [{ id: 'text', icon: 'text', title: 'tool.text', milestone: 7 }] },
+  { code: 'KeyU', letter: 'U', tools: [
+    { id: 'shapeRect', icon: 'shapeRect', title: 'tool.shapeRect', milestone: 12 },
+    { id: 'shapeEllipse', icon: 'shapeEllipse', title: 'tool.shapeEllipse', milestone: 12 },
+    { id: 'shapePolygon', icon: 'shapePolygon', title: 'tool.shapePolygon', milestone: 12 },
+    { id: 'shapeStar', icon: 'shapeStar', title: 'tool.shapeStar', milestone: 12 },
+    { id: 'shapeLine', icon: 'shapeLine', title: 'tool.shapeLine', milestone: 12 },
+  ] },
   { code: 'KeyH', letter: 'H', tools: [{ id: 'hand', icon: 'hand', title: 'tool.hand', milestone: 1 }] },
   { code: 'KeyR', letter: 'R', tools: [{ id: 'rotateView', icon: 'rotateView', title: 'tool.rotateView', milestone: 1 }] },
   { code: 'KeyZ', letter: 'Z', tools: [{ id: 'zoom', icon: 'zoom', title: 'tool.zoom', milestone: 1 }] },

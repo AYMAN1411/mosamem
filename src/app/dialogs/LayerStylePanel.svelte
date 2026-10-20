@@ -82,7 +82,7 @@
     <h2>{t('style.title')}</h2>
     <button class="icon-btn" onclick={() => finish(false)} aria-label="close"><Icon name="close" size={14} /></button>
   </header>
-  {#if !layer || (layer.kind !== 'pixel' && layer.kind !== 'text')}
+  {#if !layer || (layer.kind !== 'pixel' && layer.kind !== 'text' && layer.kind !== 'shape')}
     <p class="note">{t('style.notHere')}</p>
   {:else}
     <div class="body">
