@@ -953,6 +953,20 @@ pub async fn debug_flatten(engine: State<'_, Engine>, doc: u64) -> Res<tauri::ip
     Ok(tauri::ipc::Response::new(bytes))
 }
 
+// ---- shape layers (M12) ----
+
+use crate::doc::shape::{self, ShapeData};
+
+#[tauri::command]
+pub async fn shape_new(engine: State<'_, Engine>, doc: u64, data: ShapeData, name: String) -> Res<DocInfo> {
+    edit_async(&engine, doc, move |d| shape::new_shape(d, data, name)).await
+}
+
+#[tauri::command]
+pub async fn shape_set(engine: State<'_, Engine>, doc: u64, id: u64, data: ShapeData, transient: bool) -> Res<DocInfo> {
+    edit_async(&engine, doc, move |d| shape::set_shape(d, id, data, transient)).await
+}
+
 // ---- local AI (M10) ----
 
 use crate::ai::{self, models, Ai, FillSpec, ObjectSpec};

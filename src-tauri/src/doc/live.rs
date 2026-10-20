@@ -80,7 +80,7 @@ fn fingerprint(below: &[Node], above: &[Node], layer: &Node) -> u64 {
                 (Arc::as_ptr(&m.mask.tiles) as usize, m.mask.outside, m.enabled, m.density.to_bits(), m.feather.to_bits()).hash(h);
             }
             match &n.kind {
-                NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } => (Arc::as_ptr(tiles) as usize).hash(h),
+                NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } | NodeKind::Shape { tiles, .. } => (Arc::as_ptr(tiles) as usize).hash(h),
                 NodeKind::Group { children, pass_through, .. } => {
                     pass_through.hash(h);
                     walk(children, h);
@@ -186,7 +186,7 @@ fn split_with(content: &Content, layer: u64, extra: Option<Node>) -> Option<(Vec
 /// which the mask then scales); the GPU applies the adjustment itself to the part below.
 fn layer_part(node: &Node, content: &Content) -> Option<Arc<super::model::TileMap>> {
     match &node.kind {
-        NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } => Some(tiles.clone()),
+        NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } | NodeKind::Shape { tiles, .. } => Some(tiles.clone()),
         NodeKind::Adjustment { .. } => Some(Arc::new(super::filled_tiles(content.width, content.height, [255, 255, 255, 255]))),
         NodeKind::Group { .. } => None,
     }
@@ -305,7 +305,7 @@ impl Session {
     /// The same session can serve a new stroke when nothing but the layer changed since it started.
     pub fn matches(content: &Content, layer: u64) -> Option<u64> {
         let node = content.find(layer)?;
-        if !matches!(node.kind, NodeKind::Pixel { .. } | NodeKind::Text { .. } | NodeKind::Adjustment { .. }) {
+        if !matches!(node.kind, NodeKind::Pixel { .. } | NodeKind::Text { .. } | NodeKind::Shape { .. } | NodeKind::Adjustment { .. }) {
             return None;
         }
         let (below, above) = split(content, layer)?;

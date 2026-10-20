@@ -83,7 +83,7 @@ fn content_key(nodes: &[Node], doc_id: u64, layer: Option<u64>) -> (u64, Vec<Wea
                 (Arc::as_ptr(&m.mask.tiles) as usize, m.mask.outside, m.enabled, m.density.to_bits(), m.feather.to_bits()).hash(h);
             }
             match &n.kind {
-                NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } => {
+                NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } | NodeKind::Shape { tiles, .. } => {
                     (Arc::as_ptr(tiles) as usize).hash(h);
                     weak.push(Arc::downgrade(tiles));
                 }

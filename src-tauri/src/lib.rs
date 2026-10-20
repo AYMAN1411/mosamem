@@ -28,6 +28,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::shape_new,
+            commands::shape_set,
             commands::ai_status,
             commands::ai_download,
             commands::ai_cancel,

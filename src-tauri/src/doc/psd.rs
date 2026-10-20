@@ -182,6 +182,8 @@ pub fn export(d: &Document, flat: (u32, u32, Vec<u8>)) -> Vec<u8> {
                     NodeKind::Adjustment { .. } => ("adjustment", false, false, Vec::new()),
                     NodeKind::Text { .. } => ("text", false, false, Vec::new()),
                     NodeKind::Pixel { .. } => ("pixel", false, false, Vec::new()),
+                    // written as its pixels for now (vector shapes in PSD: M12 step 6)
+                    NodeKind::Shape { .. } => ("pixel", false, false, Vec::new()),
                 };
                 PsdLayer {
                     name: n.name.clone(),

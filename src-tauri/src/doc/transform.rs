@@ -186,6 +186,17 @@ pub fn transform_layers(doc: &mut Document, ids: &[u64], m: &Mat3, method: Metho
                 continue;
             }
         }
+        // and shapes stay shapes (a perspective makes them pixels)
+        if let (NodeKind::Shape { data, .. }, None) = (&node.kind, &sel) {
+            if let Some(nd) = data.transformed(m) {
+                let tiles = super::shape::render(&nd, cw, ch);
+                node.kind = NodeKind::Shape { data: nd, tiles: Arc::new(tiles) };
+                if let Some(lm) = node.mask.as_mut() {
+                    lm.mask = transform_mask(&lm.mask, m, method, limit);
+                }
+                continue;
+            }
+        }
         // pixels (and text that can't stay text: it becomes pixels)
         if let Some(tiles) = node.tiles().cloned() {
             let new = match &sel {
@@ -235,7 +246,7 @@ pub fn bounds(doc: &Document, ids: &[u64]) -> Option<Bounds> {
         for id in targets(doc, ids) {
             let n = doc.content.find(id)?;
             match &n.kind {
-                NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } => {
+                NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } | NodeKind::Shape { tiles, .. } => {
                     if let Some(r) = raster::content_bounds(tiles) {
                         add(r);
                     }
@@ -265,6 +276,15 @@ fn every_layer(doc: &mut Document, size: (u32, u32), geometry: &Mat3, pixels: &(
                         Some(nd) => {
                             let t = super::text::render(&nd, size.0, size.1);
                             NodeKind::Text { data: nd, tiles: Arc::new(t) }
+                        }
+                        None => NodeKind::Pixel { tiles: Arc::new(pixels(tiles)) },
+                    }
+                }
+                NodeKind::Shape { data, tiles } => {
+                    n.kind = match data.transformed(geometry) {
+                        Some(nd) => {
+                            let t = super::shape::render(&nd, size.0, size.1);
+                            NodeKind::Shape { data: nd, tiles: Arc::new(t) }
                         }
                         None => NodeKind::Pixel { tiles: Arc::new(pixels(tiles)) },
                     }

@@ -12,6 +12,7 @@ pub mod paint;
 pub mod psd;
 pub mod raster;
 pub mod selection;
+pub mod shape;
 pub mod styles;
 pub mod text;
 pub mod thumbs;
@@ -166,6 +167,7 @@ impl Document {
                 }
                 NodeKind::Adjustment { .. } => ("adjustment", false, false, None, 0),
                 NodeKind::Text { tiles, .. } => ("text", false, false, None, Arc::as_ptr(tiles) as usize as u64),
+                NodeKind::Shape { tiles, .. } => ("shape", false, false, None, Arc::as_ptr(tiles) as usize as u64),
             };
             LayerInfo {
                 mask: n.mask.as_ref().map(|m| MaskInfo {
@@ -188,6 +190,7 @@ impl Document {
                 thumb,
                 adjustment: n.adjustment_settings().cloned(),
                 text: n.text_data().cloned(),
+                shape: n.shape_data().cloned(),
                 style: n.style.clone(),
                 children,
             }
@@ -241,6 +244,9 @@ pub struct LayerInfo {
     /// The text, style and placement of a text layer.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<text::TextData>,
+    /// The shape, fill and stroke of a shape layer.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shape: Option<shape::ShapeData>,
     /// Layer effects.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub style: Option<mosamem_core::style::LayerStyle>,

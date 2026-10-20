@@ -102,10 +102,10 @@ pub fn set_text(doc: &mut Document, id: u64, data: TextData, transient: bool) ->
     Ok(())
 }
 
-/// Turns a text layer into plain pixels (for painting, filters and free distortions).
+/// Turns a text (or shape) layer into plain pixels (for painting, filters and free distortions).
 pub fn rasterize(doc: &mut Document, id: u64) -> OpResult {
     let node = doc.content.find_mut(id).ok_or("layer not found")?;
-    let NodeKind::Text { tiles, .. } = &node.kind else { return Err("not a text layer".into()) };
+    let (NodeKind::Text { tiles, .. } | NodeKind::Shape { tiles, .. }) = &node.kind else { return Err("not a text or shape layer".into()) };
     node.kind = NodeKind::Pixel { tiles: tiles.clone() };
     let name = node.name.clone();
     doc.commit(Label::with("history.rasterize", name));

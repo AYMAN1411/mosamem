@@ -30,6 +30,8 @@ pub enum NodeKind {
     Adjustment { adj: Adjustment, op: Arc<Op> },
     /// Editable text, with its last drawing (`tiles`) for compositing.
     Text { data: super::text::TextData, tiles: Arc<TileMap> },
+    /// An editable vector shape, with its last drawing (`tiles`) for compositing.
+    Shape { data: super::shape::ShapeData, tiles: Arc<TileMap> },
 }
 
 /// A layer mask: white shows, black hides.
@@ -123,7 +125,7 @@ impl Node {
     /// The layer's effects, when any of them draws (on pixel and text layers).
     pub fn active_style(&self) -> Option<&mosamem_core::style::LayerStyle> {
         match self.kind {
-            NodeKind::Pixel { .. } | NodeKind::Text { .. } => self.style.as_ref().filter(|s| s.active()),
+            NodeKind::Pixel { .. } | NodeKind::Text { .. } | NodeKind::Shape { .. } => self.style.as_ref().filter(|s| s.active()),
             _ => None,
         }
     }
@@ -131,6 +133,13 @@ impl Node {
     pub fn text_data(&self) -> Option<&super::text::TextData> {
         match &self.kind {
             NodeKind::Text { data, .. } => Some(data),
+            _ => None,
+        }
+    }
+
+    pub fn shape_data(&self) -> Option<&super::shape::ShapeData> {
+        match &self.kind {
+            NodeKind::Shape { data, .. } => Some(data),
             _ => None,
         }
     }
@@ -159,7 +168,7 @@ impl Node {
 
     pub fn tiles(&self) -> Option<&Arc<TileMap>> {
         match &self.kind {
-            NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } => Some(tiles),
+            NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } | NodeKind::Shape { tiles, .. } => Some(tiles),
             _ => None,
         }
     }

@@ -83,6 +83,7 @@ pub fn begin(doc: &Document, spec: StrokeSpec) -> Result<Stroke, String> {
         (NodeKind::Pixel { tiles }, _) => tiles.clone(),
         (_, Target::Mask) => node.tiles().cloned().unwrap_or_default(),
         (NodeKind::Text { .. }, Target::Pixels) => return Err("rasterize the text layer to paint on it".into()),
+        (NodeKind::Shape { .. }, Target::Pixels) => return Err("rasterize the shape layer to paint on it".into()),
         _ => return Err("choose a pixel layer to paint on".into()),
     };
     if spec.target == Target::Pixels && node.locks.pixels {

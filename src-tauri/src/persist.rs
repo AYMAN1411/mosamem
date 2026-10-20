@@ -75,6 +75,9 @@ struct Props {
     /// A text layer's text, style and placement (its last drawing is in the tiles table).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     text: Option<crate::doc::text::TextData>,
+    /// A shape layer's shape, fill and stroke (its last drawing is in the tiles table).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    shape: Option<crate::doc::shape::ShapeData>,
     /// Layer effects.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     style: Option<mosamem_core::style::LayerStyle>,
@@ -147,6 +150,12 @@ pub fn save(path: &Path, content: &Content, name: &str, extra: &Extra, hashes: &
                     }
                     ("text", false, false)
                 }
+                NodeKind::Shape { tiles, .. } => {
+                    for (&(tx, ty), t) in tiles.iter() {
+                        rows.push((n.id, tx, ty, t.clone()));
+                    }
+                    ("shape", false, false)
+                }
             };
             let mask = n.mask.as_ref().map(|m| {
                 for (&(tx, ty), t) in m.mask.tiles.iter() {
@@ -154,7 +163,7 @@ pub fn save(path: &Path, content: &Content, name: &str, extra: &Extra, hashes: &
                 }
                 MaskProps { enabled: m.enabled, density: m.density, feather: m.feather, outside: m.mask.outside }
             });
-            let props = Props { name: n.name.clone(), visible: n.visible, opacity: n.opacity, fill: n.fill, blend: n.blend, locks: n.locks, clipped: n.clipped, pass_through, expanded, mask, adjustment: n.adjustment_settings().cloned(), text: n.text_data().cloned(), style: n.style.clone() };
+            let props = Props { name: n.name.clone(), visible: n.visible, opacity: n.opacity, fill: n.fill, blend: n.blend, locks: n.locks, clipped: n.clipped, pass_through, expanded, mask, adjustment: n.adjustment_settings().cloned(), text: n.text_data().cloned(), shape: n.shape_data().cloned(), style: n.style.clone() };
             nodes.push((n.id, parent, i, kind, serde_json::to_string(&props).unwrap()));
             if let Some(c) = n.children() {
                 walk(c, Some(n.id), rows, mask_rows, nodes);
@@ -312,6 +321,10 @@ pub fn load(path: &Path) -> Result<Loaded, PersistError> {
                     let data = p.text.clone().ok_or_else(|| PersistError::Damaged("text layer without text".into()))?;
                     NodeKind::Text { data, tiles: Arc::new(tiles.remove(id).unwrap_or_default()) }
                 }
+                "shape" => {
+                    let data = p.shape.clone().ok_or_else(|| PersistError::Damaged("shape layer without a shape".into()))?;
+                    NodeKind::Shape { data, tiles: Arc::new(tiles.remove(id).unwrap_or_default()) }
+                }
                 "adjustment" => {
                     let adj = p.adjustment.clone().ok_or_else(|| PersistError::Damaged("adjustment layer without settings".into()))?;
                     NodeKind::Adjustment { op: Arc::new(mosamem_core::adjust::compile(&adj)), adj }
@@ -392,7 +405,14 @@ mod tests {
             ..Default::default()
         });
         text.kind = NodeKind::Text { tiles: Arc::new(crate::doc::text::render(&data, 700, 500)), data };
-        Content::new(700, 500, 300.0, active, vec![a, g, adj, text])
+        use mosamem_core::vector::{Fill, Shape, ShapePaint, Stroke};
+        let star = crate::doc::shape::ShapeData {
+            shape: Shape::Star { cx: 400.0, cy: 300.0, r: 80.0, inner: 0.45, points: 5, angle: 10.0 },
+            paint: ShapePaint { fill: Some(Fill::Solid { color: [250, 200, 20, 255] }), stroke: Some(Stroke { color: [40, 20, 0, 255], width: 3.0, align: mosamem_core::vector::Align::Outside, cap: Default::default(), join: mosamem_core::vector::Join::Round, dash: vec![2.0, 1.0] }) },
+        };
+        let mut shape = Node::pixel("نجمة", Default::default());
+        shape.kind = NodeKind::Shape { tiles: Arc::new(crate::doc::shape::render(&star, 700, 500)), data: star };
+        Content::new(700, 500, 300.0, active, vec![a, g, adj, text, shape])
     }
 
     fn same_tree(a: &[Node], b: &[Node]) {
@@ -419,6 +439,13 @@ mod tests {
                 (NodeKind::Text { data: d1, tiles: t1 }, NodeKind::Text { data: d2, tiles: t2 }) => {
                     assert_eq!(d1, d2);
                     assert_eq!(t1.len(), t2.len());
+                }
+                (NodeKind::Shape { data: d1, tiles: t1 }, NodeKind::Shape { data: d2, tiles: t2 }) => {
+                    assert_eq!(d1, d2);
+                    assert_eq!(t1.len(), t2.len());
+                    for (k, v) in t1.iter() {
+                        assert_eq!(v.0, t2[k].0);
+                    }
                 }
                 (NodeKind::Adjustment { adj: a1, op: o1 }, NodeKind::Adjustment { adj: a2, op: o2 }) => {
                     assert_eq!(a1, a2);
