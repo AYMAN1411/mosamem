@@ -1,6 +1,6 @@
 //! Autosave and crash recovery.
 //!
-//! Every open document with unsaved changes is written to `<app data>/recovery/<session>-<doc>.lawha`
+//! Every open document with unsaved changes is written to `<app data>/recovery/<session>-<doc>.mosamem`
 //! about 2 s after the user pauses, and at least every 20 s while they keep working. Writes are
 //! incremental (only new tiles) and transactional (SQLite), on a background thread that never blocks
 //! editing. A lock file marks the running session; if the app finds a lock from a session whose
@@ -142,7 +142,7 @@ impl Recovery {
     }
 
     fn file_for(&self, doc: DocId) -> PathBuf {
-        self.dir.join(format!("{}-{doc}.lawha", self.session))
+        self.dir.join(format!("{}-{doc}.mosamem", self.session))
     }
 
     /// One autosave pass: writes every document whose changes have settled.
@@ -205,7 +205,7 @@ impl Recovery {
         for e in entries.flatten() {
             let p = e.path();
             let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-            if p.extension().and_then(|x| x.to_str()) != Some("lawha") || !crashed.iter().any(|s| stem.starts_with(&format!("{s}-"))) {
+            if p.extension().and_then(|x| x.to_str()) != Some("mosamem") || !crashed.iter().any(|s| stem.starts_with(&format!("{s}-"))) {
                 continue;
             }
             let Ok(meta) = persist::read_meta(&p) else { continue };

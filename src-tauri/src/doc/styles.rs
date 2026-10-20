@@ -11,10 +11,10 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock, Weak};
 
-use lawha_core::blend::{composite_px, dissolve_threshold};
-use lawha_core::style::{self, LayerStyle, Mattes};
-use lawha_core::tile::{Accum, TILE};
-use lawha_core::BlendMode;
+use mosamem_core::blend::{composite_px, dissolve_threshold};
+use mosamem_core::style::{self, LayerStyle, Mattes};
+use mosamem_core::tile::{Accum, TILE};
+use mosamem_core::BlendMode;
 
 use super::composite::{clip_onto, layer_tile, mask_factor, MaskFactor, Sub};
 use super::filters::read_rect;
@@ -27,7 +27,7 @@ struct Cached {
     /// keep those addresses from being reused by other data while the entry exists, and tell when
     /// the data itself is gone.
     pixels: Weak<TileMap>,
-    mask: Option<Weak<lawha_core::mask::MaskMap>>,
+    mask: Option<Weak<mosamem_core::mask::MaskMap>>,
     mattes: Mattes,
     /// The layer's shape (alpha through its mask) at the tile.
     shape: Vec<f32>,
@@ -200,7 +200,7 @@ mod tests {
     use super::*;
     use crate::doc::composite::composite_lod0;
     use crate::doc::{filled_tiles, raster, Content};
-    use lawha_core::style::{ColorOverlay, Shadow, Stroke, StrokePosition};
+    use mosamem_core::style::{ColorOverlay, Shadow, Stroke, StrokePosition};
 
     /// White background, and a 100×100 blue square at (100, 100) on its own layer.
     fn doc() -> (Document, u64) {

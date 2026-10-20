@@ -1,4 +1,4 @@
-# Lawha: clean-room research
+# Mosamem: clean-room research
 
 This file records, for every v1 feature, **how it should behave** and **where we learned it**.
 Rules followed while writing it:
@@ -197,7 +197,7 @@ Source: https://helpx.adobe.com/photoshop/desktop/create-masks/layer-masks/creat
   - else: `2a(1−b) + √a(2b−1)`
 - **Where they differ.** Working the algebra out, the dark half is identical. In the light half they
   differ only where the backdrop a ≤ ¼: W3C uses the cubic, Photoshop uses √a.
-- **Our choice.** Use the Photoshop variant for layers (PSD `sLit` fidelity). W3C is kept in lawha-core
+- **Our choice.** Use the Photoshop variant for layers (PSD `sLit` fidelity). W3C is kept in mosamem-core
   for tests and SVG/CSS export.
 - **Test.** A fixture with a ≤ ¼ shows which variant matches.
 
@@ -244,8 +244,8 @@ are reconstructions ✱. Notation: B = backdrop, A = layer, clamped to [0,1].
 
 **Tests**
 - Per mode: a 256×256 grid of (a,b) pairs, each at α ∈ {0, 0.25, 0.5, 1}.
-- lawha-core output is checked against the formulas above, written independently in the test.
-- The GPU shader is checked against lawha-core with ±1/255 tolerance.
+- mosamem-core output is checked against the formulas above, written independently in the test.
+- The GPU shader is checked against mosamem-core with ±1/255 tolerance.
 
 ---
 
@@ -661,7 +661,7 @@ commercial-safe weights are used.
   - BiRefNet: 2.4–4 s, vs 5.5 s on CPU at fp16.
   BiRefNet first needs its 10–32-way Split and Concat nodes split up, to stay under Metal's 10
   storage buffers per shader (src-tauri/src/ai/onnx_wide.rs). ONNX Runtime's automatic device
-  policy registers Core ML on macOS by default, so Lawha turns it off.
+  policy registers Core ML on macOS by default, so Mosamem turns it off.
 
 **Pipeline**
 1. Downscale to the model input size, run inference, upsample the mask.
@@ -760,7 +760,7 @@ Tagged blocks we need:
 - We wrap it behind `PsdCodec`, so a fix or replacement doesn't touch the app.
 
 **Text mapping**
-- PSD text with EngineData becomes an editable Lawha text layer when we support every style used.
+- PSD text with EngineData becomes an editable Mosamem text layer when we support every style used.
   Otherwise it opens as an editable layer with a "may differ" badge, and the original pixels are kept
   until the user edits it.
 - On save we write both TySh and the rendered pixels.
@@ -771,9 +771,9 @@ Tagged blocks we need:
   - PSDs you make in your own Photoshop. Using it as a normal user to create test files is not
     reverse engineering, but it is your call.
 - **Steps for each file**
-  1. Render it with Lawha and compare against the merged composite Photoshop stored in the file.
+  1. Render it with Mosamem and compare against the merged composite Photoshop stored in the file.
      Report max and mean ΔE and the % of pixels within 1/255.
-  2. Save with Lawha and re-open in Lawha. The structure must match: layers, names, modes, opacity,
+  2. Save with Mosamem and re-open in Mosamem. The structure must match: layers, names, modes, opacity,
      masks, styles.
   3. Re-open the saved file with psd-tools as an independent oracle. Its structure must match too.
 - **Output.** Results go to `docs/psd-report.md`, one row per file, with the features each file uses.
@@ -839,7 +839,7 @@ Tagged blocks we need:
   - Leash smoothing «تنعيم بالمقود»
 - Generic industry terms are fine: Levels, Curves, Hue/Saturation, Lasso, Magic Wand, Clone Stamp,
   Gaussian Blur, Unsharp Mask, and the blend mode names.
-- Icons, logo, colors and layout artwork are all drawn from scratch for Lawha.
+- Icons, logo, colors and layout artwork are all drawn from scratch for Mosamem.
 
 ---
 

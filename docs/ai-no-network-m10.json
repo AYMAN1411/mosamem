@@ -1,7 +1,7 @@
 {
   "engineInSandbox": {
     "passed": true,
-    "log": "/tmp/lawha-nonet-engine.log"
+    "log": "/tmp/mosamem-nonet-engine.log"
   },
   "controlDownloadBlocked": true,
   "app": {

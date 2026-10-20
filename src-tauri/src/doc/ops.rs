@@ -3,8 +3,8 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use lawha_core::tile::{Accum, Tile};
-use lawha_core::BlendMode;
+use mosamem_core::tile::{Accum, Tile};
+use mosamem_core::BlendMode;
 use serde::Deserialize;
 
 use super::composite::{composite_nodes, composite_stack};

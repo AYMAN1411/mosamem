@@ -5,11 +5,11 @@ psd-tools (MIT; fetched by `tools/fetch-psd-fixtures.sh`, not committed). Raw nu
 
 For every file:
 
-1. **Open**: ag-psd reads it in a worker, Lawha builds its layers, and the engine renders them.
+1. **Open**: ag-psd reads it in a worker, Mosamem builds its layers, and the engine renders them.
 2. **vs Photoshop**: that render is compared with the flattened image Photoshop stored in the file
    (RGB over white, so colors under full transparency don't count). The columns give the share of
    pixels within 1 and within 8 levels (of 255), and the mean and largest difference.
-3. **Own round trip**: Lawha saves the document as PSD, opens that again, and checks that the
+3. **Own round trip**: Mosamem saves the document as PSD, opens that again, and checks that the
    layer structure and the rendering are unchanged.
 
 ## Summary
@@ -30,7 +30,7 @@ For every file:
 - cmyk-gray-ramp.psd: Color mode not supported: CMYK
 - cmyk-spot.psd: Color mode not supported: CMYK
 
-CMYK and other non-RGB color modes are not read by ag-psd; Lawha says so and suggests converting to RGB.
+CMYK and other non-RGB color modes are not read by ag-psd; Mosamem says so and suggests converting to RGB.
 
 ## Differ from Photoshop
 
@@ -60,14 +60,14 @@ CMYK and other non-RGB color modes are not read by ag-psd; Lawha says so and sug
 What is known about these (see "Known gaps" below for the features):
 
 - **fill_adjustments, passthrough_fill_adjustment, clipping-mask2, layer_mask_data, layer_comps**: adjustment layers
-  (Levels, Curves, Hue/Saturation, …) are Lawha's own formulas, written from Adobe's public help
+  (Levels, Curves, Hue/Saturation, …) are Mosamem's own formulas, written from Adobe's public help
   pages; Photoshop's exact math is not public. These files are the calibration data for them.
 - **effect-stroke-gradient, stroke-*, layer_effects, pen-text**: gradient and pattern strokes, inner glow,
   bevel, satin and pattern overlay are not implemented; strokes and glows are close but not exact.
 - **artboard-bgcolor, patterns, gradient-fill, advanced-blending**: artboard backgrounds, pattern fills,
   gradient fill layers and "blend if" ranges are not implemented.
 - **clipping-mask4**, **passthrough_fill_blendmode, passthrough_clipping_mask_blendmode**: knockout and
-  pass-through groups with fill opacity behave differently from Lawha's.
+  pass-through groups with fill opacity behave differently from Mosamem's.
 
 ## Close to Photoshop
 
@@ -159,7 +159,7 @@ round trip is checked here.
 - Vector shapes and vector masks are opened as pixel layers with pixel masks (no path editing).
   Shapes saved without pixels are drawn from their paths; the edges can differ by a level or two.
 - Smart objects keep their pixels (no linked or embedded document editing).
-- Text keeps Photoshop's pixels until edited; editing reflows it with Lawha's fonts.
+- Text keeps Photoshop's pixels until edited; editing reflows it with Mosamem's fonts.
 - 16- and 32-bit files are converted to 8-bit on opening.
 - Not yet: inner glow, bevel and emboss, satin, pattern overlay, gradient/pattern strokes,
   "blend if", knockout, artboards, layer comps, CMYK.

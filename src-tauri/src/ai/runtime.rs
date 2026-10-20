@@ -16,12 +16,12 @@ pub type AiResult<T> = Result<T, String>;
 
 fn env() -> AiResult<&'static Environment> {
     static ENV: OnceLock<Result<Environment, String>> = OnceLock::new();
-    ENV.get_or_init(|| ort::init().with_name("lawha").with_telemetry(false).build().map_err(|e| e.to_string())).as_ref().map_err(|e| e.clone())
+    ENV.get_or_init(|| ort::init().with_name("mosamem").with_telemetry(false).build().map_err(|e| e.to_string())).as_ref().map_err(|e| e.clone())
 }
 
-/// `LAWHA_AI_DEVICE=cpu` forces the CPU (for comparisons and tests).
+/// `MOSAMEM_AI_DEVICE=cpu` forces the CPU (for comparisons and tests).
 fn gpu_allowed() -> bool {
-    std::env::var("LAWHA_AI_DEVICE").map_or(true, |v| v != "cpu")
+    std::env::var("MOSAMEM_AI_DEVICE").map_or(true, |v| v != "cpu")
 }
 
 fn load(path: &Path, gpu: bool) -> AiResult<Session> {
@@ -46,7 +46,7 @@ pub struct Loaded {
     pub gpu: bool,
 }
 
-/// Sessions are never destroyed while Lawha runs: tearing one down crashed once in three test
+/// Sessions are never destroyed while Mosamem runs: tearing one down crashed once in three test
 /// runs, inside ONNX Runtime's own destructor (a malloc trap in ~InferenceSession on macOS 27, after
 /// using the WebGPU provider). A replaced or unloaded session is parked here instead, and the
 /// memory goes back to the system when the app quits.

@@ -4,10 +4,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use lawha_core::adjust::{self, Adjustment, Op};
-use lawha_core::mask::Mask;
-use lawha_core::tile::{Tile, TILE};
-use lawha_core::BlendMode;
+use mosamem_core::adjust::{self, Adjustment, Op};
+use mosamem_core::mask::Mask;
+use mosamem_core::tile::{Tile, TILE};
+use mosamem_core::BlendMode;
 use serde::{Deserialize, Serialize};
 
 pub type TileKey = (i32, i32);
@@ -64,7 +64,7 @@ pub struct Node {
     pub clipped: bool,
     pub mask: Option<LayerMask>,
     /// Layer effects (shadows, glow, stroke, overlays).
-    pub style: Option<lawha_core::style::LayerStyle>,
+    pub style: Option<mosamem_core::style::LayerStyle>,
     pub kind: NodeKind,
 }
 
@@ -121,7 +121,7 @@ impl Node {
     }
 
     /// The layer's effects, when any of them draws (on pixel and text layers).
-    pub fn active_style(&self) -> Option<&lawha_core::style::LayerStyle> {
+    pub fn active_style(&self) -> Option<&mosamem_core::style::LayerStyle> {
         match self.kind {
             NodeKind::Pixel { .. } | NodeKind::Text { .. } => self.style.as_ref().filter(|s| s.active()),
             _ => None,

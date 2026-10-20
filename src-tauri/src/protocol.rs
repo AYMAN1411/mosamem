@@ -1,7 +1,7 @@
-//! `lawha://` serves tiles to the webview:
-//! `lawha://localhost/composite/<doc>/<version>/<lod>/<tx>/<ty>` → 256×256 RGBA8, or 204 if empty.
-//! `lawha://localhost/live/<session>/<below|layer|above>/<lod>/<tx>/<ty>` → live-session parts.
-//! `lawha://localhost/thumb/<doc>/<layer>/<key>/<size>` → layer thumbnail (see doc::thumbs).
+//! `mosamem://` serves tiles to the webview:
+//! `mosamem://localhost/composite/<doc>/<version>/<lod>/<tx>/<ty>` → 256×256 RGBA8, or 204 if empty.
+//! `mosamem://localhost/live/<session>/<below|layer|above>/<lod>/<tx>/<ty>` → live-session parts.
+//! `mosamem://localhost/thumb/<doc>/<layer>/<key>/<size>` → layer thumbnail (see doc::thumbs).
 
 use tauri::http::{Request, Response, StatusCode};
 use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};

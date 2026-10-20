@@ -56,7 +56,7 @@ export function defaultLayout(): Column[] {
   ];
 }
 
-const STORE = 'lawha.dock.v1';
+const STORE = 'mosamem.dock.v1';
 
 function load(): Column[] {
   try {

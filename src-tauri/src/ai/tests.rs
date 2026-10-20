@@ -1,9 +1,9 @@
 //! The models end to end, on real photos. Ignored by default (it needs the model files and
 //! photos); run with tools/ai/measure.sh, which sets:
-//! - LAWHA_MODEL_DIR: a folder with the pack files (served locally, so the real install path runs:
+//! - MOSAMEM_MODEL_DIR: a folder with the pack files (served locally, so the real install path runs:
 //!   download → SHA-256 check → GPU rewrite);
-//! - LAWHA_TEST_PHOTOS: a folder of PNGs;
-//! - LAWHA_AI_REPORT: where to write the measurements (JSON).
+//! - MOSAMEM_TEST_PHOTOS: a folder of PNGs;
+//! - MOSAMEM_AI_REPORT: where to write the measurements (JSON).
 
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -60,10 +60,10 @@ fn ms(t: Instant) -> f64 {
 #[test]
 #[ignore]
 fn models_on_photos() {
-    let (Ok(model_dir), Ok(photos)) = (std::env::var("LAWHA_MODEL_DIR"), std::env::var("LAWHA_TEST_PHOTOS")) else {
-        panic!("set LAWHA_MODEL_DIR and LAWHA_TEST_PHOTOS");
+    let (Ok(model_dir), Ok(photos)) = (std::env::var("MOSAMEM_MODEL_DIR"), std::env::var("MOSAMEM_TEST_PHOTOS")) else {
+        panic!("set MOSAMEM_MODEL_DIR and MOSAMEM_TEST_PHOTOS");
     };
-    let root = std::env::temp_dir().join(format!("lawha-ai-it-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("mosamem-ai-it-{}", std::process::id()));
     let addr = serve(PathBuf::from(model_dir));
     let mut install_ms = serde_json::Map::new();
     for p in PACKS {
@@ -136,7 +136,7 @@ fn models_on_photos() {
         let fill_ms = ms(t);
         let t = Instant::now();
         let f: Vec<[f32; 3]> = cut.chunks_exact(3).map(|p| [p[0] as f32, p[1] as f32, p[2] as f32]).collect();
-        let classic: Vec<u8> = lawha_core::inpaint::inpaint(w as usize, h as usize, &f, &hole, 1).into_iter().flat_map(|p| p.map(|v| v.round().clamp(0.0, 255.0) as u8)).collect();
+        let classic: Vec<u8> = mosamem_core::inpaint::inpaint(w as usize, h as usize, &f, &hole, 1).into_iter().flat_map(|p| p.map(|v| v.round().clamp(0.0, 255.0) as u8)).collect();
         let classic_ms = ms(t);
         // the simplest baseline: the hole's border color
         let mean: [f64; 3] = {
@@ -165,7 +165,7 @@ fn models_on_photos() {
             "flatPsnr": psnr(&rgb, &flat, &hole),
         }));
         if k < 6 {
-            if let Ok(dir) = std::env::var("LAWHA_AI_SAMPLES") {
+            if let Ok(dir) = std::env::var("MOSAMEM_AI_SAMPLES") {
                 let save_mask = |v: &[f32], suffix: &str| {
                     image::GrayImage::from_raw(w, h, v.iter().map(|p| (p * 255.0) as u8).collect()).unwrap().save(format!("{dir}/{name}-{suffix}.png")).unwrap();
                 };
@@ -183,7 +183,7 @@ fn models_on_photos() {
         .map(|(k, p)| (k.to_string(), serde_json::json!(if gpu.on_gpu(p) == Some(true) { "webgpu" } else { "cpu" })))
         .collect();
     let report = serde_json::json!({ "installMs": install_ms, "devices": devices, "photos": rows });
-    if let Ok(out) = std::env::var("LAWHA_AI_REPORT") {
+    if let Ok(out) = std::env::var("MOSAMEM_AI_REPORT") {
         std::fs::write(out, serde_json::to_string_pretty(&report).unwrap()).unwrap();
     }
     let _ = std::fs::remove_dir_all(&root);
@@ -193,7 +193,7 @@ fn models_on_photos() {
 #[test]
 #[ignore]
 fn upstream_download_is_blocked() {
-    let root = std::env::temp_dir().join(format!("lawha-ai-blocked-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("mosamem-ai-blocked-{}", std::process::id()));
     let p = models::pack("fill").unwrap();
     let r = models::download(&root, p, &AtomicBool::new(false), &|_| {});
     let _ = std::fs::remove_dir_all(&root);
@@ -204,8 +204,8 @@ fn upstream_download_is_blocked() {
 #[test]
 #[ignore]
 fn object_selection_keeps_its_edges() {
-    let dir = PathBuf::from(std::env::var("LAWHA_MODEL_DIR").expect("LAWHA_MODEL_DIR"));
-    let photo = std::env::var("LAWHA_TEST_PHOTO").expect("LAWHA_TEST_PHOTO");
+    let dir = PathBuf::from(std::env::var("MOSAMEM_MODEL_DIR").expect("MOSAMEM_MODEL_DIR"));
+    let photo = std::env::var("MOSAMEM_TEST_PHOTO").expect("MOSAMEM_TEST_PHOTO");
     let img = image::open(photo).unwrap().to_rgba8();
     let (w, h) = img.dimensions();
     let rgba = img.into_raw();

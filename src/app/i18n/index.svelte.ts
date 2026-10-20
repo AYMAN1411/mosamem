@@ -5,7 +5,7 @@ export type Locale = 'ar' | 'en';
 export type Key = keyof typeof ar;
 
 const tables: Record<Locale, Record<Key, string>> = { ar, en };
-const STORE = 'lawha.locale';
+const STORE = 'mosamem.locale';
 
 function initial(): Locale {
   try {

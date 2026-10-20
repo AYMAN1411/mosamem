@@ -1,8 +1,8 @@
 // M4 performance gate: paint latency with a 500 px brush on the 6000×4000, 30-layer document.
 // Latency = pointer event → engine paints → changed tiles fetched → frame drawn.
 const { app, engine } = __h;
-const c = window.__lawha.compositor;
-const pt = window.__lawha.paintTool;
+const c = window.__mosamem.compositor;
+const pt = window.__mosamem.paintTool;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const stats = (xs) => {
   const s = [...xs].sort((a, b) => a - b);

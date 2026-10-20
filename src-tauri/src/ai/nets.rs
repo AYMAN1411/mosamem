@@ -127,7 +127,7 @@ pub fn sam_decode(rt: &Runtime, decoder: &Path, e: &Embedding, clicks: &[Click],
         let (shape, masks) = out["pred_masks"].try_extract_tensor::<f32>().map_err(err)?;
         // pred_masks: [1, 1, candidates, side, side]; keep the candidate SAM rates best
         let (cands, side) = (shape[2] as usize, shape[4] as usize);
-        if std::env::var("LAWHA_SAM_DEBUG").is_ok() {
+        if std::env::var("MOSAMEM_SAM_DEBUG").is_ok() {
             let (lo, hi) = masks.iter().fold((f32::MAX, f32::MIN), |(a, b), v| (a.min(*v), b.max(*v)));
             eprintln!("[sam] pred_masks {:?} range {lo}..{hi}, iou {:?}", shape, &iou[..cands.min(iou.len())]);
         }

@@ -2,7 +2,7 @@
 // cpu: a transient settings change → engine recomposites → visible tiles fetched and drawn (the
 // fallback path). gpu: the live preview → settings compiled → the next frame drawn.
 const { app, actions, engine, live } = __h;
-let c = window.__lawha.compositor;
+let c = window.__mosamem.compositor;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const settle = async () => { for (let i = 0; i < 1000 && !c.settled(); i++) await sleep(5); };
 const stats = (xs) => {
@@ -17,7 +17,7 @@ if (!doc) {
 } else app.activeId = doc.info.id;
 // the canvas (and its compositor) may be new
 await sleep(500);
-c = window.__lawha.compositor;
+c = window.__mosamem.compositor;
 await actions.adjust.add('curves');
 const id = app.active.info.active;
 const out = {};

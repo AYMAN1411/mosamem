@@ -67,11 +67,11 @@ pub fn new_document(engine: State<'_, Engine>, spec: NewDocument) -> Res<DocInfo
     Ok(engine.insert(doc).doc.read().info())
 }
 
-/// Opens a `.lawha` document or a flat image.
+/// Opens a `.mosamem` document or a flat image.
 #[tauri::command]
 pub async fn open_file(engine: State<'_, Engine>, path: PathBuf, layer_name: String) -> Res<DocInfo> {
     let p = path.clone();
-    if tauri::async_runtime::spawn_blocking(move || persist::is_lawha(&p)).await.map_err(|e| e.to_string())? {
+    if tauri::async_runtime::spawn_blocking(move || persist::is_mosamem(&p)).await.map_err(|e| e.to_string())? {
         let p = path.clone();
         let loaded = tauri::async_runtime::spawn_blocking(move || persist::load(&p)).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
         let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or(loaded.name);
@@ -84,12 +84,12 @@ pub async fn open_file(engine: State<'_, Engine>, path: PathBuf, layer_name: Str
     let layer = Node::pixel(layer_name, tiles_from_rgba(decoded.width, decoded.height, &decoded.rgba));
     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     let content = Content::new(decoded.width, decoded.height, decoded.ppi.unwrap_or(72.0), layer.id, vec![layer]);
-    // an imported image has no Lawha file yet: it stays "unsaved" until saved as .lawha
+    // an imported image has no Mosamem file yet: it stays "unsaved" until saved as .mosamem
     let doc = Document::new(name, Some(path), content, Label::new("history.open"));
     Ok(engine.insert(doc).doc.read().info())
 }
 
-/// Saves as `.lawha`. Saving over the document's own file updates it in place, transactionally;
+/// Saves as `.mosamem`. Saving over the document's own file updates it in place, transactionally;
 /// any other target is written to a temporary file first and then moved into place.
 #[tauri::command]
 pub async fn save_document(engine: State<'_, Engine>, recovery: State<'_, Arc<Recovery>>, doc: u64, path: PathBuf) -> Res<DocInfo> {
@@ -103,10 +103,10 @@ pub async fn save_document(engine: State<'_, Engine>, recovery: State<'_, Arc<Re
     let hashes = recovery.inner().clone();
     let nm = name.clone();
     tauri::async_runtime::spawn_blocking(move || -> Res<()> {
-        if persist::is_lawha(&target) {
+        if persist::is_mosamem(&target) {
             persist::save(&target, &content, &nm, &vec![], hashes.hashes()).map_err(|e| e.to_string())
         } else {
-            let tmp = target.with_extension("lawha-saving");
+            let tmp = target.with_extension("mosamem-saving");
             let _ = std::fs::remove_file(&tmp);
             persist::save(&tmp, &content, &nm, &vec![], hashes.hashes()).map_err(|e| e.to_string())?;
             std::fs::rename(&tmp, &target).map_err(|e| e.to_string())
@@ -137,8 +137,8 @@ pub async fn recovery_open(engine: State<'_, Engine>, recovery: State<'_, Arc<Re
     let f = file.clone();
     let loaded = tauri::async_runtime::spawn_blocking(move || persist::load(&f)).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
     let original = loaded.meta.get("originalPath").filter(|s| !s.is_empty()).map(PathBuf::from);
-    // only a real .lawha original can be saved over directly; an image original must be saved anew
-    let path = original.filter(|p| p.extension().is_some_and(|e| e == "lawha"));
+    // only a real .mosamem original can be saved over directly; an image original must be saved anew
+    let path = original.filter(|p| p.extension().is_some_and(|e| e == "mosamem"));
     let doc = Document::new(loaded.name, path, loaded.content, Label::new("history.recovered"));
     let info = engine.insert(doc).doc.read().info();
     recovery.discard(&file);
@@ -256,7 +256,7 @@ pub fn set_active(engine: State<'_, Engine>, doc: u64, id: u64) -> Res<DocInfo> 
 // ---- selections ----
 
 use crate::doc::selection::{self, MaskProps, Modify, NewMask, RefineOutput, Shape};
-use lawha_core::select::{Combine, Refine};
+use mosamem_core::select::{Combine, Refine};
 
 #[tauri::command]
 pub async fn select_shape(engine: State<'_, Engine>, doc: u64, shape: Shape, mode: Combine, feather: f32) -> Res<DocInfo> {
@@ -348,7 +348,7 @@ pub fn select_hit(engine: State<'_, Engine>, doc: u64, x: f64, y: f64) -> Res<bo
         return Ok(false);
     }
     let (xi, yi) = (x as i32, y as i32);
-    let t = lawha_core::tile::TILE as i32;
+    let t = mosamem_core::tile::TILE as i32;
     Ok(m.tile((xi / t, yi / t)).map_or(m.outside, |tile| tile.get((xi % t) as usize, (yi % t) as usize)) >= 128)
 }
 
@@ -568,8 +568,8 @@ pub fn debug_doc_hash(engine: State<'_, Engine>, doc: u64) -> Res<String> {
 /// Debug builds only: inputs and CPU result for the GPU-vs-CPU blend test (3 × 256×256 RGBA8).
 #[cfg(any(debug_assertions, feature = "harness"))]
 #[tauri::command]
-pub fn debug_blend_reference(mode: lawha_core::BlendMode, opacity: f32) -> tauri::ipc::Response {
-    use lawha_core::tile::{Accum, Tile};
+pub fn debug_blend_reference(mode: mosamem_core::BlendMode, opacity: f32) -> tauri::ipc::Response {
+    use mosamem_core::tile::{Accum, Tile};
     let mut back = Tile::transparent();
     let mut src = Tile::transparent();
     for (i, (b, s)) in back.0.chunks_exact_mut(4).zip(src.0.chunks_exact_mut(4)).enumerate() {
@@ -622,7 +622,7 @@ pub fn debug_test_document(engine: State<'_, Engine>, width: u32, height: u32, l
 // ---- adjustments ----
 
 use crate::doc::adjustments::{self, Histogram};
-use lawha_core::adjust::Adjustment;
+use mosamem_core::adjust::Adjustment;
 
 #[tauri::command]
 pub fn adjustment_new(engine: State<'_, Engine>, doc: u64, name: String, settings: Adjustment) -> Res<DocInfo> {
@@ -651,7 +651,7 @@ pub async fn histogram(engine: State<'_, Engine>, doc: u64, below: Option<u64>) 
 /// same math as the engine on exactly these numbers.
 #[tauri::command]
 pub fn adjustment_compile(settings: Adjustment) -> tauri::ipc::Response {
-    let op = lawha_core::adjust::compile(&settings);
+    let op = mosamem_core::adjust::compile(&settings);
     let mut bytes = Vec::with_capacity(8 + 32 * 4 + op.table.len() * 16);
     bytes.extend_from_slice(&(op.kind as u32).to_le_bytes());
     bytes.extend_from_slice(&(op.table.len() as u32).to_le_bytes());
@@ -665,9 +665,9 @@ pub fn adjustment_compile(settings: Adjustment) -> tauri::ipc::Response {
 /// adjustment test. Coverage is white with the mask in alpha.
 #[cfg(any(debug_assertions, feature = "harness"))]
 #[tauri::command]
-pub fn debug_adjust_reference(settings: Adjustment, mode: lawha_core::BlendMode, opacity: f32) -> tauri::ipc::Response {
-    use lawha_core::tile::{Accum, Tile};
-    let op = lawha_core::adjust::compile(&settings);
+pub fn debug_adjust_reference(settings: Adjustment, mode: mosamem_core::BlendMode, opacity: f32) -> tauri::ipc::Response {
+    use mosamem_core::tile::{Accum, Tile};
+    let op = mosamem_core::adjust::compile(&settings);
     let mut back = Tile::transparent();
     let mut cover = Tile::transparent();
     for (i, (b, c)) in back.0.chunks_exact_mut(4).zip(cover.0.chunks_exact_mut(4)).enumerate() {
@@ -678,7 +678,7 @@ pub fn debug_adjust_reference(settings: Adjustment, mode: lawha_core::BlendMode,
     }
     let mask: Vec<f32> = cover.0.chunks_exact(4).map(|p| p[3] as f32 / 255.0).collect();
     let mut acc = Accum::from_tile(&back, 1.0);
-    lawha_core::adjust::apply_to_accum(&mut acc, &op, mode, opacity, Some(&mask), (0, 0));
+    mosamem_core::adjust::apply_to_accum(&mut acc, &op, mode, opacity, Some(&mask), (0, 0));
     let mut out = Tile::transparent();
     acc.to_tile(&mut out);
     let mut bytes = Vec::with_capacity(3 * back.0.len());
@@ -691,7 +691,7 @@ pub fn debug_adjust_reference(settings: Adjustment, mode: lawha_core::BlendMode,
 // ---- filters ----
 
 use crate::doc::filters::{self, FilterTarget};
-use lawha_core::filter::Filter;
+use mosamem_core::filter::Filter;
 
 /// Previews a filter on a live session's layer (or stops previewing with `None`). Returns false
 /// when the layer can't be previewed (only pixels are previewed live).
@@ -729,7 +729,7 @@ pub async fn filter_apply(engine: State<'_, Engine>, doc: u64, id: u64, filter: 
 // ---- transform and resize ----
 
 use crate::doc::transform::{self, Bounds, Turn};
-use lawha_core::resample::Method;
+use mosamem_core::resample::Method;
 
 async fn edit_async(engine: &Engine, doc: u64, f: impl FnOnce(&mut Document) -> Res<()> + Send + 'static) -> Res<DocInfo> {
     let h = handle(engine, doc)?;
@@ -804,14 +804,14 @@ pub fn layer_rasterize(engine: State<'_, Engine>, doc: u64, id: u64) -> Res<DocI
 
 /// Ascent and descent (px) of a style's font, so the on-canvas editor can sit on the baseline.
 #[tauri::command]
-pub fn text_metrics(style: lawha_core::text::TextStyle) -> (f32, f32) {
-    lawha_core::text::render::vertical_metrics(&style.face(), style.size)
+pub fn text_metrics(style: mosamem_core::text::TextStyle) -> (f32, f32) {
+    mosamem_core::text::render::vertical_metrics(&style.face(), style.size)
 }
 
 // ---- layer styles ----
 
 #[tauri::command]
-pub fn layer_style_set(engine: State<'_, Engine>, doc: u64, id: u64, style: Option<lawha_core::style::LayerStyle>, transient: bool) -> Res<DocInfo> {
+pub fn layer_style_set(engine: State<'_, Engine>, doc: u64, id: u64, style: Option<mosamem_core::style::LayerStyle>, transient: bool) -> Res<DocInfo> {
     edit(&engine, doc, |d| crate::doc::styles::set_style(d, id, style, transient))
 }
 

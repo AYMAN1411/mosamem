@@ -1,4 +1,4 @@
-// Text settings, mirroring lawha_core::text::TextStyle and the engine's TextData.
+// Text settings, mirroring mosamem_core::text::TextStyle and the engine's TextData.
 
 export type Family = 'ibmPlexSansArabic' | 'cairo' | 'tajawal' | 'amiri';
 export type Align = 'start' | 'center' | 'end' | 'justify';

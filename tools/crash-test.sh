@@ -5,19 +5,19 @@ cd "${0:A:h}/.."
 source ~/.cargo/env
 H() { node tools/harness.mjs "$@"; }
 launch() {
-  : > /tmp/lawha-crash.log
-  (LAWHA_HARNESS=1 ./target/debug/lawha >> /tmp/lawha-crash.log 2>&1 &)
-  for i in {1..60}; do grep -q "harness\] listening" /tmp/lawha-crash.log && break; sleep 1; done
+  : > /tmp/mosamem-crash.log
+  (MOSAMEM_HARNESS=1 ./target/debug/mosamem >> /tmp/mosamem-crash.log 2>&1 &)
+  for i in {1..60}; do grep -q "harness\] listening" /tmp/mosamem-crash.log && break; sleep 1; done
   for i in {1..60}; do H 'return !!window.__h' >/dev/null 2>&1 && break; sleep 1; done
 }
-pkill -f "target/debug/lawha" || true
+pkill -f "target/debug/mosamem" || true
 sleep 2
 # the debug binary loads its UI from the Vite dev server
 if ! curl -s -o /dev/null --max-time 2 http://localhost:1420/; then
-  (npx vite --port 1420 > /tmp/lawha-vite.log 2>&1 &)
+  (npx vite --port 1420 > /tmp/mosamem-vite.log 2>&1 &)
   for i in {1..30}; do curl -s -o /dev/null http://localhost:1420/ && break; sleep 1; done
 fi
-cargo build -q -p lawha
+cargo build -q -p mosamem
 sleep 1
 launch
 H '
@@ -31,8 +31,8 @@ return "edited"'
 BEFORE=$(H 'return await __h.engine.debugDocHash(__h.app.active.info.id)')
 echo "before: $BEFORE"
 sleep 4   # autosave fires ~2 s after the last change
-ls -la ~/Library/Application\ Support/app.lawha.editor/recovery/ | grep -c lawha | xargs echo "recovery files:"
-PID=$(pgrep -f "target/debug/lawha" | head -1)
+ls -la ~/Library/Application\ Support/app.mosamem.editor/recovery/ | grep -c mosamem | xargs echo "recovery files:"
+PID=$(pgrep -f "target/debug/mosamem" | head -1)
 kill -9 $PID
 echo "killed $PID"
 sleep 1

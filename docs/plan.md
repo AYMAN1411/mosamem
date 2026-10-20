@@ -1,4 +1,4 @@
-# Lawha (لوحة): plan for version 1
+# Mosamem (مصمم): plan for version 1
 
 Status: draft for review. No code is written until this plan is approved.
 
@@ -27,16 +27,16 @@ Status: draft for review. No code is written until this plan is approved.
 │ Display compositor (WebGL2)                                                                    │
 │   GPU tile atlas + per-mip page tables · coarse-level fallback while tiles load               │
 │   live layers for interaction: below-cache · active layer · above-cache, with blend shaders   │
-└──────────── tiles over the lawha:// scheme (~1 GB/s) · commands over raw-bytes IPC ───────────┘
+└──────────── tiles over the mosamem:// scheme (~1 GB/s) · commands over raw-bytes IPC ───────────┘
 ┌──────────────────────────────── Rust engine (Tauri backend) ──────────────────────────────────┐
 │ Documents: layers, groups, masks, adjustments, styles, text · sparse 256² tiles, Arc + CoW     │
 │ Compositing on the CPU (rayon), cached per tile and per mip level                              │
 │ Painting, selections, filters, transforms, text layout · history (tile before-images)         │
 │ Codecs: PNG, JPEG, WebP, TIFF; HEIC through macOS ImageIO; ICC → sRGB (moxcms)                 │
-│ .lawha format + autosave journal (SQLite) · crash detection                                    │
+│ .mosamem format + autosave journal (SQLite) · crash detection                                    │
 │ Local AI: ONNX Runtime (WebGPU provider, CPU fallback; Core ML measured and dropped in M10)    │
 └───────────────────────────────────────────────────────────────────────────────────────────────┘
-lawha-core (Rust crate) = the pixel math in one place: used by the engine and by the tests, and the
+mosamem-core (Rust crate) = the pixel math in one place: used by the engine and by the tests, and the
 reference the GPU shaders are checked against.
 ```
 
@@ -61,8 +61,8 @@ Key decisions, with reasons:
 | WebGL2 first, WebGPU later behind the same renderer interface | WebGL2 is solid in both WKWebView and WebView2 today. WebGPU depends on the OS version, so it becomes an optional faster path after v1. |
 | 8-bit RGBA tiles, compositing in half-float | Same default as mainstream editors. It avoids banding when many adjustments stack. 16-bit documents come after v1. |
 | PSD via **ag-psd** (MIT, TypeScript) behind our own `PsdCodec` interface | The most complete open read/write library: layers, groups, masks, blend modes, adjustments, text and effects. It runs in a worker and hands layer pixels to the engine, and it can be replaced behind our interface. |
-| Text: harfrust (the HarfBuzz project's official Rust port) + skrifa + unicode-bidi + ICU4X line breaking in lawha-core; glyph outlines rasterized by us. Parley is evaluated in M0 as a ready-made layout layer. | Identical shaping and layout on Mac and Windows, so the same file looks the same everywhere and the layout can be tested headless. It also supports kashida justification. (rustybuzz and ttf-parser were archived and flagged unmaintained by RustSec in 2026.) |
-| Native project format `.lawha` = SQLite | Transactional, incremental saves of dirty tiles only, survives crashes. The autosave journal is the same format. PSD stays the interchange format. |
+| Text: harfrust (the HarfBuzz project's official Rust port) + skrifa + unicode-bidi + ICU4X line breaking in mosamem-core; glyph outlines rasterized by us. Parley is evaluated in M0 as a ready-made layout layer. | Identical shaping and layout on Mac and Windows, so the same file looks the same everywhere and the layout can be tested headless. It also supports kashida justification. (rustybuzz and ttf-parser were archived and flagged unmaintained by RustSec in 2026.) |
+| Native project format `.mosamem` = SQLite | Transactional, incremental saves of dirty tiles only, survives crashes. The autosave journal is the same format. PSD stays the interchange format. |
 | Local AI through ONNX Runtime (`ort`) on the native side, with license-checked models: BiRefNet-lite (MIT, about 115 MB fp16) for background removal and subject selection, SAM 2.1 tiny (Apache-2.0, about 70 MB) for click-to-select, MI-GAN (MIT code and weights, 28 MB) for Smart Fill | Uses the GPU through ONNX Runtime's WebGPU provider (M10 measured Core ML as failing or slower for these models), with the CPU as fallback. No cloud and no account. Models with non-commercial terms (BRIA RMBG, EdgeSAM) or unclear weight licenses (ISNet, LaMa's training data) are excluded. |
 | Classic algorithms where a public paper already solves the problem | Healing = Poisson blending (Pérez 2003 / Georgiev 2004). Smart Fill = PatchMatch (Barnes 2009), plus an optional LaMa model. |
 | Svelte 5 UI with our own docking system | Small and fast. None of the docking libraries supports RTL (dockview, golden-layout and FlexLayout all have open or closed-as-won't-fix RTL issues), so we build a small one: panels mirror, the canvas never does. |
@@ -92,7 +92,7 @@ report to you.
 |---|---|---|
 | **0** | Research and spikes | `docs/research.md` lists a public source for every feature. Toolchain installed (Rust, wasm target, Tauri CLI). Spike numbers recorded for: 6000×4000×30-layer compositing fps, webview memory ceiling, tile transfer throughput on Mac (Windows measured later in the VM), pen pressure (WKWebView reports Wacom pens as a mouse, so we test a native NSEvent pressure bridge), cross-origin isolation for wasm threads, ag-psd on a large PSD. Architecture go/no-go decided and written down. |
 | **1** | App shell and canvas | Tauri app opens on Mac (core code stays cross-platform; Windows builds come later, see M11). Dark theme, ar/en switch with full RTL/LTR mirroring, tools bar, options bar, dockable/collapsible/rearrangeable panels, rulers, guides, grid. Tile store and WebGL2 compositor with pan/zoom/rotate view. New document presets (Instagram post/story, YouTube thumbnail, A4 at 300 dpi, custom). Open/save PNG, JPEG, WebP, TIFF, and HEIC on Mac. **Perf gate:** pan/zoom ≥ 60 fps (p95 frame < 16.7 ms) on 6000×4000×30 layers on the M4 Pro. |
-| **2** | Layers, blend modes, history, autosave | Unlimited layers, groups (incl. Pass Through), opacity, fill, lock, hide, drag reorder, merge, duplicate. All requested blend modes plus the rest of the PSD set (Linear Burn/Dodge, Vivid/Linear/Pin Light, Hard Mix, Darker/Lighter Color, Subtract, Divide). Tests compare every mode to the published formula on CPU and on GPU. History panel with a memory-budgeted undo stack. `.lawha` save and open. Autosave plus crash recovery, tested by `kill -9` mid-edit and checking that nothing is lost after the last autosave. |
+| **2** | Layers, blend modes, history, autosave | Unlimited layers, groups (incl. Pass Through), opacity, fill, lock, hide, drag reorder, merge, duplicate. All requested blend modes plus the rest of the PSD set (Linear Burn/Dodge, Vivid/Linear/Pin Light, Hard Mix, Darker/Lighter Color, Subtract, Divide). Tests compare every mode to the published formula on CPU and on GPU. History panel with a memory-budgeted undo stack. `.mosamem` save and open. Autosave plus crash recovery, tested by `kill -9` mid-edit and checking that nothing is lost after the last autosave. |
 | **3** | Selections and masks | Rectangle, ellipse (fixed ratio/size), lasso, polygonal lasso, magic wand, quick selection (classic), select all/inverse/deselect, feather, expand, contract, refine edge (guided-filter edge refinement), marching ants. Layer masks (paint, feather, density, invert, disable) and clipping masks. Tests check selection masks against known shapes. |
 | **4** | Painting | Brush engine: size, hardness, opacity versus flow (stroke buffer model), spacing, smoothing, pen pressure (Mac and Windows). Eraser, clone stamp (aligned or not), healing brush and spot healing, gradient (linear, radial, angle, reflected, diamond), paint bucket, eyedropper (sample sizes). Brushes and Color panels. **Perf gate:** paint latency p95 < 16 ms with a 500 px brush on the 6000×4000×30 test document. |
 | **5** | Adjustments and filters | Adjustment layers with a Properties panel: Levels, Curves (live histogram), Hue/Saturation, Brightness/Contrast, Exposure, Vibrance, Color Balance, Black & White, Gradient Map, Invert, Threshold. Filters with live preview: Gaussian blur, motion blur, unsharp mask, noise, pixelate. Tests: known-input to known-output vectors for each, plus GPU-vs-CPU agreement. |
@@ -106,8 +106,8 @@ report to you.
 ## 4. How it is tested
 
 - **Rust (`cargo test`)**: blend and adjustment formulas, resampling, selections, flood fill,
-  brush dab math, text shaping goldens, PSD structure, `.lawha` and autosave journal.
-- **GPU vs CPU**: every shader is rendered in a headless WebGL2 context and compared with lawha-core
+  brush dab math, text shaping goldens, PSD structure, `.mosamem` and autosave journal.
+- **GPU vs CPU**: every shader is rendered in a headless WebGL2 context and compared with mosamem-core
   output (±1/255).
 - **TypeScript (Vitest)**: document model, history, layer operations, i18n completeness (no missing
   Arabic strings).

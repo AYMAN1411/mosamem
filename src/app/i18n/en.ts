@@ -1,13 +1,13 @@
 import type { ar } from './ar';
 
 export const en: Record<keyof typeof ar, string> = {
-  'app.name': 'Lawha',
+  'app.name': 'Mosamem',
   'lang.other': 'العربية',
   'lang.switch': 'Switch to Arabic',
 
-  'menu.app.about': 'About Lawha',
-  'menu.app.quit': 'Quit Lawha',
-  'menu.app.hide': 'Hide Lawha',
+  'menu.app.about': 'About Mosamem',
+  'menu.app.quit': 'Quit Mosamem',
+  'menu.app.hide': 'Hide Mosamem',
   'menu.file': 'File',
   'menu.edit': 'Edit',
   'menu.image': 'Image',
@@ -121,7 +121,7 @@ export const en: Record<keyof typeof ar, string> = {
   'layer.name': 'Layer {n}',
   'layer.visible': 'Show/hide',
 
-  'welcome.title': 'Welcome to Lawha',
+  'welcome.title': 'Welcome to Mosamem',
   'welcome.subtitle': 'An Arabic-first image editor, free and open source.',
   'welcome.new': 'New document',
   'welcome.open': 'Open file',
@@ -225,9 +225,9 @@ export const en: Record<keyof typeof ar, string> = {
   'save.dontSave': 'Don\'t Save',
   'save.cancel': 'Cancel',
   'save.saved': 'Saved: {name}',
-  'save.lawhaFiles': 'Lawha document',
+  'save.mosamemFiles': 'Mosamem document',
   'recovery.title': 'Recover your work',
-  'recovery.body': 'Lawha didn\'t close normally last time. These copies were saved automatically:',
+  'recovery.body': 'Mosamem didn\'t close normally last time. These copies were saved automatically:',
   'recovery.restore': 'Restore',
   'recovery.discard': 'Discard',
   'recovery.restoreAll': 'Restore All',

@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Downloads the public PSD test files of psd-tools (MIT license, © Kota Yamaguchi) for the PSD
-# round-trip report. They are test data only: not part of Lawha, and not committed.
+# round-trip report. They are test data only: not part of Mosamem, and not committed.
 set -e
 cd "${0:A:h}/.."
 dest=tests/psd-fixtures/psd-tools

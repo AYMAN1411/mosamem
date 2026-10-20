@@ -9,7 +9,7 @@ if (!doc) {
 } else app.activeId = doc.info.id;
 await sleep(400);
 app.fit();
-const c = window.__lawha.compositor;
+const c = window.__mosamem.compositor;
 for (let i = 0; i < 400 && !c.settled(); i++) await sleep(20);
 const t0 = performance.now();
 await transform.begin(true);

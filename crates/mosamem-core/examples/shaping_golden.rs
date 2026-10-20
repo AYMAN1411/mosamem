@@ -1,8 +1,8 @@
 //! Prints the engine's shaping of the test corpus as JSON, for tools/shaping-oracle.mjs to check
-//! against HarfBuzz itself: `cargo run -p lawha-core --example shaping_golden > docs/shaping-golden.json`
+//! against HarfBuzz itself: `cargo run -p mosamem-core --example shaping_golden > docs/shaping-golden.json`
 
-use lawha_core::text::fonts::{face, Family};
-use lawha_core::text::layout::shape_units;
+use mosamem_core::text::fonts::{face, Family};
+use mosamem_core::text::layout::shape_units;
 
 const CORPUS: &[(&str, bool)] = &[
     ("لا", true),
@@ -16,7 +16,7 @@ const CORPUS: &[(&str, bool)] = &[
     ("قال: (نعم)", true),
     ("ـــ تطويل ـــ", true),
     ("١٢٣٤٥٦٧٨٩٠", false),
-    ("Hello, Lawha 2026!", false),
+    ("Hello, Mosamem 2026!", false),
 ];
 
 fn main() {

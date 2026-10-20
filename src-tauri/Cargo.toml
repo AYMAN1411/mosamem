@@ -1,12 +1,12 @@
 [package]
-name = "lawha"
+name = "mosamem"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Lawha — an Arabic-first image editor"
+description = "Mosamem — an Arabic-first image editor"
 
 [lib]
-name = "lawha_lib"
+name = "mosamem_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
@@ -20,7 +20,7 @@ tauri-build = { version = "2.5", features = [] }
 tauri = { version = "2.12", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-lawha-core = { path = "../crates/lawha-core" }
+mosamem-core = { path = "../crates/mosamem-core" }
 tauri-plugin-dialog = "2.8"
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "tiff", "webp", "rayon"] }
 webp = "0.3.1"

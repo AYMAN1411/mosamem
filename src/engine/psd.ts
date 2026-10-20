@@ -1,4 +1,4 @@
-// PSD ⇄ Lawha, behind one interface (docs/plan.md: `PsdCodec`). The file format work is ag-psd's
+// PSD ⇄ Mosamem, behind one interface (docs/plan.md: `PsdCodec`). The file format work is ag-psd's
 // (MIT); this module maps its layer objects to the engine's manifest (src-tauri/src/doc/psd.rs) and
 // back. It runs in a worker, so it must not touch the DOM or Tauri.
 import { initializeCanvas, readPsd, writePsdUint8Array } from 'ag-psd';
@@ -530,7 +530,7 @@ export function readPsdFile(buffer: ArrayBuffer): ReadResult {
       if (l.placedLayer) warn('smartObject');
     }
     // Photoshop keeps the user's raster mask in `realMask` when the layer also has a vector mask;
-    // a layer mask in Lawha is one channel, so the two are multiplied into it
+    // a layer mask in Mosamem is one channel, so the two are multiplied into it
     const user = l.mask?.fromVectorData ? l.realMask : l.mask;
     // A shape layer saved with its pixels and without a drawing of its mask was already cut to
     // its shape (Photoshop composites those pixels as they are); otherwise the vector mask applies.

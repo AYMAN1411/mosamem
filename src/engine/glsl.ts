@@ -1,4 +1,4 @@
-// GLSL port of lawha-core's blend math (crates/lawha-core/src/blend.rs). Mode indices follow
+// GLSL port of mosamem-core's blend math (crates/mosamem-core/src/blend.rs). Mode indices follow
 // BlendMode::ALL. Kept line-for-line close to the Rust so the GPU-vs-CPU test can hold ±1/255.
 export const BLEND_GLSL = `
 float clamp01(float x) { return clamp(x, 0.0, 1.0); }
@@ -78,7 +78,7 @@ vec3 blendRGB(int m, vec3 cb, vec3 cs) {
   if (m == 11) return lum(cs) > lum(cb) ? cs : cb;
   return vec3(blend1(m, cb.r, cs.r), blend1(m, cb.g, cs.g), blend1(m, cb.b, cs.b));
 }
-// same 32-bit hash as lawha_core::blend::dissolve_threshold
+// same 32-bit hash as mosamem_core::blend::dissolve_threshold
 float dissolveThreshold(ivec2 p) {
   uint h = uint(p.x) * 0x8da6b343u ^ uint(p.y) * 0xd8163841u;
   h ^= h >> 13u;
@@ -98,11 +98,11 @@ vec4 compositePx(int m, vec4 dst, vec3 cs, float a) {
 `;
 
 /**
- * Adjustments, as in lawha-core/src/adjust.rs (`Op::apply` and `apply_to_accum`), on the numbers
+ * Adjustments, as in mosamem-core/src/adjust.rs (`Op::apply` and `apply_to_accum`), on the numbers
  * the engine compiles (`adjustment_compile`). Needs BLEND_GLSL before it.
  */
 export const ADJUST_GLSL = `
-uniform int uAdjKind; // 0 = none, else lawha_core::adjust::OpKind
+uniform int uAdjKind; // 0 = none, else mosamem_core::adjust::OpKind
 uniform vec4 uAdjP[8];
 uniform highp sampler2D uAdjTable;
 uniform int uAdjN;

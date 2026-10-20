@@ -6,7 +6,7 @@
   import { t } from '../i18n/index.svelte';
   import { ai, aiActions, formatBytes } from '../ai.svelte';
 
-  const KEY = 'lawha.smartFill';
+  const KEY = 'mosamem.smartFill';
   let saved: { method?: 'ai' | 'classic'; newLayer?: boolean } = {};
   try {
     saved = JSON.parse(localStorage.getItem(KEY) ?? '{}');

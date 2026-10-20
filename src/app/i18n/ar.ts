@@ -1,12 +1,12 @@
 // Arabic is the source language: every key starts here. English mirrors these keys exactly.
 export const ar = {
-  'app.name': 'لوحة',
+  'app.name': 'مصمم',
   'lang.other': 'English',
   'lang.switch': 'التبديل إلى الإنجليزية',
 
-  'menu.app.about': 'عن لوحة',
-  'menu.app.quit': 'إنهاء لوحة',
-  'menu.app.hide': 'إخفاء لوحة',
+  'menu.app.about': 'عن مصمم',
+  'menu.app.quit': 'إنهاء مصمم',
+  'menu.app.hide': 'إخفاء مصمم',
   'menu.file': 'ملف',
   'menu.edit': 'تحرير',
   'menu.image': 'صورة',
@@ -120,7 +120,7 @@ export const ar = {
   'layer.name': 'طبقة {n}',
   'layer.visible': 'إظهار/إخفاء',
 
-  'welcome.title': 'أهلًا بك في لوحة',
+  'welcome.title': 'أهلًا بك في مصمم',
   'welcome.subtitle': 'محرر صور عربي أولًا، مجاني ومفتوح المصدر.',
   'welcome.new': 'مستند جديد',
   'welcome.open': 'فتح ملف',
@@ -224,7 +224,7 @@ export const ar = {
   'save.dontSave': 'عدم الحفظ',
   'save.cancel': 'إلغاء',
   'save.saved': 'تم الحفظ: {name}',
-  'save.lawhaFiles': 'مستند لوحة',
+  'save.mosamemFiles': 'مستند مصمم',
   'recovery.title': 'استعادة العمل',
   'recovery.body': 'لم يُغلق التطبيق بشكل طبيعي في المرة الماضية. هذه نسخ حُفظت تلقائيًا:',
   'recovery.restore': 'استعادة',

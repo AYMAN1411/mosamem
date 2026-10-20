@@ -1,4 +1,4 @@
-// Blend modes, in the same order as lawha-core's BlendMode::ALL (the GPU uses this index).
+// Blend modes, in the same order as mosamem-core's BlendMode::ALL (the GPU uses this index).
 export const BLEND_MODES = [
   'normal', 'dissolve',
   'darken', 'multiply', 'colorBurn', 'linearBurn', 'darkerColor',

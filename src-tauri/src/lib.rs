@@ -14,7 +14,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(doc::Engine::default())
-        .register_asynchronous_uri_scheme_protocol("lawha", protocol::handle)
+        .register_asynchronous_uri_scheme_protocol("mosamem", protocol::handle)
         .setup(|app| {
             use tauri::Manager;
             let data = app.path().app_data_dir()?;
@@ -121,7 +121,7 @@ pub fn run() {
             harness::harness_reply,
         ])
         .build(tauri::generate_context!())
-        .expect("error while building Lawha")
+        .expect("error while building Mosamem")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 use tauri::Manager;

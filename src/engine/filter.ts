@@ -1,4 +1,4 @@
-// Filter settings, mirroring `lawha_core::filter::Filter` (serde: `kind` tag, camelCase).
+// Filter settings, mirroring `mosamem_core::filter::Filter` (serde: `kind` tag, camelCase).
 
 export type Filter =
   | { kind: 'gaussianBlur'; radius: number }

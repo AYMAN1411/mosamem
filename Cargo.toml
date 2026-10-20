@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/lawha-core", "src-tauri"]
+members = ["crates/mosamem-core", "src-tauri"]
 
 [workspace.package]
 version = "0.1.0"
@@ -11,10 +11,10 @@ license = "GPL-3.0-or-later"
 opt-level = 2
 
 # Pixel code is unusably slow without optimization, even while debugging the UI.
-[profile.dev.package.lawha-core]
+[profile.dev.package.mosamem-core]
 opt-level = 3
 
-[profile.dev.package.lawha]
+[profile.dev.package.mosamem]
 opt-level = 2
 
 [profile.release]

@@ -1,4 +1,4 @@
-// GPU vs CPU: every blend mode through the live-preview GLSL against lawha-core (±1/255 expected).
+// GPU vs CPU: every blend mode through the live-preview GLSL against mosamem-core (±1/255 expected).
 // Run: node tools/harness.mjs -f tools/gpu-blend-test.js
 const { engine, bridge } = __h;
 const c = __h.display.compositor;

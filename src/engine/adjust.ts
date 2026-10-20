@@ -1,4 +1,4 @@
-// Adjustment settings, mirroring `lawha_core::adjust::Adjustment` (serde: `kind` tag, camelCase).
+// Adjustment settings, mirroring `mosamem_core::adjust::Adjustment` (serde: `kind` tag, camelCase).
 
 export interface Levels {
   inBlack: number;

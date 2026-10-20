@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use lawha_core::tile::TILE_BYTES;
+use mosamem_core::tile::TILE_BYTES;
 use serde::Serialize;
 
 use super::model::{Content, Node};

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Checks the engine's shaping (docs/shaping-golden.json, from
-// `cargo run -p lawha-core --example shaping_golden`) against HarfBuzz itself (harfbuzzjs).
+// `cargo run -p mosamem-core --example shaping_golden`) against HarfBuzz itself (harfbuzzjs).
 // Glyph ids, clusters, advances and offsets must all match. Writes docs/shaping-oracle.json.
 import * as hb from 'harfbuzzjs';
 import { readFileSync, writeFileSync } from 'node:fs';

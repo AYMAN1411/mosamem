@@ -74,8 +74,8 @@
     },
     {
       "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
-      "text": "Hello, Lawha 2026!",
-      "glyphs": 18,
+      "text": "Hello, Mosamem 2026!",
+      "glyphs": 20,
       "match": true
     },
     {
@@ -146,8 +146,8 @@
     },
     {
       "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
-      "text": "Hello, Lawha 2026!",
-      "glyphs": 18,
+      "text": "Hello, Mosamem 2026!",
+      "glyphs": 20,
       "match": true
     },
     {
@@ -218,8 +218,8 @@
     },
     {
       "font": "tajawal/Tajawal-Regular.ttf",
-      "text": "Hello, Lawha 2026!",
-      "glyphs": 18,
+      "text": "Hello, Mosamem 2026!",
+      "glyphs": 20,
       "match": true
     },
     {
@@ -290,8 +290,8 @@
     },
     {
       "font": "amiri/Amiri-Regular.ttf",
-      "text": "Hello, Lawha 2026!",
-      "glyphs": 18,
+      "text": "Hello, Mosamem 2026!",
+      "glyphs": 20,
       "match": true
     },
     {
@@ -362,8 +362,8 @@
     },
     {
       "font": "cairo/Cairo[slnt,wght].ttf",
-      "text": "Hello, Lawha 2026!",
-      "glyphs": 18,
+      "text": "Hello, Mosamem 2026!",
+      "glyphs": 20,
       "match": true
     }
   ]

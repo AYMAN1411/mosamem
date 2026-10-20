@@ -49,7 +49,7 @@
   onMount(() => {
     compositor = new Compositor(gpuCanvas!);
     display.compositor = compositor;
-    (window as unknown as { __lawha: unknown }).__lawha = { compositor, app, paintTool };
+    (window as unknown as { __mosamem: unknown }).__mosamem = { compositor, app, paintTool };
     const ro = new ResizeObserver(([e]) => {
       const { width, height } = e.contentRect;
       app.viewport = { w: width, h: height };

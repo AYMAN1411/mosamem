@@ -229,7 +229,7 @@ struct Rewriter<'a> {
 impl Rewriter<'_> {
     fn fresh(&mut self, base: &str) -> String {
         self.uid += 1;
-        format!("{base}__lawha{}", self.uid)
+        format!("{base}__mosamem{}", self.uid)
     }
     fn sizes(&mut self, base: &str, v: &[i64]) -> String {
         let name = self.fresh(base);

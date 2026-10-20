@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use lawha_core::resample::Mat3;
-use lawha_core::text::{self, TextStyle};
+use mosamem_core::resample::Mat3;
+use mosamem_core::text::{self, TextStyle};
 use serde::{Deserialize, Serialize};
 
 use super::model::{Node, NodeKind, Slot, TileMap};
@@ -40,7 +40,7 @@ impl TextData {
         if m[6].abs() > 1e-12 || m[7].abs() > 1e-12 || (m[8] - 1.0).abs() > 1e-12 {
             return None;
         }
-        let n = lawha_core::resample::multiply(m, &self.mat3());
+        let n = mosamem_core::resample::multiply(m, &self.mat3());
         Some(TextData { matrix: [n[0], n[1], n[2], n[3], n[4], n[5]], keep_pixels: false, ..self.clone() })
     }
 }
@@ -173,14 +173,14 @@ mod tests {
         new_text(&mut d, data("لوحة")).unwrap();
         let id = d.content.active;
         let before = raster::content_bounds(d.content.find(id).unwrap().tiles().unwrap()).unwrap();
-        crate::doc::transform::transform_layers(&mut d, &[id], &[1.0, 0.0, -100.0, 0.0, 1.0, 50.0, 0.0, 0.0, 1.0], lawha_core::resample::Method::Bicubic, "history.movePixels").unwrap();
+        crate::doc::transform::transform_layers(&mut d, &[id], &[1.0, 0.0, -100.0, 0.0, 1.0, 50.0, 0.0, 0.0, 1.0], mosamem_core::resample::Method::Bicubic, "history.movePixels").unwrap();
         let n = d.content.find(id).unwrap();
         let NodeKind::Text { data: moved, tiles } = &n.kind else { panic!("still text") };
         assert_eq!(moved.matrix[2], 500.0);
         let after = raster::content_bounds(tiles).unwrap();
         assert_eq!((after.0, after.1), (before.0 - 100, before.1 + 50));
         // a perspective distortion can't stay text: it becomes pixels
-        crate::doc::transform::transform_layers(&mut d, &[id], &[1.0, 0.1, 0.0, 0.0, 1.0, 0.0, 0.0005, 0.0, 1.0], lawha_core::resample::Method::Bicubic, "history.transform").unwrap();
+        crate::doc::transform::transform_layers(&mut d, &[id], &[1.0, 0.1, 0.0, 0.0, 1.0, 0.0, 0.0005, 0.0, 1.0], mosamem_core::resample::Method::Bicubic, "history.transform").unwrap();
         assert!(matches!(d.content.find(id).unwrap().kind, NodeKind::Pixel { .. }));
     }
 

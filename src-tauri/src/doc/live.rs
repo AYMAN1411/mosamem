@@ -12,8 +12,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use lawha_core::tile::{downsample, Tile, TILE};
-use lawha_core::BlendMode;
+use mosamem_core::tile::{downsample, Tile, TILE};
+use mosamem_core::BlendMode;
 use parking_lot::Mutex;
 
 use super::composite::{composite_nodes_lod, mask_factor, MaskFactor};
@@ -414,7 +414,7 @@ mod tests {
     use super::*;
     use crate::doc::composite::composite_lod0;
     use crate::doc::filled_tiles;
-    use lawha_core::tile::Accum;
+    use mosamem_core::tile::Accum;
 
     fn solid(name: &str, rgba: [u8; 4]) -> Node {
         Node::pixel(name, filled_tiles(256, 256, rgba))

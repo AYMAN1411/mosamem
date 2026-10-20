@@ -1,8 +1,8 @@
 //! Adjustment layers: creating them, changing their settings, and the histogram their panels show.
 
-use lawha_core::adjust::Adjustment;
-use lawha_core::blend::lum;
-use lawha_core::tile::TILE;
+use mosamem_core::adjust::Adjustment;
+use mosamem_core::blend::lum;
+use mosamem_core::tile::TILE;
 use serde::Serialize;
 
 use super::composite::composite_nodes_lod;
@@ -117,8 +117,8 @@ mod tests {
     use super::*;
     use crate::doc::composite::composite_lod0;
     use crate::doc::{filled_tiles, Content};
-    use lawha_core::mask::Mask;
-    use lawha_core::BlendMode;
+    use mosamem_core::mask::Mask;
+    use mosamem_core::BlendMode;
 
     fn solid(name: &str, rgba: [u8; 4]) -> Node {
         Node::pixel(name, filled_tiles(300, 300, rgba))
@@ -159,7 +159,7 @@ mod tests {
     #[test]
     fn the_selection_becomes_the_mask() {
         let mut d = doc(vec![solid("a", [200, 100, 50, 255])]);
-        let mut sel = lawha_core::mask::Dense::new(300, 300, 0);
+        let mut sel = mosamem_core::mask::Dense::new(300, 300, 0);
         for y in 0..300 {
             for x in 0..150 {
                 sel.data[y * 300 + x] = 255;
@@ -228,23 +228,23 @@ mod tests {
     #[test]
     fn live_parts_reproduce_an_adjustment_layer() {
         use crate::doc::live::{Part, Session};
-        use lawha_core::tile::Accum;
+        use mosamem_core::tile::Accum;
         let mut d = doc(vec![solid("bg", [200, 100, 50, 255])]);
-        let mut sel = lawha_core::mask::Dense::new(300, 300, 0);
+        let mut sel = mosamem_core::mask::Dense::new(300, 300, 0);
         for y in 0..300 {
             for x in 0..300 {
                 sel.data[y * 300 + x] = (x * 255 / 299) as u8;
             }
         }
         d.content.selection = Some(Mask::from_dense(&sel, 0));
-        let adj = Adjustment::HueSaturation { master: lawha_core::adjust::Hsl { hue: 90.0, saturation: 30.0, lightness: -10.0 }, ranges: Default::default(), colorize: false, colorize_hsl: Default::default() };
+        let adj = Adjustment::HueSaturation { master: mosamem_core::adjust::Hsl { hue: 90.0, saturation: 30.0, lightness: -10.0 }, ranges: Default::default(), colorize: false, colorize_hsl: Default::default() };
         new_adjustment(&mut d, "hs".into(), adj.clone()).unwrap();
         let id = d.content.active;
         d.content.selection = None;
         d.content.find_mut(id).unwrap().opacity = 0.8;
         crate::doc::ops::new_layer(&mut d, "top".into()).unwrap();
         let top = d.content.active;
-        let mut t = lawha_core::Tile::transparent();
+        let mut t = mosamem_core::Tile::transparent();
         for p in t.0.chunks_exact_mut(4).step_by(3) {
             p.copy_from_slice(&[10, 200, 30, 128]);
         }
@@ -255,9 +255,9 @@ mod tests {
         let (below, cover, above) = (s.tile(Part::Below, 0, 0, 0).unwrap(), s.tile(Part::Layer, 0, 0, 0).unwrap(), s.tile(Part::Above, 0, 0, 0).unwrap());
         let mask: Vec<f32> = cover.0.chunks_exact(4).map(|p| p[3] as f32 / 255.0).collect();
         let mut acc = Accum::from_tile(&below, 1.0);
-        lawha_core::adjust::apply_to_accum(&mut acc, &lawha_core::adjust::compile(&adj), BlendMode::Normal, 0.8, Some(&mask), (0, 0));
+        mosamem_core::adjust::apply_to_accum(&mut acc, &mosamem_core::adjust::compile(&adj), BlendMode::Normal, 0.8, Some(&mask), (0, 0));
         acc.composite(&above, BlendMode::Normal, 1.0, (0, 0));
-        let mut out = lawha_core::Tile::transparent();
+        let mut out = mosamem_core::Tile::transparent();
         acc.to_tile(&mut out);
         let want = composite_lod0(&d.content, 0, 0).unwrap();
         let worst = out.0.iter().zip(want.0.iter()).map(|(a, b)| (*a as i32 - *b as i32).abs()).max().unwrap();
@@ -275,7 +275,7 @@ mod tests {
             target: Target::Mask,
             layer: id,
             color: [0, 0, 0],
-            brush: lawha_core::paint::Brush { diameter: 40.0, hardness: 1.0, spacing: 0.1, flow: 1.0, opacity: 1.0, pressure_size: false, pressure_opacity: false, min_size: 0.0 },
+            brush: mosamem_core::paint::Brush { diameter: 40.0, hardness: 1.0, spacing: 0.1, flow: 1.0, opacity: 1.0, pressure_size: false, pressure_opacity: false, min_size: 0.0 },
             offset: None,
             sample_all: false,
         };
@@ -306,7 +306,7 @@ mod tests {
             TileMapHalf(Default::default())
         }
         fn fill_left(&mut self, rgba: [u8; 4]) {
-            let mut t = lawha_core::Tile::transparent();
+            let mut t = mosamem_core::Tile::transparent();
             for y in 0..256 {
                 for x in 0..150 {
                     t.0[(y * 256 + x) * 4..][..4].copy_from_slice(&rgba);

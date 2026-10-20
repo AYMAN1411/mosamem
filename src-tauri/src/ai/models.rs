@@ -74,10 +74,10 @@ pub fn pack(id: &str) -> Option<&'static Pack> {
     PACKS.iter().find(|p| p.id == id)
 }
 
-/// Where a file is downloaded from: the pinned upstream URL, or only `LAWHA_MODEL_MIRROR` when that
+/// Where a file is downloaded from: the pinned upstream URL, or only `MOSAMEM_MODEL_MIRROR` when that
 /// is set (a local folder served over HTTP, for offline installs and tests).
 pub fn urls(f: &ModelFile) -> Vec<String> {
-    match std::env::var("LAWHA_MODEL_MIRROR") {
+    match std::env::var("MOSAMEM_MODEL_MIRROR") {
         Ok(m) => vec![format!("{}/{}", m.trim_end_matches('/'), f.name)],
         Err(_) => vec![f.url.to_string()],
     }
@@ -289,7 +289,7 @@ mod tests {
 
     #[test]
     fn checksum_mismatch_installs_nothing() {
-        let root = std::env::temp_dir().join(format!("lawha-models-bad-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("mosamem-models-bad-{}", std::process::id()));
         let served = root.join("served");
         fs::create_dir_all(&served).unwrap();
         fs::write(served.join("migan_pipeline_v2.onnx"), b"not the model").unwrap();
@@ -304,7 +304,7 @@ mod tests {
 
     #[test]
     fn unreachable_source_is_a_network_error() {
-        let root = std::env::temp_dir().join(format!("lawha-models-off-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("mosamem-models-off-{}", std::process::id()));
         let p = pack("fill").unwrap();
         let r = download_from(&root, p, &|f| vec![format!("http://127.0.0.1:9/{}", f.name)], &AtomicBool::new(false), &|_| {});
         assert!(matches!(r, Err(DownloadError::Network(_))), "{r:?}");
@@ -315,7 +315,7 @@ mod tests {
     #[test]
     fn a_verified_download_installs_and_removes() {
         // a pack whose one file is served locally, with its real hash
-        let root = std::env::temp_dir().join(format!("lawha-models-ok-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("mosamem-models-ok-{}", std::process::id()));
         let served = root.join("served");
         fs::create_dir_all(&served).unwrap();
         let body = b"pretend model".repeat(1000);

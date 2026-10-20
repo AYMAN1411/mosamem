@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 
-use lawha_core::tile::TILE;
+use mosamem_core::tile::TILE;
 use parking_lot::Mutex;
 
 use super::model::TileMap;
@@ -98,7 +98,7 @@ pub fn thumbnail(cache: &Cache, tiles: &Arc<TileMap>, width: u32, height: u32, s
 }
 
 /// Thumbnail of a layer mask (gray, opaque), same format as `thumbnail`.
-pub fn mask_thumbnail(cache: &Cache, mask: &lawha_core::mask::Mask, width: u32, height: u32, size: u32) -> Arc<Vec<u8>> {
+pub fn mask_thumbnail(cache: &Cache, mask: &mosamem_core::mask::Mask, width: u32, height: u32, size: u32) -> Arc<Vec<u8>> {
     let key = (Arc::as_ptr(&mask.tiles) as usize ^ (mask.outside as usize) << 1 ^ 1, size);
     if let Some(hit) = cache.get(&key) {
         return hit;

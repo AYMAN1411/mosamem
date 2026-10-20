@@ -1,8 +1,8 @@
 //! Blend modes checked against the published formulas (docs/research.md §2.5). The reference
 //! functions below are written independently from src/blend.rs, straight from the formula text.
 
-use lawha_core::blend::{blend_rgb, composite_px, lum, soft_light_photoshop, soft_light_w3c, BlendMode};
-use lawha_core::tile::{Accum, Tile, TILE};
+use mosamem_core::blend::{blend_rgb, composite_px, lum, soft_light_photoshop, soft_light_w3c, BlendMode};
+use mosamem_core::tile::{Accum, Tile, TILE};
 
 const EPS: f32 = 1e-5;
 

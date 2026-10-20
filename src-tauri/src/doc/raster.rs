@@ -4,8 +4,8 @@
 
 use std::sync::Arc;
 
-use lawha_core::mask::{Mask, MaskMap, MaskTile};
-use lawha_core::tile::{Tile, TILE};
+use mosamem_core::mask::{Mask, MaskMap, MaskTile};
+use mosamem_core::tile::{Tile, TILE};
 use rayon::prelude::*;
 
 use super::model::TileMap;

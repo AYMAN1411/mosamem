@@ -1,4 +1,4 @@
-//! The `.lawha` file format: one SQLite database per document.
+//! The `.mosamem` file format: one SQLite database per document.
 //!
 //! - `meta(key, value)`: format version, canvas size, resolution, active layer, name.
 //! - `nodes(id, parent, idx, kind, props)`: the layer tree (props as JSON).
@@ -13,17 +13,17 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::{Arc, Weak};
 
-use lawha_core::tile::{Tile, TILE_BYTES};
-use lawha_core::BlendMode;
+use mosamem_core::tile::{Tile, TILE_BYTES};
+use mosamem_core::BlendMode;
 use parking_lot::Mutex;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use crate::doc::model::{LayerMask, Locks, Node, NodeKind, TileMap};
-use lawha_core::mask::{Mask, MaskMap, MaskTile, MASK_TILE_BYTES};
+use mosamem_core::mask::{Mask, MaskMap, MaskTile, MASK_TILE_BYTES};
 use crate::doc::{reserve_ids_above, Content};
 
-pub const FORMAT: &str = "lawha/1";
+pub const FORMAT: &str = "mosamem/1";
 
 type Hash = [u8; 32];
 
@@ -71,13 +71,13 @@ struct Props {
     mask: Option<MaskProps>,
     /// Settings of an adjustment layer.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    adjustment: Option<lawha_core::adjust::Adjustment>,
+    adjustment: Option<mosamem_core::adjust::Adjustment>,
     /// A text layer's text, style and placement (its last drawing is in the tiles table).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     text: Option<crate::doc::text::TextData>,
     /// Layer effects.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    style: Option<lawha_core::style::LayerStyle>,
+    style: Option<mosamem_core::style::LayerStyle>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -93,9 +93,9 @@ struct MaskProps {
 pub enum PersistError {
     #[error(transparent)]
     Sql(#[from] rusqlite::Error),
-    #[error("not a Lawha document")]
-    NotLawha,
-    #[error("this file was made by a newer version of Lawha ({0})")]
+    #[error("not a Mosamem document")]
+    NotMosamem,
+    #[error("this file was made by a newer version of Mosamem ({0})")]
     TooNew(String),
     #[error("damaged file: {0}")]
     Damaged(String),
@@ -208,7 +208,7 @@ pub fn save(path: &Path, content: &Content, name: &str, extra: &Extra, hashes: &
         let mut ins = tx.prepare("INSERT INTO meta (key, value) VALUES (?1, ?2)")?;
         let base = [
             ("format", FORMAT.to_string()),
-            ("app", format!("Lawha {}", env!("CARGO_PKG_VERSION"))),
+            ("app", format!("Mosamem {}", env!("CARGO_PKG_VERSION"))),
             ("width", content.width.to_string()),
             ("height", content.height.to_string()),
             ("ppi", content.ppi.to_string()),
@@ -231,12 +231,12 @@ pub struct Loaded {
 
 pub fn read_meta(path: &Path) -> Result<HashMap<String, String>, PersistError> {
     let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-    let mut st = conn.prepare("SELECT key, value FROM meta").map_err(|_| PersistError::NotLawha)?;
+    let mut st = conn.prepare("SELECT key, value FROM meta").map_err(|_| PersistError::NotMosamem)?;
     let meta: HashMap<String, String> = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?.filter_map(Result::ok).collect();
     match meta.get("format") {
         Some(f) if f == FORMAT => Ok(meta),
-        Some(f) if f.starts_with("lawha/") => Err(PersistError::TooNew(f.clone())),
-        _ => Err(PersistError::NotLawha),
+        Some(f) if f.starts_with("mosamem/") => Err(PersistError::TooNew(f.clone())),
+        _ => Err(PersistError::NotMosamem),
     }
 }
 
@@ -314,7 +314,7 @@ pub fn load(path: &Path) -> Result<Loaded, PersistError> {
                 }
                 "adjustment" => {
                     let adj = p.adjustment.clone().ok_or_else(|| PersistError::Damaged("adjustment layer without settings".into()))?;
-                    NodeKind::Adjustment { op: Arc::new(lawha_core::adjust::compile(&adj)), adj }
+                    NodeKind::Adjustment { op: Arc::new(mosamem_core::adjust::compile(&adj)), adj }
                 }
                 _ => NodeKind::Pixel { tiles: Arc::new(tiles.remove(id).unwrap_or_default()) },
             };
@@ -338,8 +338,8 @@ pub fn load(path: &Path) -> Result<Loaded, PersistError> {
     Ok(Loaded { content: Content::new(width, height, ppi, active, root), name, meta })
 }
 
-/// True if the file at `path` is a Lawha database (checked by its meta table, not its extension).
-pub fn is_lawha(path: &Path) -> bool {
+/// True if the file at `path` is a Mosamem database (checked by its meta table, not its extension).
+pub fn is_mosamem(path: &Path) -> bool {
     std::fs::File::open(path)
         .and_then(|mut f| {
             use std::io::Read;
@@ -366,7 +366,7 @@ mod tests {
         b.fill = 0.8;
         let mut c = Node::pixel("clip", filled_tiles(700, 500, [200, 10, 10, 255]));
         c.clipped = true;
-        let md = lawha_core::select::ellipse(700, 500, 100.0, 50.0, 600.0, 450.0, true);
+        let md = mosamem_core::select::ellipse(700, 500, 100.0, 50.0, 600.0, 450.0, true);
         let mut lm = LayerMask::new(Mask::from_dense(&md, 0));
         lm.density = 0.8;
         lm.feather = 3.0;
@@ -374,21 +374,21 @@ mod tests {
         let mut g = Node::group("مجموعة", vec![b, c]);
         g.opacity = 0.9;
         let active = g.id;
-        let mut adj = Node::adjustment("منحنيات", lawha_core::adjust::Adjustment::Curves {
+        let mut adj = Node::adjustment("منحنيات", mosamem_core::adjust::Adjustment::Curves {
             channels: [vec![[0.0, 0.0], [90.0, 140.0], [255.0, 255.0]], vec![[0.0, 30.0], [255.0, 255.0]], vec![[0.0, 0.0], [255.0, 255.0]], vec![[0.0, 0.0], [255.0, 220.0]]],
         });
         adj.opacity = 0.7;
         let data = crate::doc::text::TextData {
             text: "مرحبا Hello ١٢٣".into(),
-            style: lawha_core::text::TextStyle { size: 40.0, align: lawha_core::text::Align::Center, ..Default::default() },
+            style: mosamem_core::text::TextStyle { size: 40.0, align: mosamem_core::text::Align::Center, ..Default::default() },
             width: Some(300.0),
             height: Some(120.0),
             matrix: [1.0, 0.0, 50.0, 0.0, 1.0, 60.0],
             keep_pixels: false,
         };
         let mut text = Node::pixel("نص", Default::default());
-        text.style = Some(lawha_core::style::LayerStyle {
-            stroke: Some(lawha_core::style::Stroke { enabled: true, blend: lawha_core::BlendMode::Normal, color: [255, 200, 0], opacity: 0.9, size: 3.0, position: lawha_core::style::StrokePosition::Outside }),
+        text.style = Some(mosamem_core::style::LayerStyle {
+            stroke: Some(mosamem_core::style::Stroke { enabled: true, blend: mosamem_core::BlendMode::Normal, color: [255, 200, 0], opacity: 0.9, size: 3.0, position: mosamem_core::style::StrokePosition::Outside }),
             ..Default::default()
         });
         text.kind = NodeKind::Text { tiles: Arc::new(crate::doc::text::render(&data, 700, 500)), data };
@@ -432,10 +432,10 @@ mod tests {
     #[test]
     fn save_and_load_round_trip_exactly() {
         let dir = tempdir();
-        let path = dir.join("doc.lawha");
+        let path = dir.join("doc.mosamem");
         let c = sample();
         save(&path, &c, "اختبار", &vec![], &HashCache::default()).unwrap();
-        assert!(is_lawha(&path));
+        assert!(is_mosamem(&path));
         let l = load(&path).unwrap();
         assert_eq!((l.content.width, l.content.height, l.content.ppi, l.content.active), (700, 500, 300.0, c.active));
         assert_eq!(l.name, "اختبار");
@@ -448,7 +448,7 @@ mod tests {
     #[test]
     fn identical_tiles_are_stored_once_and_resaves_are_incremental() {
         let dir = tempdir();
-        let path = dir.join("doc.lawha");
+        let path = dir.join("doc.mosamem");
         let hashes = HashCache::default();
         let w = Node::pixel("white", filled_tiles(2560, 2560, [255, 255, 255, 255]));
         let c = Content::new(2560, 2560, 72.0, w.id, vec![w]);
@@ -462,16 +462,16 @@ mod tests {
     }
 
     #[test]
-    fn rejects_files_that_are_not_lawha() {
+    fn rejects_files_that_are_not_mosamem() {
         let dir = tempdir();
-        let p = dir.join("x.lawha");
+        let p = dir.join("x.mosamem");
         std::fs::write(&p, b"hello").unwrap();
-        assert!(!is_lawha(&p));
+        assert!(!is_mosamem(&p));
         assert!(load(&p).is_err());
     }
 
     fn tempdir() -> std::path::PathBuf {
-        let d = std::env::temp_dir().join(format!("lawha-test-{}", crate::doc::next_id() * 7919 + std::process::id() as u64));
+        let d = std::env::temp_dir().join(format!("mosamem-test-{}", crate::doc::next_id() * 7919 + std::process::id() as u64));
         std::fs::create_dir_all(&d).unwrap();
         d
     }

@@ -1,7 +1,7 @@
 # قائمة فحص PSD — ملفات من Photoshop الخاص بك
 
-الملفات التي اختُبرت بها لوحة حتى الآن ملفات اختبار عامة من مشروع مفتوح المصدر (انظر
-`docs/psd-report.md`). هذه القائمة لصنع ملفات من Photoshop عندك، تغطي ما يهمّ مستخدمي لوحة.
+الملفات التي اختُبرت بها مصمم حتى الآن ملفات اختبار عامة من مشروع مفتوح المصدر (انظر
+`docs/psd-report.md`). هذه القائمة لصنع ملفات من Photoshop عندك، تغطي ما يهمّ مستخدمي مصمم.
 
 ## قبل البدء
 
@@ -22,7 +22,7 @@
 5. **طبقات ضبط** (`adjust-*.psd`): ملف لكل نوع، فوق صورة ملونة (صورة طبيعة أو تدرج ألوان):
    Levels، Curves، Hue/Saturation (ومرة مع Colorize)، Brightness/Contrast، Exposure، Vibrance،
    Color Balance، Black & White، Gradient Map، Invert، Threshold.
-   هذه أهم ملفات القائمة: معادلات لوحة مكتوبة من صفحات المساعدة العامة، وهذه الملفات تقيس الفرق.
+   هذه أهم ملفات القائمة: معادلات مصمم مكتوبة من صفحات المساعدة العامة، وهذه الملفات تقيس الفرق.
 6. **أنماط الطبقة** (`styles.psd`): شكل أو نص عليه Drop Shadow، وآخر Inner Shadow، وOuter Glow،
    وStroke (خارج، داخل، وسط)، وColor Overlay، وGradient Overlay. ثم طبقة بـ Fill 0% مع Stroke.
 7. **أشكال متجهية** (`shapes.psd`): مستطيل وشكل بيضاوي وشكل مرسوم بـ Pen بلون تعبئة.
@@ -31,25 +31,25 @@
 
 ## الفحص
 
-1. شغّل لوحة في وضع التطوير مع `LAWHA_HARNESS=1`، ثم:
+1. شغّل مصمم في وضع التطوير مع `MOSAMEM_HARNESS=1`، ثم:
 
    ```bash
    tools/front.sh on && node tools/psd-report.mjs tests/psd-mine && tools/front.sh off
    ```
 
    يكتب `tests/psd-mine/report.md`: مقارنة كل ملف بصورة Photoshop المدمجة، وما لم يُنقل.
-2. افتح كل ملف في لوحة بنفسك: هل الطبقات والأسماء والترتيب كما في Photoshop؟ هل النص العربي
+2. افتح كل ملف في مصمم بنفسك: هل الطبقات والأسماء والترتيب كما في Photoshop؟ هل النص العربي
    قابل للتحرير؟ هل التحذير الذي يظهر عند الفتح صادق؟
-3. من لوحة: **ملف › حفظ نسخة بصيغة PSD**، ثم افتح النسخة في Photoshop: هل الطبقات والأقنعة
+3. من مصمم: **ملف › حفظ نسخة بصيغة PSD**، ثم افتح النسخة في Photoshop: هل الطبقات والأقنعة
    والأنماط وطبقات الضبط ما زالت قابلة للتحرير هناك؟
-4. أرسل `report.md` وما لاحظته (لقطات شاشة من Photoshop ولوحة لنفس الملف تكفي).
+4. أرسل `report.md` وما لاحظته (لقطات شاشة من Photoshop ومصمم لنفس الملف تكفي).
 
 ---
 
 # PSD checklist — files from your own Photoshop
 
-Lawha has so far been tested on public test files from an open-source project (see
-`docs/psd-report.md`). This list is for making files in your own Photoshop that cover what Lawha's
+Mosamem has so far been tested on public test files from an open-source project (see
+`docs/psd-report.md`). This list is for making files in your own Photoshop that cover what Mosamem's
 users care about.
 
 ## Before you start
@@ -71,7 +71,7 @@ users care about.
 5. **Adjustment layers** (`adjust-*.psd`): one file per kind, over a colorful photo or color ramp:
    Levels, Curves, Hue/Saturation (and once with Colorize), Brightness/Contrast, Exposure,
    Vibrance, Color Balance, Black & White, Gradient Map, Invert, Threshold.
-   These matter most: Lawha's formulas are written from public help pages, and these files measure
+   These matter most: Mosamem's formulas are written from public help pages, and these files measure
    the difference.
 6. **Layer styles** (`styles.psd`): a shape or text with Drop Shadow, another with Inner Shadow,
    Outer Glow, Stroke (outside, inside, center), Color Overlay and Gradient Overlay; then a layer
@@ -82,7 +82,7 @@ users care about.
 
 ## Checking
 
-1. Run Lawha in development with `LAWHA_HARNESS=1`, then:
+1. Run Mosamem in development with `MOSAMEM_HARNESS=1`, then:
 
    ```bash
    tools/front.sh on && node tools/psd-report.mjs tests/psd-mine && tools/front.sh off
@@ -90,9 +90,9 @@ users care about.
 
    This writes `tests/psd-mine/report.md`: each file against Photoshop's flattened image, and what
    wasn't carried over.
-2. Open each file in Lawha yourself: are the layers, names and order as in Photoshop? Is the Arabic
+2. Open each file in Mosamem yourself: are the layers, names and order as in Photoshop? Is the Arabic
    text editable? Is the warning shown on opening accurate?
-3. In Lawha: **File › Save a Copy as PSD**, then open the copy in Photoshop: are the layers, masks,
+3. In Mosamem: **File › Save a Copy as PSD**, then open the copy in Photoshop: are the layers, masks,
    styles and adjustment layers still editable there?
-4. Send `report.md` and what you noticed (screenshots of the same file in Photoshop and in Lawha are
+4. Send `report.md` and what you noticed (screenshots of the same file in Photoshop and in Mosamem are
    enough).

@@ -2,7 +2,7 @@
 //! plus the paint bucket, gradient and eyedropper.
 //!
 //! A stroke keeps the layer's tiles as they were when it started and a coverage buffer
-//! (lawha_core::paint). Each batch of pointer samples adds dabs and recomputes only the tiles they
+//! (mosamem_core::paint). Each batch of pointer samples adds dabs and recomputes only the tiles they
 //! touched, writing them into the document's live content. The display picks up just those tiles
 //! (through the live session, or by per-tile invalidation of the composite). The stroke becomes one
 //! history step when it ends.
@@ -10,9 +10,9 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use lawha_core::mask::{Mask, MaskMap, MaskTile};
-use lawha_core::paint::{dither, gradient_t, Brush, GradientKind, Spacer, StrokeBuffer};
-use lawha_core::tile::{Tile, TILE, TILE_PX};
+use mosamem_core::mask::{Mask, MaskMap, MaskTile};
+use mosamem_core::paint::{dither, gradient_t, Brush, GradientKind, Spacer, StrokeBuffer};
+use mosamem_core::tile::{Tile, TILE, TILE_PX};
 use serde::Deserialize;
 
 use super::model::{NodeKind, TileMap};
@@ -314,7 +314,7 @@ impl Stroke {
             // fill the spot from its surroundings (PatchMatch), then blend it in
             let rgb: Vec<[f32; 3]> = (0..bw * bh).map(|i| [dest[i * 4], dest[i * 4 + 1], dest[i * 4 + 2]]).collect();
             let hole: Vec<bool> = region.iter().map(|r| *r > 0.02).collect();
-            let filled = lawha_core::inpaint::inpaint(bw, bh, &rgb, &hole, doc.change_counter);
+            let filled = mosamem_core::inpaint::inpaint(bw, bh, &rgb, &hole, doc.change_counter);
             (0..bw * bh).flat_map(|i| [filled[i][0], filled[i][1], filled[i][2], dest[i * 4 + 3]]).collect()
         } else {
             let mut s = vec![0f32; bw * bh * 4];
@@ -325,7 +325,7 @@ impl Stroke {
             }
             s
         };
-        let healed = lawha_core::heal::heal(bw, bh, &dest, &src, &region);
+        let healed = mosamem_core::heal::heal(bw, bh, &dest, &src, &region);
         // write back into the layer
         let mut map: TileMap = (*self.orig).clone();
         for k in self.buffer.tiles.keys() {
@@ -441,7 +441,7 @@ pub fn bucket(doc: &mut Document, s: BucketSpec) -> Result<(), String> {
         return Ok(());
     }
     let img = sample(doc, s.all_layers);
-    let region = lawha_core::select::wand(w, h, &img, (s.x as u32, s.y as u32), s.tolerance, s.contiguous, s.antialias);
+    let region = mosamem_core::select::wand(w, h, &img, (s.x as u32, s.y as u32), s.tolerance, s.contiguous, s.antialias);
     let sel = doc.content.selection.clone();
     let col = [s.color[0] as f32, s.color[1] as f32, s.color[2] as f32, 255.0];
     let wu = w as i64;
@@ -577,7 +577,7 @@ mod tests {
     fn selection_limits_painting_and_eraser_clears() {
         let mut d = doc();
         let id = d.content.active;
-        crate::doc::selection::shape(&mut d, crate::doc::selection::Shape::Rect { x0: 0.0, y0: 0.0, x1: 200.0, y1: 512.0 }, lawha_core::select::Combine::Replace, 0.0).unwrap();
+        crate::doc::selection::shape(&mut d, crate::doc::selection::Shape::Rect { x0: 0.0, y0: 0.0, x1: 200.0, y1: 512.0 }, mosamem_core::select::Combine::Replace, 0.0).unwrap();
         let mut s = begin(&d, spec(id, PaintTool::Brush)).unwrap();
         s.add(&mut d, &[(50.0, 100.0, 1.0), (400.0, 100.0, 1.0)]);
         s.end(&mut d);

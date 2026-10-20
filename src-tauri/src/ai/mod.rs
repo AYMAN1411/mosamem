@@ -15,8 +15,8 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Weak};
 
-use lawha_core::mask::{Dense, Mask};
-use lawha_core::select::{self, Combine, Refine};
+use mosamem_core::mask::{Dense, Mask};
+use mosamem_core::select::{self, Combine, Refine};
 use parking_lot::Mutex;
 use serde::Deserialize;
 
@@ -314,7 +314,7 @@ pub fn smart_fill(ai: &Ai, h: &DocHandle, spec: &FillSpec) -> AiResult<()> {
         }
         None => {
             let f: Vec<[f32; 3]> = rgb.chunks_exact(3).map(|p| [p[0] as f32, p[1] as f32, p[2] as f32]).collect();
-            lawha_core::inpaint::inpaint(bw, bh, &f, &hole, seed).into_iter().flat_map(|p| p.map(|v| v.round().clamp(0.0, 255.0) as u8)).collect()
+            mosamem_core::inpaint::inpaint(bw, bh, &f, &hole, seed).into_iter().flat_map(|p| p.map(|v| v.round().clamp(0.0, 255.0) as u8)).collect()
         }
     };
     // blend by the (grown, softened) selection: full fill inside, fading over the grown edge
@@ -394,7 +394,7 @@ mod doc_tests {
     }
 
     fn no_models() -> Ai {
-        Ai::new(std::env::temp_dir().join(format!("lawha-no-models-{}", std::process::id())))
+        Ai::new(std::env::temp_dir().join(format!("mosamem-no-models-{}", std::process::id())))
     }
 
     #[test]

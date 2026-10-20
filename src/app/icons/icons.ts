@@ -1,4 +1,4 @@
-// Lawha's own icon set: 24×24 grid, 1.6 px round strokes, drawn from scratch for this project.
+// Mosamem's own icon set: 24×24 grid, 1.6 px round strokes, drawn from scratch for this project.
 export const icons = {
   move: '<path d="M12 3v18M3 12h18"/><path d="M9.5 5.5L12 3l2.5 2.5M9.5 18.5L12 21l2.5-2.5M5.5 9.5L3 12l2.5 2.5M18.5 9.5L21 12l-2.5 2.5"/>',
   marqueeRect: '<rect x="4" y="5" width="16" height="14" rx="1" stroke-dasharray="2.6 2.4"/>',

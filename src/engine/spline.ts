@@ -1,5 +1,5 @@
 // Monotone cubic interpolation (Fritsch–Carlson): the same curve the engine builds for Curves
-// (`Spline` in lawha-core/src/adjust.rs), so the panel draws exactly what is applied.
+// (`Spline` in mosamem-core/src/adjust.rs), so the panel draws exactly what is applied.
 
 /** Points in 0–255 (input, output). Returns f(x) for x in 0–255, flat beyond the end points. */
 export function monotoneSpline(points: [number, number][]): (x: number) => number {

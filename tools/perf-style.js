@@ -8,7 +8,7 @@ if (!doc) {
   doc = app.active;
 } else app.activeId = doc.info.id;
 await sleep(500);
-const c = window.__lawha.compositor;
+const c = window.__mosamem.compositor;
 const settle = async () => { await sleep(60); for (let i = 0; i < 3000 && !c.settled(); i++) await sleep(5); };
 const id = doc.info.active;
 const style = (size) => ({

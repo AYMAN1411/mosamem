@@ -1,4 +1,4 @@
-// Layer effects, mirroring lawha_core::style::LayerStyle.
+// Layer effects, mirroring mosamem_core::style::LayerStyle.
 import type { BlendMode } from './blend';
 import type { GradientStop } from './adjust';
 

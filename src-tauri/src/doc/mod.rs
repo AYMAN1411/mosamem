@@ -21,8 +21,8 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
-use lawha_core::tile::{Tile, TILE};
-use lawha_core::BlendMode;
+use mosamem_core::tile::{Tile, TILE};
+use mosamem_core::BlendMode;
 use parking_lot::RwLock;
 use serde::Serialize;
 
@@ -104,9 +104,9 @@ pub struct Document {
     /// Bumped when content changes; autosave compares it.
     pub change_counter: u64,
     /// The selection before the last deselect, for Reselect.
-    pub last_selection: Option<lawha_core::mask::Mask>,
+    pub last_selection: Option<mosamem_core::mask::Mask>,
     /// A refine-edge preview shown instead of the selection (not in history).
-    pub preview: Option<lawha_core::mask::Mask>,
+    pub preview: Option<mosamem_core::mask::Mask>,
 }
 
 impl Document {
@@ -236,13 +236,13 @@ pub struct LayerInfo {
     pub thumb: u64,
     /// The settings of an adjustment layer.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub adjustment: Option<lawha_core::adjust::Adjustment>,
+    pub adjustment: Option<mosamem_core::adjust::Adjustment>,
     /// The text, style and placement of a text layer.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<text::TextData>,
     /// Layer effects.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub style: Option<lawha_core::style::LayerStyle>,
+    pub style: Option<mosamem_core::style::LayerStyle>,
     /// Top to bottom.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub children: Option<Vec<LayerInfo>>,

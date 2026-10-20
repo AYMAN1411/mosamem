@@ -116,7 +116,7 @@ export type Background = { kind: 'white' } | { kind: 'black' } | { kind: 'transp
 export type ExportFormat = 'png' | 'jpeg' | 'webp' | 'tiff' | 'heic';
 
 const isWindows = navigator.userAgent.includes('Windows');
-const base = isWindows ? 'http://lawha.localhost' : 'lawha://localhost';
+const base = isWindows ? 'http://mosamem.localhost' : 'mosamem://localhost';
 
 /** URL of one flattened tile. Windows WebView2 serves custom schemes as http://<scheme>.localhost. */
 export function tileUrl(doc: number, version: number, lod: number, tx: number, ty: number): string {

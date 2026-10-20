@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs JavaScript inside the running Lawha debug app (started with LAWHA_HARNESS=1).
+// Runs JavaScript inside the running Mosamem debug app (started with MOSAMEM_HARNESS=1).
 // Usage: node tools/harness.mjs '<async function body>'   or   node tools/harness.mjs -f script.js
 import { readFileSync } from 'node:fs';
 

@@ -2,13 +2,13 @@
 //! size, and turning or flipping the whole image. Masks and the selection follow the pixels.
 //!
 //! Whole-pixel moves and quarter turns are exact; everything else is resampled once from the
-//! original pixels, with the method the user picked (lawha_core::resample).
+//! original pixels, with the method the user picked (mosamem_core::resample).
 
 use std::sync::Arc;
 
-use lawha_core::mask::Mask;
-use lawha_core::resample::{self, Mat3, Method};
-use lawha_core::tile::{Accum, Tile, TILE};
+use mosamem_core::mask::Mask;
+use mosamem_core::resample::{self, Mat3, Method};
+use mosamem_core::tile::{Accum, Tile, TILE};
 use rayon::prelude::*;
 use serde::Serialize;
 
@@ -119,7 +119,7 @@ fn over(top: &TileMap, bottom: &TileMap) -> TileMap {
             (None, Some(b)) => Some((k, b.clone())),
             (Some(t), Some(b)) => {
                 let mut acc = Accum::from_tile(b, 1.0);
-                acc.composite(t, lawha_core::BlendMode::Normal, 1.0, (0, 0));
+                acc.composite(t, mosamem_core::BlendMode::Normal, 1.0, (0, 0));
                 let mut out = Tile::transparent();
                 acc.to_tile(&mut out);
                 Some((k, Arc::new(out)))
@@ -364,7 +364,7 @@ pub fn canvas_size(doc: &mut Document, width: u32, height: u32, anchor: (f64, f6
                     }
                     let mut acc = Accum::from_tile(&under, 1.0);
                     if let Some(t) = tiles.get(&(tx, ty)) {
-                        acc.composite(t, lawha_core::BlendMode::Normal, 1.0, (0, 0));
+                        acc.composite(t, mosamem_core::BlendMode::Normal, 1.0, (0, 0));
                     }
                     let mut out = Tile::transparent();
                     acc.to_tile(&mut out);
@@ -506,7 +506,7 @@ mod tests {
         let mut d = doc_with(&pattern(300, 200), 300, 200);
         let id = d.content.active;
         let before = pixels(&d, id);
-        let mut sel = lawha_core::mask::Dense::new(300, 200, 0);
+        let mut sel = mosamem_core::mask::Dense::new(300, 200, 0);
         for y in 50..100 {
             for x in 50..100 {
                 sel.data[y * 300 + x] = 255;
@@ -528,7 +528,7 @@ mod tests {
         use crate::doc::live::{Part, Session};
         let mut d = doc_with(&[50u8, 100, 150, 255].repeat(300 * 200), 300, 200);
         let id = d.content.active;
-        let mut sel = lawha_core::mask::Dense::new(300, 200, 0);
+        let mut sel = mosamem_core::mask::Dense::new(300, 200, 0);
         for y in 0..200 {
             for x in 0..100 {
                 sel.data[y * 300 + x] = 255;
@@ -544,7 +544,7 @@ mod tests {
         assert!(!s.reusable());
         // under an adjustment layer the split is impossible, but a preview still starts
         d.content.selection = None;
-        crate::doc::adjustments::new_adjustment(&mut d, "inv".into(), lawha_core::adjust::Adjustment::Invert).unwrap();
+        crate::doc::adjustments::new_adjustment(&mut d, "inv".into(), mosamem_core::adjust::Adjustment::Invert).unwrap();
         let s = Session::begin_transform(1, &d.content, id).unwrap();
         assert!(s.tile(Part::Below, 0, 0, 0).is_none(), "everything but the moving layer: nothing here");
         assert!(s.tile(Part::Layer, 0, 0, 0).is_some());

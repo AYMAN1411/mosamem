@@ -10,11 +10,11 @@
 #    that sandbox: its web view stops loading, since WebKit's own processes need more than it allows.)
 #
 #   tools/ai/no-network.sh <model files dir> <photos dir> <photo.png> <report.json>
-# Needs: the models installed in the app, port 1420 free, no other Lawha running.
+# Needs: the models installed in the app, port 1420 free, no other Mosamem running.
 set -e
 cd "${0:A:h}/../.."
 models="${1:A}"; photos="${2:A}"; photo="${3:A}"; report="${4:A}"
-profile=$(mktemp -t lawha-nonet).sb
+profile=$(mktemp -t mosamem-nonet).sb
 cat > "$profile" <<'SB'
 (version 1)
 (allow default)
@@ -24,19 +24,19 @@ cat > "$profile" <<'SB'
 SB
 
 # ---- 1. the engine in the sandbox ----
-bin=$(cargo test -p lawha --lib --no-run --message-format=json 2>/dev/null | node -e '
+bin=$(cargo test -p mosamem --lib --no-run --message-format=json 2>/dev/null | node -e '
 let last = ""; require("readline").createInterface({ input: process.stdin }).on("line", (l) => {
-  try { const m = JSON.parse(l); if (m.profile && m.profile.test && m.executable && m.target.name === "lawha_lib") last = m.executable; } catch {}
+  try { const m = JSON.parse(l); if (m.profile && m.profile.test && m.executable && m.target.name === "mosamem_lib") last = m.executable; } catch {}
 }).on("close", () => console.log(last));')
-export LAWHA_MODEL_DIR="$models" LAWHA_TEST_PHOTOS="$photos"
+export MOSAMEM_MODEL_DIR="$models" MOSAMEM_TEST_PHOTOS="$photos"
 engine_ok=false; control_ok=false
-sandbox-exec -f "$profile" "$bin" ai::tests::models_on_photos --ignored --exact > /tmp/lawha-nonet-engine.log 2>&1 && engine_ok=true
-sandbox-exec -f "$profile" "$bin" ai::tests::upstream_download_is_blocked --ignored --exact > /tmp/lawha-nonet-control.log 2>&1 && control_ok=true
+sandbox-exec -f "$profile" "$bin" ai::tests::models_on_photos --ignored --exact > /tmp/mosamem-nonet-engine.log 2>&1 && engine_ok=true
+sandbox-exec -f "$profile" "$bin" ai::tests::upstream_download_is_blocked --ignored --exact > /tmp/mosamem-nonet-control.log 2>&1 && control_ok=true
 
 # ---- 2. the app, watched ----
-npx vite --port 1420 --strictPort > /tmp/lawha-nonet-vite.log 2>&1 &
+npx vite --port 1420 --strictPort > /tmp/mosamem-nonet-vite.log 2>&1 &
 vite=$!
-LAWHA_HARNESS=1 ./target/debug/lawha > /tmp/lawha-nonet-app.log 2>&1 &
+MOSAMEM_HARNESS=1 ./target/debug/mosamem > /tmp/mosamem-nonet-app.log 2>&1 &
 app=$!
 trap 'kill $app $vite 2>/dev/null; rm -f "$profile"' EXIT
 sleep 3; tools/front.sh on   # a covered window is throttled by WebKit
@@ -63,19 +63,19 @@ await step('remove background', () => engine.aiRemoveBackground(id, photoLayer))
 out.devices = (await engine.aiStatus()).map((p) => [p.id, p.gpu ? 'webgpu' : 'cpu']);
 return out;
 JS
-node tools/harness.mjs -f "$script" > /tmp/lawha-nonet-result.json
+node tools/harness.mjs -f "$script" > /tmp/mosamem-nonet-result.json
 tools/front.sh off
 sleep 0.5
 kill $sampler 2>/dev/null || true
 node -e '
 const fs = require("fs");
-const r = JSON.parse(fs.readFileSync("/tmp/lawha-nonet-result.json", "utf8"));
+const r = JSON.parse(fs.readFileSync("/tmp/mosamem-nonet-result.json", "utf8"));
 const lines = fs.readFileSync(process.argv[1], "utf8").split("\n");
 const samples = lines.filter((l) => l === "#sample").length;
 const sockets = lines.filter((l) => l && l !== "#sample");
 const outside = [...new Set(sockets.filter((l) => /TCP|UDP/.test(l) && !/127\.0\.0\.1|\[::1\]|localhost|\*:/.test(l)))];
 const report = {
-  engineInSandbox: { passed: process.argv[2] === "true", log: "/tmp/lawha-nonet-engine.log" },
+  engineInSandbox: { passed: process.argv[2] === "true", log: "/tmp/mosamem-nonet-engine.log" },
   controlDownloadBlocked: process.argv[3] === "true",
   app: { ...r, socketSamples: samples, localSocketLines: sockets.length, connectionsToOtherHosts: outside },
 };

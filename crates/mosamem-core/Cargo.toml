@@ -1,9 +1,9 @@
 [package]
-name = "lawha-core"
+name = "mosamem-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Lawha pixel math: one implementation shared by the app (WASM) and the tests (native)"
+description = "Mosamem pixel math: one implementation shared by the app (WASM) and the tests (native)"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

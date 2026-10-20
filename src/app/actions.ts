@@ -48,7 +48,7 @@ export async function openPaths(paths: string[]) {
 export async function openFile() {
   const picked = await open({
     multiple: true,
-    filters: [{ name: `${t('files.images')} / ${t('save.lawhaFiles')}`, extensions: ['lawha', ...IMAGE_EXTENSIONS] }],
+    filters: [{ name: `${t('files.images')} / ${t('save.mosamemFiles')}`, extensions: ['mosamem', ...IMAGE_EXTENSIONS] }],
   });
   if (!picked) return;
   await openPaths(Array.isArray(picked) ? picked : [picked]);
@@ -58,13 +58,13 @@ export function newDocument() {
   app.dialog = 'new';
 }
 
-/** Saves as .lawha. Returns false if the user cancelled or saving failed. */
+/** Saves as .mosamem. Returns false if the user cancelled or saving failed. */
 export async function saveDocument(d: DocState | null = app.active, saveAs = false): Promise<boolean> {
   if (!d) return false;
-  let path = d.info.path && d.info.path.endsWith('.lawha') && !saveAs ? d.info.path : null;
+  let path = d.info.path && d.info.path.endsWith('.mosamem') && !saveAs ? d.info.path : null;
   if (!path) {
     const base = d.info.name.replace(/\.[^.]+$/, '') || 'image';
-    path = await save({ defaultPath: `${base}.lawha`, filters: [{ name: t('save.lawhaFiles'), extensions: ['lawha'] }] });
+    path = await save({ defaultPath: `${base}.mosamem`, filters: [{ name: t('save.mosamemFiles'), extensions: ['mosamem'] }] });
     if (!path) return false;
   }
   try {

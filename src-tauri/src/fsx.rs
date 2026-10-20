@@ -7,7 +7,7 @@ use std::path::Path;
 /// never leaves a half-written file.
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     let dir = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
-    let tmp = dir.join(format!(".{}.lawha-tmp", path.file_name().and_then(|n| n.to_str()).unwrap_or("file")));
+    let tmp = dir.join(format!(".{}.mosamem-tmp", path.file_name().and_then(|n| n.to_str()).unwrap_or("file")));
     {
         let mut f = std::fs::File::create(&tmp)?;
         f.write_all(bytes)?;

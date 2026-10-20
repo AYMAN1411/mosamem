@@ -13,9 +13,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, Weak};
 
-use lawha_core::adjust::{apply_to_accum, Op};
-use lawha_core::mask::{Mask, MaskMap, MaskTile};
-use lawha_core::tile::{downsample, Accum, Tile, TILE};
+use mosamem_core::adjust::{apply_to_accum, Op};
+use mosamem_core::mask::{Mask, MaskMap, MaskTile};
+use mosamem_core::tile::{downsample, Accum, Tile, TILE};
 use parking_lot::Mutex;
 
 use super::model::{Content, LayerMask, Node, NodeKind, TileMap};
@@ -177,7 +177,7 @@ fn feathered(m: &LayerMask) -> Arc<Mask> {
     let margin = ((m.feather * 2.0) as i32 / TILE as i32) + 1;
     let (mx, my) = m.mask.tiles.keys().fold((0, 0), |(a, b), (x, y)| (a.max(*x), b.max(*y)));
     let (w, h) = (((mx + 1 + margin) * TILE as i32) as u32, ((my + 1 + margin) * TILE as i32) as u32);
-    let dense = lawha_core::select::feather(&m.mask.to_dense(w, h), m.feather);
+    let dense = mosamem_core::select::feather(&m.mask.to_dense(w, h), m.feather);
     let out = Arc::new(Mask::from_dense(&dense, m.mask.outside));
     let mut c = cache.lock();
     if c.len() > 64 {
@@ -514,7 +514,7 @@ pub fn flatten(h: &DocHandle) -> (u32, u32, Vec<u8>) {
 mod tests {
     use super::*;
     use crate::doc::{filled_tiles, tiles_from_rgba, Content, Document, Engine, Label, Node};
-    use lawha_core::BlendMode;
+    use mosamem_core::BlendMode;
 
     pub fn doc(root: Vec<Node>, w: u32, h: u32) -> Document {
         let c = Content::new(w, h, 72.0, 0, root);
@@ -622,7 +622,7 @@ mod tests {
 
     #[test]
     fn layer_mask_hides_where_black_and_density_softens_it() {
-        use lawha_core::mask::Dense;
+        use mosamem_core::mask::Dense;
         let mut top = solid("w", [255, 255, 255, 255]);
         // mask: left half white (show), right half black (hide)
         let mut d = Dense::new(300, 300, 0);
@@ -647,7 +647,7 @@ mod tests {
 
     #[test]
     fn feathered_mask_ramps_across_the_edge() {
-        use lawha_core::mask::Dense;
+        use mosamem_core::mask::Dense;
         let mut top = solid("w", [255, 255, 255, 255]);
         let mut d = Dense::new(300, 300, 0);
         for y in 0..300 {

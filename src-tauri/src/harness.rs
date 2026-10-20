@@ -1,4 +1,4 @@
-//! Debug-only test harness: with LAWHA_HARNESS=1, a local HTTP endpoint on 127.0.0.1 evaluates
+//! Debug-only test harness: with MOSAMEM_HARNESS=1, a local HTTP endpoint on 127.0.0.1 evaluates
 //! JavaScript in the main window and returns the result. Used by tools/harness.mjs for scripted UI
 //! tests, screenshots and performance runs. Not compiled into release builds unless the `harness` feature is on.
 
@@ -21,7 +21,7 @@ pub fn harness_reply(id: u64, result: String) {
 }
 
 pub fn start<R: Runtime>(app: &AppHandle<R>) {
-    if std::env::var("LAWHA_HARNESS").as_deref() != Ok("1") {
+    if std::env::var("MOSAMEM_HARNESS").as_deref() != Ok("1") {
         return;
     }
     *PENDING.lock().unwrap() = Some(HashMap::new());

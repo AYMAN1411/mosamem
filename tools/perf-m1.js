@@ -1,7 +1,7 @@
 // M1 performance gate: a 6000×4000 document with 30 layers must pan and zoom smoothly.
 // Run with: node tools/harness.mjs -f tools/perf-m1.js   (window in front: tools/front.sh on)
 const { app, engine } = __h;
-const c = window.__lawha.compositor;
+const c = window.__mosamem.compositor;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const raf = () => new Promise((r) => requestAnimationFrame(r));
 const stats = (xs) => {

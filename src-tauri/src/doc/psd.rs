@@ -6,9 +6,9 @@
 
 use std::sync::Arc;
 
-use lawha_core::adjust::Adjustment;
-use lawha_core::style::LayerStyle;
-use lawha_core::BlendMode;
+use mosamem_core::adjust::Adjustment;
+use mosamem_core::style::LayerStyle;
+use mosamem_core::BlendMode;
 use serde::{Deserialize, Serialize};
 
 use super::composite;
@@ -95,7 +95,7 @@ fn slice<'a>(px: &'a [u8], p: &Pixels, bpp: usize) -> Result<&'a [u8], String> {
 fn mask_of(m: &PsdMask, px: &[u8]) -> Result<LayerMask, String> {
     let mask = match &m.pixels {
         Some(p) => raster::mask_write(slice(px, p, 1)?, p.x, p.y, p.w, p.h, m.default_color),
-        None => lawha_core::mask::Mask::uniform(m.default_color),
+        None => mosamem_core::mask::Mask::uniform(m.default_color),
     };
     Ok(LayerMask { mask, enabled: m.enabled, density: m.density.clamp(0.0, 1.0), feather: m.feather.max(0.0) })
 }
@@ -135,7 +135,7 @@ fn node_of(l: &PsdLayer, px: &[u8]) -> Result<Node, String> {
         Some(m) => Some(mask_of(m, px)?),
         None => None,
     };
-    // effects are kept even when switched off (or not drawn by Lawha), so saving keeps them
+    // effects are kept even when switched off (or not drawn by Mosamem), so saving keeps them
     n.style = l.style.clone();
     Ok(n)
 }

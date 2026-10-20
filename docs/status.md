@@ -1,7 +1,17 @@
-# Lawha: status by milestone
+# Mosamem: status by milestone
 
 This file is honest by design: each milestone lists what was verified and how, and what is not
 verified.
+
+**Name.** The app was called Lawha (لوحة) through M10. On 2026-10-21 it was renamed **Mosamem
+(مصمم)**:
+- the app and window name, the bundle id (`app.mosamem.editor`) and the crates (`mosamem-core`);
+- the document extension (`.mosamem`, format `mosamem/1`), the `mosamem://` protocol and the
+  `MOSAMEM_*` variables;
+- a new mark: an initial meem (مـ).
+
+Older notes below use the new name throughout. The Arabic word «لوحة» stays where it means the
+canvas («حجم اللوحة»).
 
 ## Milestone 0: research and spikes ✔︎ (2026-10-20)
 
@@ -45,7 +55,7 @@ optimized pixel code. Raw numbers are in `docs/perf-m1.json`.
   across cores.
 
 - **Release build** (`tauri build`, 10 MB `.app`): launched, opened a HEIC, tiles served over
-  `lawha://`, rendered correctly (`docs/shots/m1-release.jpg`).
+  `mosamem://`, rendered correctly (`docs/shots/m1-release.jpg`).
 
 ### Not done or not verified in M1 (by plan)
 
@@ -65,10 +75,10 @@ optimized pixel code. Raw numbers are in `docs/perf-m1.json`.
 | Layer tree: unlimited layers and groups. New, duplicate (⌘J), delete, group (⌘G), ungroup (⇧⌘G), merge down (⌘E), merge visible (⇧⌘E), flatten (onto white). Rename by double-click. Show/hide, Alt-click to show one layer alone. Lock states. Multi-select with Shift/⌘. | Rust tests `doc::ops::*`; harness runs; screenshots `m2-layers-*` |
 | Drag to reorder, including into and out of groups (a group can't be dropped into itself) | Rust test; synthetic-pointer drag test in the real panel, then undo |
 | Groups: **pass-through** (children blend with the backdrop; group opacity fades their effect) and isolated (any other mode). **Clipping masks** (⌥⌘G): clipped layers draw only inside the base and use the base's opacity and mode. **Fill vs opacity.** | Rust tests `doc::composite::*` with exact expected pixel values |
-| **All 27 blend modes**: the 16 requested plus Dissolve, Linear Burn/Dodge, Darker/Lighter Color, Vivid/Linear/Pin Light, Hard Mix, Subtract, Divide | CPU: each formula checked against an independent implementation over a value grid, plus known values, non-separable invariants, alpha compositing and PSD keys (`crates/lawha-core/tests/blend_formulas.rs`). **GPU vs CPU: 27 modes × 2 opacities, every pixel within ±1/255** (`docs/gpu-blend-m2.json`) |
+| **All 27 blend modes**: the 16 requested plus Dissolve, Linear Burn/Dodge, Darker/Lighter Color, Vivid/Linear/Pin Light, Hard Mix, Subtract, Divide | CPU: each formula checked against an independent implementation over a value grid, plus known values, non-separable invariants, alpha compositing and PSD keys (`crates/mosamem-core/tests/blend_formulas.rs`). **GPU vs CPU: 27 modes × 2 opacities, every pixel within ±1/255** (`docs/gpu-blend-m2.json`) |
 | **Live GPU preview**: dragging opacity or fill and changing the blend mode recomposites on the GPU from below / layer / above caches, at 60 fps (p50 16.7 ms, p95 19.4 ms). The engine's composite replaces it when ready, with no flash. It falls back to engine updates when the layer's position can't be previewed exactly. | Rust tests: live parts reproduce the composite within ±1; fallback for non-associative stacks |
 | History: every edit is a step, with undo (⌘Z) and redo (⇧⌘Z), labels in the UI language in the Edit menu and History panel, and click-to-jump. Steps share unchanged pixels. Limits: 200 steps and a 2 GB memory budget. | Rust tests (undo/redo, transient drags don't add steps, step limit) |
-| `.lawha` native format (SQLite): layer tree, properties, tiles stored once per distinct content (BLAKE3 + LZ4). Saving over the same file is incremental and transactional. | Rust tests (exact round-trip, dedupe, rejecting non-Lawha files). Harness: photo document round-trips with an identical pixel hash |
+| `.mosamem` native format (SQLite): layer tree, properties, tiles stored once per distinct content (BLAKE3 + LZ4). Saving over the same file is incremental and transactional. | Rust tests (exact round-trip, dedupe, rejecting non-Mosamem files). Harness: photo document round-trips with an identical pixel hash |
 | **Autosave + crash recovery**: changes are saved about 2 s after you pause, or at least every 20 s, on a background thread. After a crash, a recovery dialog offers the documents on next launch. A clean quit removes the copies. | **`tools/crash-test.sh`: edit → `kill -9` → relaunch → restore → identical pixel hash (PASS)**; screenshot `m2-recovery` |
 | Closing a document or the window with unsaved changes asks Save / Don't Save / Cancel | Screenshot `m2-unsaved-ar` |
 | Mixed-direction text: names inserted into Arabic sentences are bidi-isolated | i18n test |
@@ -77,7 +87,7 @@ optimized pixel code. Raw numbers are in `docs/perf-m1.json`.
 
 | Operation | Time |
 |---|---|
-| Save `.lawha` (84 MB file) | 1.1 s |
+| Save `.mosamem` (84 MB file) | 1.1 s |
 | Re-save after a small edit | 75 ms (incremental) |
 | Open | 0.32 s |
 | Undo | 1 ms |
@@ -103,7 +113,7 @@ optimized pixel code. Raw numbers are in `docs/perf-m1.json`.
 | **Modify**: Feather (Gaussian via 3 box passes), Expand and Contract (exact Euclidean distance transform; the canvas border is not an edge), Border, Smooth | Rust tests (distance transform exact against brute force; edges move by the exact amount) |
 | **Refine Edges**: a floating panel with live preview and views (overlay, on black, on white, black & white, on layers, marching ants). Edge band radius, smooth, feather, contrast, shift edge, decontaminate colors. Output to selection, layer mask, new layer, or new layer with mask. | Rust test (refinement cuts the edge error vs the image edge); screenshots `m3-refine-overlay-*`; sky cut-out (`m3-mask-ar`) |
 | **Marching ants**: drawn by the GPU straight from the selection mask (no outline geometry), animated, correct at any zoom and rotation | Screenshots |
-| **Layer masks**: Reveal or hide all, reveal or hide selection, with the panel button (Alt for the hiding variant). Density, render-time feather, invert, disable (Shift-click), load as selection (⌘-click), apply, delete. Masks on groups, including pass-through. Saved in `.lawha`. Live GPU previews include the mask. | Rust tests (hide/show, density, disable, feather ramp, apply bakes pixels, save/load round-trip with mask); screenshot `m3-mask-ar` |
+| **Layer masks**: Reveal or hide all, reveal or hide selection, with the panel button (Alt for the hiding variant). Density, render-time feather, invert, disable (Shift-click), load as selection (⌘-click), apply, delete. Masks on groups, including pass-through. Saved in `.mosamem`. Live GPU previews include the mask. | Rust tests (hide/show, density, disable, feather ramp, apply bakes pixels, save/load round-trip with mask); screenshot `m3-mask-ar` |
 | Everything is in history (undo/redo) | Rust tests |
 
 ### Measurements (6000×4000, 30 full layers, debug app)
@@ -130,7 +140,7 @@ optimized pixel code. Raw numbers are in `docs/perf-m1.json`.
 - Painting on a layer mask needs the brush (done in M4).
 - No "view mask alone" (Alt-click) mode yet.
 - Quick select is the classic algorithm; the AI-assisted subject tools come in M10.
-- Selections are not saved inside `.lawha` files (same as other editors, which don't save them unless stored as a channel).
+- Selections are not saved inside `.mosamem` files (same as other editors, which don't save them unless stored as a channel).
 
 ## Milestone 4: painting ✔︎ (2026-10-20)
 
@@ -177,7 +187,7 @@ The engine itself paints a batch in 1–6 ms. The rest is waiting for the next d
 
 | Feature | How it was checked |
 |---|---|
-| **Adjustment layers**: Levels, Curves, Hue/Saturation, Brightness/Contrast, Exposure, Vibrance, Color Balance, Black & White, Gradient Map, Invert, Threshold. Added from the Adjustments panel, the Layers panel button or Layer › New Adjustment Layer. The selection becomes the layer's mask. Opacity, fill, blend modes, masks, clipping (only the base layer is changed) and groups (an isolated group keeps the change inside, a pass-through group lets it through) all work. Saved in `.lawha`, and every change is one history step. | Rust tests: known input → output for every kind; defaults leave every color unchanged; scope in groups and clipping; blend modes; selection → mask; save/load round trip; histogram |
+| **Adjustment layers**: Levels, Curves, Hue/Saturation, Brightness/Contrast, Exposure, Vibrance, Color Balance, Black & White, Gradient Map, Invert, Threshold. Added from the Adjustments panel, the Layers panel button or Layer › New Adjustment Layer. The selection becomes the layer's mask. Opacity, fill, blend modes, masks, clipping (only the base layer is changed) and groups (an isolated group keeps the change inside, a pass-through group lets it through) all work. Saved in `.mosamem`, and every change is one history step. | Rust tests: known input → output for every kind; defaults leave every color unchanged; scope in groups and clipping; blend modes; selection → mask; save/load round trip; histogram |
 | **Properties panel editors**: Levels (per channel, histogram, draggable black/gray/white handles, output range), Curves (up to 14 points, histogram behind, per channel; drawn with the same monotone spline as the engine), Hue/Saturation (master and six hue ranges, colorize), Brightness/Contrast (with legacy), Exposure, Vibrance, Color Balance (three tones, preserve luminosity), Black & White (six weights, tint), Gradient Map (color stops, reverse, dither), Threshold (with histogram). | Screenshots `m5-curves-*`, `m5-levels-ar`; TypeScript test for the spline |
 | **Live preview while dragging**: the GPU applies the adjustment (a GLSL port of the engine's math, fed the numbers the engine compiles) to the cached part below the layer. Where the tree can't be split exactly (an adjustment under another adjustment, a clipped adjustment), the engine recomposites instead. | GPU vs CPU: 16 settings × 4 blend modes, all within ±1/255 (`docs/gpu-adjust-m5.json`). The canvas during a drag and after release: identical at 100% zoom. At 25% zoom the mean difference is 0.2 levels, and about 1% of pixels differ by more than 2 (the preview adjusts colors after the zoomed-out view blends neighbouring pixels, not before). |
 | **Filters**: Gaussian Blur, Motion Blur, Unsharp Mask, Add Noise, Mosaic (Filter menu). A floating panel with a live preview on the canvas at the zoom shown, computed tile by tile. Applied through the selection (soft edges included); locked pixels refuse, and locked transparency keeps alpha. Also works on layer masks (without a live preview). The canvas edge repeats, so blurring a full layer doesn't fade its border. | Rust tests (10 core, 6 engine): flat areas stay flat, Gaussian σ is checked by variance, transparent neighbours don't darken colors, unsharp threshold, noise is repeatable and tied to image coordinates, mosaic cells align to the canvas, tile-by-tile results equal whole-image results, the preview under an adjustment layer equals the applied result; screenshots `m5-blur-preview`, `m5-motion-ar` |
@@ -198,7 +208,7 @@ Raw numbers: `docs/perf-adjust-m5.json`, `docs/perf-filter-m5.json`.
 
 - Filters had no preview on a layer below an adjustment layer: the GPU split can't hold an adjustment above the layer. Such previews now use a whole-document session, where the engine composites everything per tile with the layer's pixels replaced by the filtered ones.
 - Long-reaching filters ran tile by tile with large margins (1.3 s for a radius-50 blur). Past a 32 px reach they now run over the whole canvas at once (0.5 s).
-- Test scripts: when Lawha's window is behind other windows, WebKit slows its timers and replies to about 500 ms per step even with background throttling turned off. Timings in this report were all taken with the window in front.
+- Test scripts: when Mosamem's window is behind other windows, WebKit slows its timers and replies to about 500 ms per step even with background throttling turned off. Timings in this report were all taken with the window in front.
 
 ### Not done or not verified in M5
 
@@ -254,7 +264,7 @@ Raw numbers: `docs/perf-transform-m6.json`.
 | **Line breaking** (UAX #14, icu_segmenter) for box text; **alignment** start/center/end/justify; **justification** by spaces, or by **kashida** (tatweel, one point per word, ALREQ's preferences simplified) with short/medium/long, re-measured so contextual fonts still fill the line. | Rust tests (every justified line exactly the box width, in Plex and in Amiri); text sheet |
 | **Digits**: Western, Arabic-Indic, Persian. **Letter spacing**, **line spacing** (auto = 120%). | Rust tests |
 | **Bundled fonts** (SIL OFL, inside the program): IBM Plex Sans Arabic (7 weights), Cairo (variable 200–1000), Tajawal (7 weights), Amiri (regular, bold, italics). Characters a font lacks come from another bundled font, a whole word at a time so its letters still join. | Rust tests (every font loads; Tajawal's missing wasla and Persian digits filled in) |
-| **Text layers**: click for point text or drag for a text box; type on the canvas in a native editor (caret, selection, input methods, mixed Arabic/English) shown in the same font, size and placement; ⌘Enter or a click outside commits, Esc cancels. Click a text layer (or double-click its T) to edit it again. The options bar sets font, weight, size, color, alignment, direction, spacing, digits and kashida, for the text being typed or the selected text layer. Moving, scaling, turning and image-wide changes keep text editable; distortions and painting need Layer › Rasterize Type. Saved in `.lawha`. | Rust tests (render, edit, undo, name follows text, move keeps text, perspective rasterizes, save/load); the editor and the committed text compared on screen (`m7-editing-ar` vs `m7-committed-ar`: the same) |
+| **Text layers**: click for point text or drag for a text box; type on the canvas in a native editor (caret, selection, input methods, mixed Arabic/English) shown in the same font, size and placement; ⌘Enter or a click outside commits, Esc cancels. Click a text layer (or double-click its T) to edit it again. The options bar sets font, weight, size, color, alignment, direction, spacing, digits and kashida, for the text being typed or the selected text layer. Moving, scaling, turning and image-wide changes keep text editable; distortions and painting need Layer › Rasterize Type. Saved in `.mosamem`. | Rust tests (render, edit, undo, name follows text, move keeps text, perspective rasterizes, save/load); the editor and the committed text compared on screen (`m7-editing-ar` vs `m7-committed-ar`: the same) |
 
 Screenshot: `docs/shots/m7-textsheet-ar.jpg` (each font, mixed text, digits, vowelled Amiri, kashida vs space justification).
 
@@ -276,7 +286,7 @@ Screenshot: `docs/shots/m7-textsheet-ar.jpg` (each font, mixed text, digits, vow
 | Feature | How it was checked |
 |---|---|
 | **Effects**: drop shadow (angle, distance, spread, size, knockout), inner shadow (choke), outer glow (softer or precise), stroke (outside, inside, center), color overlay, gradient overlay (linear, radial, reflected; angle, scale, reverse). Each has a blend mode and opacity and can be switched off without losing its settings. | Rust tests on the mattes: the shadow falls opposite the light, size blurs and spread hardens, knockout, the three stroke positions, glow and inner shadow on their side, gradient positions |
-| **Compositing**: shadows and glow on what is below; the layer's pixels at the fill opacity, then inner shadow, overlays, clipped layers and stroke, blended with the layer's mode; the layer's opacity fades everything. Fill doesn't affect effects, and the layer mask shapes them. Works on pixel and text layers (text stays editable). Saved in `.lawha`. | Rust tests (shadow beside the layer, fill 0 still shows overlay and shadow, opacity halves the shadow, stroke follows the mask, undo, save/load) |
+| **Compositing**: shadows and glow on what is below; the layer's pixels at the fill opacity, then inner shadow, overlays, clipped layers and stroke, blended with the layer's mode; the layer's opacity fades everything. Fill doesn't affect effects, and the layer mask shapes them. Works on pixel and text layers (text stays editable). Saved in `.mosamem`. | Rust tests (shadow beside the layer, fill 0 still shows overlay and shadow, opacity halves the shadow, stroke follows the mask, undo, save/load) |
 | **Layer Style panel** with a live preview; the fx button and badge in the Layers panel; Layer › Layer Style… and Clear Layer Style. | Screenshots `m8-style-ar` (panel), `m8-styled-ar` (an Arabic title with gradient, stroke and shadow) |
 | Effect mattes are computed per tile from a margin around it, at the zoom level shown, and cached by the layer's pixels, mask and style, so edits to other layers don't recompute them. | `docs/perf-style-m8.json`: on 6000×4000 with 30 layers, adding a size-40 shadow and a stroke redraws the view in about 0.18 s at fit and under 0.1 s at 100% |
 
@@ -292,7 +302,7 @@ Screenshot: `docs/shots/m7-textsheet-ar.jpg` (each font, mixed text, digits, vow
 
 | Feature | How it was checked |
 |---|---|
-| **Open PSD/PSB** (File › Open, or drop): layers, groups (and pass through), blend modes, opacity and fill, clipping, locks, layer masks (density, feather, disabled), adjustment layers Lawha has (Levels, Curves, Hue/Saturation, Brightness/Contrast, Exposure, Vibrance, Color Balance, Black & White, Gradient Map, Invert, Threshold), layer styles Lawha has (kept even when switched off), text as editable text layers (Photoshop's pixels shown until edited). Vector masks become pixel masks; shape layers saved without pixels are drawn from their paths; 16/32-bit files become 8-bit (32-bit linear light encoded to sRGB). A file whose layer section is damaged opens flattened. The file is read by ag-psd (MIT) in a worker, so the window stays responsive. | `tools/psd-report.mjs` over the 90 public psd-tools test files: 87 open; **50 match Photoshop's own flattened image** (≥ 99.9% of pixels within 1 level), 8 are close (≥ 99% within 8 levels), 20 differ, 9 carry no image to compare with. Details: `docs/psd-report.md` |
+| **Open PSD/PSB** (File › Open, or drop): layers, groups (and pass through), blend modes, opacity and fill, clipping, locks, layer masks (density, feather, disabled), adjustment layers Mosamem has (Levels, Curves, Hue/Saturation, Brightness/Contrast, Exposure, Vibrance, Color Balance, Black & White, Gradient Map, Invert, Threshold), layer styles Mosamem has (kept even when switched off), text as editable text layers (Photoshop's pixels shown until edited). Vector masks become pixel masks; shape layers saved without pixels are drawn from their paths; 16/32-bit files become 8-bit (32-bit linear light encoded to sRGB). A file whose layer section is damaged opens flattened. The file is read by ag-psd (MIT) in a worker, so the window stays responsive. | `tools/psd-report.mjs` over the 90 public psd-tools test files: 87 open; **50 match Photoshop's own flattened image** (≥ 99.9% of pixels within 1 level), 8 are close (≥ 99% within 8 levels), 20 differ, 9 carry no image to compare with. Details: `docs/psd-report.md` |
 | **Save a Copy as PSD** (File menu): layers, groups, masks, adjustment layers, styles and text, with a flattened image for other programs. | Same tool: each opened file is saved as PSD and opened again; **87 of 87 keep their layer structure and render identically** |
 | Whatever isn't carried over is listed when the file opens, in the interface language. CMYK files get a clear message. | Screenshots `m9-psd-ar` (vector mask and text, Arabic warning), `m9-psd-en` (groups, pass through, clipping) |
 | Fixed on the way: effect caches were keyed by memory address only, so a closed document's freed address could hand a new layer stale shadows or gradient bounds. Every such cache now holds a weak handle that keeps the address from being reused. | Was intermittent in the PSD round trip (2 of 87 files); 87 of 87 in two runs in a row after the fix |
@@ -300,7 +310,7 @@ Screenshot: `docs/shots/m7-textsheet-ar.jpg` (each font, mixed text, digits, vow
 ### Not done or not verified in M9
 
 - Not tested with files from a real, current Photoshop: the test files come from one open-source project. `docs/psd-checklist.md` lists the files to make and how to check them.
-- Lawha's adjustment formulas are its own (from Adobe's public help pages); files with adjustment layers differ from Photoshop, sometimes a lot (`fill_adjustments`: mean 53 levels). They are the calibration data for later.
+- Mosamem's adjustment formulas are its own (from Adobe's public help pages); files with adjustment layers differ from Photoshop, sometimes a lot (`fill_adjustments`: mean 53 levels). They are the calibration data for later.
 - Not read: CMYK, Lab and other non-RGB modes; inner glow, bevel and emboss, satin, pattern overlay; gradient and pattern strokes; gradient and pattern fill layers saved without pixels; "blend if"; knockout; artboards; layer comps; smart object contents (kept as pixels); vector paths (kept as pixel masks, no path editing).
 - 16/32-bit files lose their depth (8-bit only).
 
@@ -308,7 +318,7 @@ Screenshot: `docs/shots/m7-textsheet-ar.jpg` (each font, mixed text, digits, vow
 
 | Feature | How it was checked |
 |---|---|
-| **Select Subject** (Select menu, and a button on the Object Selection, Quick Select and Magic Wand options bar), **Remove Background** (Layer menu and the same bar: adds a layer mask, so the edit can be undone, changed or deleted), **Object Selection tool** (W: click an object, or drag a box around it; Shift adds, Alt subtracts; "sample all layers"), **Smart Fill** (Edit › Smart Fill…, Shift+Backspace: AI or classic, on a new layer by default). Results go through Lawha's guided-filter edge snap at full size. | Rust tests: Smart Fill in place and on a new layer (the square is gone, other pixels untouched, undo), errors when a model is missing. `tools/ai/measure.sh` → `docs/ai-measure-m10.json`, 43 photos at 512×512, all on the GPU. Medians: Select Subject 2.7 s, SAM picture prep 0.18 s, then 17 ms per click, MI-GAN fill 0.16 s, classic fill 0.07 s. A box drawn around the subject gives the subject's own mask (IoU ≥ 0.9) in 21 of 43; median 0.89. MI-GAN beats the classic fill in 23 of 43 by PSNR against the hidden pixels, which is a weak measure for fills. Screenshots `m10-object-ar` (one click on the parrot), `m10-download-ar`, `m10-fill-en`, `m10-before-en` / `m10-filled-en` (Select Subject, expand 8 px, Smart Fill: the penguin is gone and the sky continues), `m10-models-ar` |
+| **Select Subject** (Select menu, and a button on the Object Selection, Quick Select and Magic Wand options bar), **Remove Background** (Layer menu and the same bar: adds a layer mask, so the edit can be undone, changed or deleted), **Object Selection tool** (W: click an object, or drag a box around it; Shift adds, Alt subtracts; "sample all layers"), **Smart Fill** (Edit › Smart Fill…, Shift+Backspace: AI or classic, on a new layer by default). Results go through Mosamem's guided-filter edge snap at full size. | Rust tests: Smart Fill in place and on a new layer (the square is gone, other pixels untouched, undo), errors when a model is missing. `tools/ai/measure.sh` → `docs/ai-measure-m10.json`, 43 photos at 512×512, all on the GPU. Medians: Select Subject 2.7 s, SAM picture prep 0.18 s, then 17 ms per click, MI-GAN fill 0.16 s, classic fill 0.07 s. A box drawn around the subject gives the subject's own mask (IoU ≥ 0.9) in 21 of 43; median 0.89. MI-GAN beats the classic fill in 23 of 43 by PSNR against the hidden pixels, which is a weak measure for fills. Screenshots `m10-object-ar` (one click on the parrot), `m10-download-ar`, `m10-fill-en`, `m10-before-en` / `m10-filled-en` (Select Subject, expand 8 px, Smart Fill: the penguin is gone and the sky continues), `m10-models-ar` |
 | **Models download on first use.** A dialog says what the model is, its size, license and source. Downloads are pinned to a commit and checked by SHA-256, go to a temporary folder first, and can be cancelled. Edit › AI Models… lists them, with Delete. Sources: BiRefNet lite (MIT, 115 MB), SAM 2.1 tiny (Apache-2.0, 88 MB), MI-GAN (MIT code and weights, 28 MB). | Rust tests against a local server: a good download installs and deletes, a wrong checksum and an unreachable host install nothing and leave no partial files. Real downloads in the app: 115 MB in 4 s, 88 MB in 6.5 s, 28 MB in 1.9 s |
 | **Runs on the GPU** through ONNX Runtime's WebGPU provider (Dawn on Metal), falling back to the CPU if a model can't load or run there. Core ML was measured and dropped (docs/research.md §10). BiRefNet's 10–32-way Split/Concat nodes are split into trees after download (src-tauri/src/ai/onnx_wide.rs), so they fit the GPU's buffer limits. | A Rust test runs a model with 12- and 20-way nodes before and after the rewrite: identical output. BiRefNet on the GPU vs the CPU: 99.9–99.99% IoU on 6 photos |
 | **No network after the download.** | `tools/ai/no-network.sh` → `docs/ai-no-network-m10.json`: (1) the AI code runs install + all three models on photos inside a macOS sandbox that denies every outbound connection, and a real download in that sandbox fails (the control); (2) the app runs every AI feature while its sockets are sampled every 50 ms: no connection to another host |
@@ -327,6 +337,6 @@ Fixed on the way:
 - A box drawn around a whole frame-filling picture is ambiguous to SAM. It picked the background for the guitar photo.
 - **Windows not tried yet** (M11): WebGPU through Dawn on Direct3D 12, with the CPU fallback. The Windows 11 ARM VM may have no usable GPU.
 - **Packaging** (M11): the app links `libwebgpu_dawn.dylib` (9 MB), which has to go into the app bundle's Frameworks folder.
-- Models come from their upstream Hugging Face repositories (pinned commits), not from Lawha's own GitHub Releases as planned: there is no Lawha repository yet. `LAWHA_MODEL_MIRROR` can point the app at another source.
-- ONNX Runtime crashed once in three test runs while tearing down a session (a malloc trap in `~InferenceSession`). Lawha now never destroys a session while it runs: replaced or deleted ones are parked until the app quits. The cause inside ONNX Runtime is not known.
+- Models come from their upstream Hugging Face repositories (pinned commits), not from Mosamem's own GitHub Releases as planned: there is no Mosamem repository yet. `MOSAMEM_MODEL_MIRROR` can point the app at another source.
+- ONNX Runtime crashed once in three test runs while tearing down a session (a malloc trap in `~InferenceSession`). Mosamem now never destroys a session while it runs: replaced or deleted ones are parked until the app quits. The cause inside ONNX Runtime is not known.
 - Object Selection uses one click or one box per selection. There is no refining with several points on one object.

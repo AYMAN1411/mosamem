@@ -3,9 +3,9 @@
 
 use std::sync::Arc;
 
-use lawha_core::mask::{Dense, Mask};
-use lawha_core::select::{self, Combine, Refine};
-use lawha_core::tile::{Accum, Tile};
+use mosamem_core::mask::{Dense, Mask};
+use mosamem_core::select::{self, Combine, Refine};
+use mosamem_core::tile::{Accum, Tile};
 use serde::Deserialize;
 
 use super::composite::{assemble, composite_nodes};

@@ -2203,54 +2203,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lawha"
-version = "0.1.0"
-dependencies = [
- "blake3",
- "block2",
- "image",
- "jpeg-encoder",
- "lawha-core",
- "lz4_flex",
- "moxcms 0.9.1",
- "objc2",
- "objc2-app-kit",
- "objc2-core-foundation",
- "objc2-core-graphics",
- "objc2-image-io",
- "ort",
- "parking_lot",
- "png 0.18.1",
- "rayon",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "thiserror 2.0.21",
- "tiff",
- "tiny_http",
- "ureq",
- "webp",
-]
-
-[[package]]
-name = "lawha-core"
-version = "0.1.0"
-dependencies = [
- "harfrust",
- "icu_segmenter",
- "rayon",
- "serde",
- "serde_json",
- "skrifa",
- "tiny-skia",
- "unicode-bidi",
-]
-
-[[package]]
 name = "lebe"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2483,6 +2435,54 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "mosamem"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "block2",
+ "image",
+ "jpeg-encoder",
+ "lz4_flex",
+ "mosamem-core",
+ "moxcms 0.9.1",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-image-io",
+ "ort",
+ "parking_lot",
+ "png 0.18.1",
+ "rayon",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "thiserror 2.0.21",
+ "tiff",
+ "tiny_http",
+ "ureq",
+ "webp",
+]
+
+[[package]]
+name = "mosamem-core"
+version = "0.1.0"
+dependencies = [
+ "harfrust",
+ "icu_segmenter",
+ "rayon",
+ "serde",
+ "serde_json",
+ "skrifa",
+ "tiny-skia",
+ "unicode-bidi",
 ]
 
 [[package]]

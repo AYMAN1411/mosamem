@@ -1,7 +1,7 @@
 // M5: the live preview's GLSL adjustments against the engine's CPU math, on a tile with every
 // kind of color, partial alpha and partial coverage. Pass = every channel within ±1 of 255.
 const { engine } = __h;
-const c = window.__lawha.compositor;
+const c = window.__mosamem.compositor;
 const { decodeCompiledAdjustment } = await import('/src/engine/compositor.ts');
 const lv = (o = {}) => ({ inBlack: 0, inWhite: 255, gamma: 1, outBlack: 0, outWhite: 255, ...o });
 const hsl = (hue = 0, saturation = 0, lightness = 0) => ({ hue, saturation, lightness });

@@ -12,7 +12,7 @@
   import Slider from '../panels/adjust/Slider.svelte';
 
   // the last settings of each filter, for the next time (with a fresh noise pattern)
-  const last = ((globalThis as { __lawhaFilters?: Partial<Record<FilterKind, Filter>> }).__lawhaFilters ??= {});
+  const last = ((globalThis as { __mosamemFilters?: Partial<Record<FilterKind, Filter>> }).__mosamemFilters ??= {});
 
   const kind = app.filterKind;
   const start = last[kind] ? { ...last[kind]! } : defaultFilter(kind);

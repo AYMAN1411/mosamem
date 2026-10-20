@@ -1,7 +1,7 @@
 // Prints the CGWindowID of the first on-screen window owned by a process with the given name.
 import CoreGraphics
 import Foundation
-let name = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "lawha"
+let name = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "mosamem"
 let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as! [[String: Any]]
 for w in list {
   if let owner = w[kCGWindowOwnerName as String] as? String, owner.lowercased() == name.lowercased(),

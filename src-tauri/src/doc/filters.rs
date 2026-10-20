@@ -4,9 +4,9 @@
 
 use std::sync::Arc;
 
-use lawha_core::filter::{self, Filter};
-use lawha_core::mask::{Mask, MaskMap, MaskTile};
-use lawha_core::tile::{Tile, TILE};
+use mosamem_core::filter::{self, Filter};
+use mosamem_core::mask::{Mask, MaskMap, MaskTile};
+use mosamem_core::tile::{Tile, TILE};
 use rayon::prelude::*;
 use serde::Deserialize;
 
@@ -313,7 +313,7 @@ mod tests {
         let id = d.content.active;
         let before = composite_lod0(&d.content, 0, 0).unwrap();
         // select the left half
-        let mut sel = lawha_core::mask::Dense::new(600, 400, 0);
+        let mut sel = mosamem_core::mask::Dense::new(600, 400, 0);
         for y in 0..400 {
             for x in 0..300 {
                 sel.data[y * 600 + x] = 255;
@@ -352,7 +352,7 @@ mod tests {
         // stripes are averaged away
         assert!((t.px(10, 10)[0] as i32 - 135).abs() <= 8, "{:?}", t.px(10, 10));
         // a hard-edged mask becomes soft
-        let mut sel = lawha_core::mask::Dense::new(600, 400, 0);
+        let mut sel = mosamem_core::mask::Dense::new(600, 400, 0);
         for y in 0..400 {
             for x in 0..300 {
                 sel.data[y * 600 + x] = 255;
@@ -369,7 +369,7 @@ mod tests {
         use crate::doc::live::{Part, Session};
         let mut d = doc_with(stripes(), 600, 400);
         let id = d.content.active;
-        crate::doc::adjustments::new_adjustment(&mut d, "inv".into(), lawha_core::adjust::Adjustment::Invert).unwrap();
+        crate::doc::adjustments::new_adjustment(&mut d, "inv".into(), mosamem_core::adjust::Adjustment::Invert).unwrap();
         d.content.active = id;
         assert!(Session::begin(1, &d.content, id).is_none(), "the split can't hold an adjustment above");
         let s = Session::begin_full(1, &d.content, id).unwrap();

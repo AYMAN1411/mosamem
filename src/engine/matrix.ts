@@ -1,4 +1,4 @@
-// 3×3 matrices (row-major, acting on (x, y, 1)), as in lawha_core::resample.
+// 3×3 matrices (row-major, acting on (x, y, 1)), as in mosamem_core::resample.
 
 export type Mat3 = number[];
 export type Pt = { x: number; y: number };
