@@ -230,7 +230,7 @@ fn clip_color(c: [f32; 3]) -> [f32; 3] {
     out
 }
 
-fn set_lum(c: [f32; 3], l: f32) -> [f32; 3] {
+pub fn set_lum(c: [f32; 3], l: f32) -> [f32; 3] {
     let d = l - lum(c);
     clip_color([c[0] + d, c[1] + d, c[2] + d])
 }

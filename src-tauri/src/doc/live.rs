@@ -38,6 +38,11 @@ pub struct Session {
     layer_tiles: parking_lot::RwLock<Arc<super::model::TileMap>>,
     /// The layer itself when it has an enabled mask (applied to the layer part).
     mask: parking_lot::RwLock<Option<Node>>,
+    /// A filter being previewed on the layer part.
+    filter: parking_lot::RwLock<Option<Arc<super::filters::Preview>>>,
+    /// Whole-document mode (`begin_full`): `below` is the entire tree and the layer part holds the
+    /// layer's (filtered) pixels for compositing it, not for the GPU to draw.
+    full: bool,
     cache: Mutex<HashMap<(Part, u8, i32, i32), Option<Arc<Tile>>>>,
 }
 
@@ -48,6 +53,8 @@ fn associative(n: &Node) -> bool {
     }
     match &n.kind {
         NodeKind::Group { children, pass_through: true, .. } => n.opacity >= 1.0 && children.iter().all(associative),
+        // an adjustment changes everything below it, so it can't be laid over a flattened part
+        NodeKind::Adjustment { .. } => false,
         // pixel layers and isolated groups: only their final blend matters
         _ => n.blend == BlendMode::Normal,
     }
@@ -71,6 +78,7 @@ fn fingerprint(below: &[Node], above: &[Node], layer: &Node) -> u64 {
                     pass_through.hash(h);
                     walk(children, h);
                 }
+                NodeKind::Adjustment { op, .. } => (Arc::as_ptr(op) as usize).hash(h),
             }
         }
     }
@@ -157,14 +165,50 @@ fn split(content: &Content, layer: u64) -> Option<(Vec<Node>, Vec<Node>)> {
     Some((below, above))
 }
 
+/// What the layer part holds: a pixel layer's pixels, or for an adjustment layer its coverage (white,
+/// which the mask then scales); the GPU applies the adjustment itself to the part below.
+fn layer_part(node: &Node, content: &Content) -> Option<Arc<super::model::TileMap>> {
+    match &node.kind {
+        NodeKind::Pixel { tiles } => Some(tiles.clone()),
+        NodeKind::Adjustment { .. } => Some(Arc::new(super::filled_tiles(content.width, content.height, [255, 255, 255, 255]))),
+        NodeKind::Group { .. } => None,
+    }
+}
+
 impl Session {
     pub fn begin(doc: u64, content: &Content, layer: u64) -> Option<Session> {
         let node = content.find(layer)?;
-        let layer_tiles = node.tiles()?.clone();
+        let layer_tiles = layer_part(node, content)?;
         let mask = node.mask.as_ref().filter(|m| m.enabled).map(|_| node.clone());
         let (below, above) = split(content, layer)?;
         let fingerprint = fingerprint(&below, &above, node);
-        Some(Session { doc, layer, fingerprint, width: content.width, height: content.height, below, above, layer_tiles: parking_lot::RwLock::new(layer_tiles), mask: parking_lot::RwLock::new(mask), cache: Mutex::new(HashMap::new()) })
+        Some(Session { doc, layer, fingerprint, width: content.width, height: content.height, below, above, layer_tiles: parking_lot::RwLock::new(layer_tiles), mask: parking_lot::RwLock::new(mask), filter: parking_lot::RwLock::new(None), full: false, cache: Mutex::new(HashMap::new()) })
+    }
+
+    /// For previews where the layer can't be split out exactly (an adjustment above it, a clipping
+    /// unit…): the engine composites the whole document per tile, with the layer's pixels replaced
+    /// by the preview. Slower than the split, but correct for any tree.
+    pub fn begin_full(doc: u64, content: &Content, layer: u64) -> Option<Session> {
+        let node = content.find(layer)?;
+        let NodeKind::Pixel { tiles } = &node.kind else { return None };
+        Some(Session {
+            doc,
+            layer,
+            fingerprint: 0,
+            width: content.width,
+            height: content.height,
+            below: content.root.clone(),
+            above: Vec::new(),
+            layer_tiles: parking_lot::RwLock::new(tiles.clone()),
+            mask: parking_lot::RwLock::new(None),
+            filter: parking_lot::RwLock::new(None),
+            full: true,
+            cache: Mutex::new(HashMap::new()),
+        })
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.full
     }
 
     fn lod0(&self, part: Part, tx: i32, ty: i32) -> Option<Tile> {
@@ -196,7 +240,9 @@ impl Session {
     /// The same session can serve a new stroke when nothing but the layer changed since it started.
     pub fn matches(content: &Content, layer: u64) -> Option<u64> {
         let node = content.find(layer)?;
-        node.tiles()?;
+        if !matches!(node.kind, NodeKind::Pixel { .. } | NodeKind::Adjustment { .. }) {
+            return None;
+        }
         let (below, above) = split(content, layer)?;
         Some(fingerprint(&below, &above, node))
     }
@@ -227,6 +273,33 @@ impl Session {
         }
     }
 
+    /// Starts, changes or ends a filter preview on the layer part.
+    pub fn set_filter(&self, p: Option<super::filters::Preview>) {
+        *self.filter.write() = p.map(Arc::new);
+        let full = self.full;
+        self.cache.lock().retain(|k, _| k.0 != Part::Layer && !(full && k.0 == Part::Below));
+    }
+
+    /// The layer part with the previewed filter, at any level, through the layer mask.
+    fn filtered(&self, p: &super::filters::Preview, lod: u8, tx: i32, ty: i32) -> Option<Tile> {
+        let tiles = self.layer_tiles.read().clone();
+        let mut t = p.tile(&tiles, lod, (tx, ty), self.width, self.height, |l, k| self.tile(Part::Layer, l, k.0, k.1))?;
+        if self.full {
+            // composited with the rest of the tree, which applies the layer's own mask
+            return Some(t);
+        }
+        if let Some(f) = self.mask.read().as_ref().and_then(|n| mask_factor(n, lod, (tx, ty))) {
+            for (i, px) in t.0.chunks_exact_mut(4).enumerate() {
+                let k = match &f {
+                    MaskFactor::Const(k) => *k,
+                    MaskFactor::Each(v) => v[i],
+                };
+                px[3] = (px[3] as f32 * k + 0.5) as u8;
+            }
+        }
+        Some(t)
+    }
+
     pub fn tile(&self, part: Part, lod: u8, tx: i32, ty: i32) -> Option<Arc<Tile>> {
         let (tw, th) = (self.width.div_ceil(TILE as u32) as i32, self.height.div_ceil(TILE as u32) as i32);
         let scale = 1i32 << lod;
@@ -237,7 +310,15 @@ impl Session {
         if let Some(hit) = self.cache.lock().get(&key) {
             return hit.clone();
         }
-        let result = if lod == 0 {
+        let filter = if part == Part::Layer { self.filter.read().clone() } else { None };
+        let substituted = self.full && part == Part::Below && self.filter.read().is_some();
+        let result = if let Some(p) = filter {
+            self.filtered(&p, lod, tx, ty).map(Arc::new)
+        } else if substituted {
+            let tile = |l: u8, k: (i32, i32)| self.tile(Part::Layer, l, k.0, k.1);
+            let sub = super::composite::Substitute { layer: self.layer, tile: &tile };
+            super::composite::composite_nodes_with(&self.below, lod, tx, ty, Some(&sub)).map(Arc::new)
+        } else if lod == 0 {
             if part == Part::Layer && self.mask.read().is_none() {
                 self.layer_tiles.read().get(&(tx, ty)).cloned()
             } else {

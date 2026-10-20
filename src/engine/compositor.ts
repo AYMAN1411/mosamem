@@ -8,7 +8,7 @@
 //   so opacity drags and blend-mode changes show instantly.
 
 import { tileUrl, liveUrl, selUrl } from './bridge';
-import { BLEND_GLSL } from './glsl';
+import { ADJUST_GLSL, BLEND_GLSL } from './glsl';
 import { BLEND_MODES, type BlendMode } from './blend';
 
 export const TILE = 256;
@@ -51,6 +51,24 @@ export interface LiveState {
   /** Layer opacity × fill. */
   alpha: number;
   visible: boolean;
+  /** An adjustment layer: the GPU applies this to the part below (the layer part is its coverage). */
+  adjust?: CompiledAdjustment | null;
+}
+
+/** Adjustment settings compiled by the engine (`adjustment_compile`). */
+export interface CompiledAdjustment {
+  kind: number;
+  params: Float32Array; // 32
+  table: Float32Array; // 4 per entry
+  n: number;
+}
+
+export function decodeCompiledAdjustment(bytes: ArrayBuffer): CompiledAdjustment {
+  const v = new DataView(bytes);
+  const kind = v.getUint32(0, true);
+  const n = v.getUint32(4, true);
+  const f = new Float32Array(bytes.slice(8));
+  return { kind, n, params: f.slice(0, 32), table: f.slice(32, 32 + n * 4) };
 }
 
 const VS = `#version 300 es
@@ -84,6 +102,7 @@ uniform float uTime;
 uniform int uRefineView;
 out vec4 outColor;
 ${BLEND_GLSL}
+${ADJUST_GLSL}
 
 // Premultiplied texel of a source at integer lod coordinates. ok=false when not loaded yet.
 vec4 texel(int src, ivec2 p, int lod, out bool ok) {
@@ -137,8 +156,12 @@ void main() {
     c = sampleSource(1, doc);
     vec4 l = sampleSource(2, doc);
     float a = l.a * uLiveAlpha;
-    if (uLiveMode == 1) a = dissolveThreshold(ivec2(floor(doc))) < a ? 1.0 : 0.0;
-    if (a > 0.0) c = compositePx(uLiveMode, c, l.rgb / max(l.a, 1e-6), a);
+    if (uAdjKind > 0) {
+      c = adjustPx(uLiveMode, c, a, ivec2(floor(doc / exp2(float(uLod)))));
+    } else {
+      if (uLiveMode == 1) a = dissolveThreshold(ivec2(floor(doc))) < a ? 1.0 : 0.0;
+      if (a > 0.0) c = compositePx(uLiveMode, c, l.rgb / max(l.a, 1e-6), a);
+    }
     vec4 above = sampleSource(3, doc);
     c = above + c * (1.0 - above.a);
   } else {
@@ -197,6 +220,25 @@ void main() {
   outColor = c.a > 0.0 ? vec4(c.rgb / c.a, c.a) : vec4(0.0);
 }`;
 
+/** Test shader: applies an adjustment to a tile with the same GLSL as the live preview. */
+const FS_ADJUST_TEST = `#version 300 es
+precision highp float;
+precision highp int;
+uniform sampler2D uBack;
+uniform sampler2D uSrc;
+uniform int uMode;
+uniform float uOpacity;
+out vec4 outColor;
+${BLEND_GLSL}
+${ADJUST_GLSL}
+void main() {
+  ivec2 p = ivec2(gl_FragCoord.xy);
+  vec4 b = texelFetch(uBack, p, 0);
+  vec4 s = texelFetch(uSrc, p, 0);
+  vec4 c = adjustPx(uMode, vec4(b.rgb * b.a, b.a), s.a * uOpacity, p);
+  outColor = c.a > 0.0 ? vec4(c.rgb / c.a, c.a) : vec4(0.0);
+}`;
+
 interface Entry {
   slot: number; // 1-based atlas slot, or EMPTY
   version: number;
@@ -245,7 +287,7 @@ export class Compositor {
     if (!gl) throw new Error('WebGL2 is not available');
     this.gl = gl;
     this.prog = program(gl, VS, FS);
-    for (const n of ['uAtlas', 'uPages', 'uScreenToDoc', 'uDoc', 'uZoom', 'uLod', 'uPasteboard', 'uPixelGrid', 'uCanvasH', 'uLive', 'uLiveMode', 'uLiveAlpha', 'uSel', 'uSelOffset', 'uDx', 'uDy', 'uTime', 'uRefineView']) {
+    for (const n of ['uAtlas', 'uPages', 'uScreenToDoc', 'uDoc', 'uZoom', 'uLod', 'uPasteboard', 'uPixelGrid', 'uCanvasH', 'uLive', 'uLiveMode', 'uLiveAlpha', 'uSel', 'uSelOffset', 'uDx', 'uDy', 'uTime', 'uRefineView', 'uAdjKind', 'uAdjP', 'uAdjTable', 'uAdjN']) {
       this.u[n] = gl.getUniformLocation(this.prog, n);
     }
     this.atlas = gl.createTexture()!;
@@ -253,6 +295,8 @@ export class Compositor {
     gl.texStorage3D(gl.TEXTURE_2D_ARRAY, 1, gl.RGBA8, TILE, TILE, CAPACITY);
     nearest(gl, gl.TEXTURE_2D_ARRAY);
     this.pages = gl.createTexture()!;
+    this.adjTable = gl.createTexture()!;
+    this.uploadAdjustTable(new Float32Array(8), 2);
     gl.bindVertexArray(gl.createVertexArray());
     this.resetAtlas();
   }
@@ -317,8 +361,22 @@ export class Compositor {
   private keptSession: number | null = null;
   private keptLayerKey: number | undefined;
 
+  private adjTable: WebGLTexture;
+  private adjUploaded: Float32Array | null = null;
+
+  private uploadAdjustTable(table: Float32Array, n: number) {
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, this.adjTable);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, Math.max(n, 2), 1, 0, gl.RGBA, gl.FLOAT, table.length >= 8 ? table : new Float32Array(8));
+    nearest(gl, gl.TEXTURE_2D);
+    gl.activeTexture(gl.TEXTURE0);
+    this.adjUploaded = table;
+  }
+
   /** Starts or updates a live preview. */
   setLive(live: LiveState) {
+    if (live.adjust && live.adjust.table !== this.adjUploaded && live.adjust.n >= 2) this.uploadAdjustTable(live.adjust.table, live.adjust.n);
     const prev = this.live?.session ?? this.keptSession;
     if (prev != null && prev !== live.session) this.dropSources([1, 2, 3]);
     // same session, but the layer changed since (undo, another tool): refresh its tiles
@@ -334,6 +392,18 @@ export class Compositor {
   endLive(onDone: () => void, layerKey?: number) {
     if (!this.live) return onDone();
     this.ending = { session: this.live.session, onDone, layerKey };
+    this.requestFrame();
+  }
+
+  /** A live part changed everywhere (a filter preview): refetch it, showing the old tiles until
+   *  the new ones arrive. 2 = the layer part, 1 = the part below (whole-document sessions). */
+  refreshPart(src: 1 | 2) {
+    const epoch = ++this.epoch;
+    for (const [k, e] of this.entries) {
+      if (!k.startsWith(`${src}/`)) continue;
+      e.version = -1;
+      this.keyEpoch.set(k, epoch);
+    }
     this.requestFrame();
   }
 
@@ -609,6 +679,13 @@ export class Compositor {
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.pages);
     gl.uniform1i(this.u.uPages, 1);
+    const adj = this.live?.adjust ?? null;
+    gl.uniform1i(this.u.uAdjKind, adj ? adj.kind : 0);
+    gl.uniform1i(this.u.uAdjN, adj ? Math.max(adj.n, 2) : 2);
+    gl.uniform4fv(this.u.uAdjP, adj ? adj.params : new Float32Array(32));
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, this.adjTable);
+    gl.uniform1i(this.u.uAdjTable, 2);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     if (!this.live) this.drawnVersion = this.doc.version;
     // painting: a waiter is done in the first frame where each of its on-screen tiles shows
@@ -708,6 +785,52 @@ export class Compositor {
     for (const t of [tb, ts, out]) gl.deleteTexture(t);
     gl.deleteFramebuffer(fb);
     gl.deleteProgram(prog);
+    this.requestFrame();
+    return result;
+  }
+
+  /** GPU-vs-CPU check for adjustments: like `blendTest`, with `src` as the coverage (mask in alpha). */
+  adjustTest(back: Uint8Array, cover: Uint8Array, op: CompiledAdjustment, mode: BlendMode, opacity: number): Uint8Array {
+    const gl = this.gl;
+    const prog = program(gl, VS, FS_ADJUST_TEST);
+    const tex = (data: Uint8Array) => {
+      const t = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, TILE, TILE, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+      nearest(gl, gl.TEXTURE_2D);
+      return t;
+    };
+    gl.activeTexture(gl.TEXTURE0);
+    const tb = tex(back);
+    gl.activeTexture(gl.TEXTURE1);
+    const ts = tex(cover);
+    this.uploadAdjustTable(op.n >= 2 ? op.table : new Float32Array(8), Math.max(op.n, 2));
+    const out = gl.createTexture()!;
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, out);
+    gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, TILE, TILE);
+    const fb = gl.createFramebuffer()!;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, out, 0);
+    gl.viewport(0, 0, TILE, TILE);
+    gl.useProgram(prog);
+    gl.uniform1i(gl.getUniformLocation(prog, 'uBack'), 0);
+    gl.uniform1i(gl.getUniformLocation(prog, 'uSrc'), 1);
+    gl.uniform1i(gl.getUniformLocation(prog, 'uAdjTable'), 2);
+    gl.uniform1i(gl.getUniformLocation(prog, 'uAdjKind'), op.kind);
+    gl.uniform1i(gl.getUniformLocation(prog, 'uAdjN'), Math.max(op.n, 2));
+    gl.uniform4fv(gl.getUniformLocation(prog, 'uAdjP'), op.params);
+    gl.uniform1i(gl.getUniformLocation(prog, 'uMode'), BLEND_MODES.indexOf(mode));
+    gl.uniform1f(gl.getUniformLocation(prog, 'uOpacity'), opacity);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    const result = new Uint8Array(TILE * TILE * 4);
+    gl.readPixels(0, 0, TILE, TILE, gl.RGBA, gl.UNSIGNED_BYTE, result);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    for (const t of [tb, ts, out]) gl.deleteTexture(t);
+    gl.deleteFramebuffer(fb);
+    gl.deleteProgram(prog);
+    this.adjUploaded = null;
+    if (this.live?.adjust) this.uploadAdjustTable(this.live.adjust.table, this.live.adjust.n);
     this.requestFrame();
     return result;
   }

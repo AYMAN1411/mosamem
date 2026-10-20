@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use lawha_core::adjust::{self, Adjustment, Op};
 use lawha_core::mask::Mask;
 use lawha_core::tile::{Tile, TILE};
 use lawha_core::BlendMode;
@@ -24,6 +25,9 @@ pub struct Locks {
 pub enum NodeKind {
     Pixel { tiles: Arc<TileMap> },
     Group { children: Vec<Node>, pass_through: bool, expanded: bool },
+    /// Changes the colors of everything below it (in its group, or its clip base when clipped).
+    /// `op` is `adj` compiled; keep them in step with `Node::set_adjustment`.
+    Adjustment { adj: Adjustment, op: Arc<Op> },
 }
 
 /// A layer mask: white shows, black hides.
@@ -89,6 +93,29 @@ impl Node {
             mask: None,
             kind: NodeKind::Group { children, pass_through: true, expanded: true },
         }
+    }
+
+    /// An adjustment layer, with the implicit white mask other editors give it.
+    pub fn adjustment(name: impl Into<String>, adj: Adjustment) -> Node {
+        let mut n = Node::pixel(name, TileMap::new());
+        n.mask = Some(LayerMask::new(Mask::uniform(255)));
+        n.kind = NodeKind::Adjustment { op: Arc::new(adjust::compile(&adj)), adj };
+        n
+    }
+
+    pub fn adjustment_settings(&self) -> Option<&Adjustment> {
+        match &self.kind {
+            NodeKind::Adjustment { adj, .. } => Some(adj),
+            _ => None,
+        }
+    }
+
+    pub fn set_adjustment(&mut self, a: Adjustment) {
+        self.kind = NodeKind::Adjustment { op: Arc::new(adjust::compile(&a)), adj: a };
+    }
+
+    pub fn is_adjustment(&self) -> bool {
+        matches!(self.kind, NodeKind::Adjustment { .. })
     }
 
     pub fn is_group(&self) -> bool {

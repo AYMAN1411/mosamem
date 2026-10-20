@@ -69,6 +69,9 @@ struct Props {
     /// Layer mask settings; its pixels are in the `masks` table.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     mask: Option<MaskProps>,
+    /// Settings of an adjustment layer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    adjustment: Option<lawha_core::adjust::Adjustment>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -131,6 +134,7 @@ pub fn save(path: &Path, content: &Content, name: &str, extra: &Extra, hashes: &
                     ("pixel", false, false)
                 }
                 NodeKind::Group { pass_through, expanded, .. } => ("group", *pass_through, *expanded),
+                NodeKind::Adjustment { .. } => ("adjustment", false, false),
             };
             let mask = n.mask.as_ref().map(|m| {
                 for (&(tx, ty), t) in m.mask.tiles.iter() {
@@ -138,7 +142,7 @@ pub fn save(path: &Path, content: &Content, name: &str, extra: &Extra, hashes: &
                 }
                 MaskProps { enabled: m.enabled, density: m.density, feather: m.feather, outside: m.mask.outside }
             });
-            let props = Props { name: n.name.clone(), visible: n.visible, opacity: n.opacity, fill: n.fill, blend: n.blend, locks: n.locks, clipped: n.clipped, pass_through, expanded, mask };
+            let props = Props { name: n.name.clone(), visible: n.visible, opacity: n.opacity, fill: n.fill, blend: n.blend, locks: n.locks, clipped: n.clipped, pass_through, expanded, mask, adjustment: n.adjustment_settings().cloned() };
             nodes.push((n.id, parent, i, kind, serde_json::to_string(&props).unwrap()));
             if let Some(c) = n.children() {
                 walk(c, Some(n.id), rows, mask_rows, nodes);
@@ -292,6 +296,10 @@ pub fn load(path: &Path) -> Result<Loaded, PersistError> {
             let p: Props = serde_json::from_str(props).map_err(|e| PersistError::Damaged(e.to_string()))?;
             let kind = match kind.as_str() {
                 "group" => NodeKind::Group { children: build(Some(*id), by_parent, tiles, masks, depth + 1)?, pass_through: p.pass_through, expanded: p.expanded },
+                "adjustment" => {
+                    let adj = p.adjustment.clone().ok_or_else(|| PersistError::Damaged("adjustment layer without settings".into()))?;
+                    NodeKind::Adjustment { op: Arc::new(lawha_core::adjust::compile(&adj)), adj }
+                }
                 _ => NodeKind::Pixel { tiles: Arc::new(tiles.remove(id).unwrap_or_default()) },
             };
             let mask = p.mask.map(|m| LayerMask {
@@ -350,7 +358,11 @@ mod tests {
         let mut g = Node::group("مجموعة", vec![b, c]);
         g.opacity = 0.9;
         let active = g.id;
-        Content::new(700, 500, 300.0, active, vec![a, g])
+        let mut adj = Node::adjustment("منحنيات", lawha_core::adjust::Adjustment::Curves {
+            channels: [vec![[0.0, 0.0], [90.0, 140.0], [255.0, 255.0]], vec![[0.0, 30.0], [255.0, 255.0]], vec![[0.0, 0.0], [255.0, 255.0]], vec![[0.0, 0.0], [255.0, 220.0]]],
+        });
+        adj.opacity = 0.7;
+        Content::new(700, 500, 300.0, active, vec![a, g, adj])
     }
 
     fn same_tree(a: &[Node], b: &[Node]) {
@@ -372,6 +384,10 @@ mod tests {
                 (NodeKind::Group { children: c1, pass_through: p1, .. }, NodeKind::Group { children: c2, pass_through: p2, .. }) => {
                     assert_eq!(p1, p2);
                     same_tree(c1, c2);
+                }
+                (NodeKind::Adjustment { adj: a1, op: o1 }, NodeKind::Adjustment { adj: a2, op: o2 }) => {
+                    assert_eq!(a1, a2);
+                    assert_eq!(o1, o2);
                 }
                 _ => panic!("kind differs"),
             }

@@ -1,6 +1,8 @@
 //! Documents live here, in the native process. The webview only holds the tiles it is displaying.
 
+pub mod adjustments;
 pub mod composite;
+pub mod filters;
 pub mod history;
 pub mod live;
 pub mod model;
@@ -156,6 +158,7 @@ impl Document {
                 NodeKind::Group { children, pass_through, expanded } => {
                     ("group", *pass_through, *expanded, Some(children.iter().rev().map(layer).collect()), 0)
                 }
+                NodeKind::Adjustment { .. } => ("adjustment", false, false, None, 0),
             };
             LayerInfo {
                 mask: n.mask.as_ref().map(|m| MaskInfo {
@@ -176,6 +179,7 @@ impl Document {
                 locks: n.locks,
                 clipped: n.clipped,
                 thumb,
+                adjustment: n.adjustment_settings().cloned(),
                 children,
             }
         }
@@ -222,6 +226,9 @@ pub struct LayerInfo {
     pub mask: Option<MaskInfo>,
     /// Changes whenever the layer's pixels change (thumbnail cache key).
     pub thumb: u64,
+    /// The settings of an adjustment layer.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub adjustment: Option<lawha_core::adjust::Adjustment>,
     /// Top to bottom.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub children: Option<Vec<LayerInfo>>,
@@ -306,7 +313,7 @@ impl Engine {
         // reuse the document's session when only this layer changed since it was made: its below
         // and above parts (and the GPU's copies of them) stay valid
         let fp = live::Session::matches(&content, layer)?;
-        let existing = self.live.read().values().find(|s| s.doc == doc && s.layer == layer && s.fingerprint == fp).cloned();
+        let existing = self.live.read().values().find(|s| s.doc == doc && s.layer == layer && s.fingerprint == fp && !s.is_full()).cloned();
         if let Some((id, s)) = existing.map(|s| (self.live.read().iter().find(|(_, x)| Arc::ptr_eq(x, &s)).map(|(id, _)| *id), s)) {
             if let (Some(id), Some(node)) = (id, content.find(layer)) {
                 s.reset_layer(node);
@@ -317,6 +324,18 @@ impl Engine {
         let s = live::Session::begin(doc, &content, layer)?;
         let mut live = self.live.write();
         live.retain(|_, x| x.doc != doc); // one session per document
+        live.insert(id, Arc::new(s));
+        Some(id)
+    }
+
+    /// A whole-document session for previews the split can't serve (see `Session::begin_full`).
+    pub fn live_begin_full(&self, doc: DocId, layer: u64) -> Option<u64> {
+        let h = self.get(doc)?;
+        let content = h.doc.read().content.clone();
+        let s = live::Session::begin_full(doc, &content, layer)?;
+        let id = next_id();
+        let mut live = self.live.write();
+        live.retain(|_, x| x.doc != doc);
         live.insert(id, Arc::new(s));
         Some(id)
     }

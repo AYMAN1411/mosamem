@@ -8,6 +8,12 @@
   import LayerThumb from './LayerThumb.svelte';
   import Scrub from './Scrub.svelte';
   import { liveChange, liveCommit } from '../live';
+  import { ADJUSTMENT_KINDS } from '../../engine/adjust';
+  import { adjust } from '../actions';
+  import { adjustmentIcon } from './adjust/icons';
+  import { dock } from '../dock/layout.svelte';
+
+  let adjMenu = $state(false);
 
   const doc = $derived(app.active);
   const active = $derived(doc ? findLayer(doc.info.layers, doc.info.active) : null);
@@ -125,7 +131,7 @@
   void BLEND_MODES;
 </script>
 
-<svelte:window onpointermove={move} onpointerup={up} />
+<svelte:window onpointermove={move} onpointerup={up} onclick={() => (adjMenu = false)} />
 
 {#if doc && active}
   <div class="panel">
@@ -148,7 +154,7 @@
         <button class="icon-btn small" title={t('layer.lockPosition')} aria-pressed={active.locks.position} onclick={() => setLock('position')}><Icon name="move" size={14} /></button>
         <button class="icon-btn small" title={t('layer.lockAll')} aria-pressed={active.locks.transparent && active.locks.pixels && active.locks.position} onclick={() => setLock('all')}><Icon name="lock" size={14} /></button>
       </span>
-      {#if active.kind === 'pixel'}
+      {#if active.kind === 'pixel' || active.kind === 'adjustment'}
         <Scrub label={t('layer.fill')} value={active.fill} onchange={(v, live) => (live ? liveChange(active.id, { fill: v }) : liveCommit(active.id, { fill: v }))} />
       {/if}
     </div>
@@ -188,6 +194,14 @@
           {#if l.clipped}<span class="clip" title={t('layer.clipped')}>↳</span>{/if}
           {#if l.kind === 'group'}
             <span class="folder"><Icon name="folder" size={22} /></span>
+          {:else if l.kind === 'adjustment' && l.adjustment}
+            <button
+              class="thumb-btn adj-thumb"
+              class:target={l.id === doc.info.active && !app.maskTarget}
+              title={t(`adj.${l.adjustment.kind}` as Key)}
+              onclick={(e) => { e.stopPropagation(); app.maskTarget = false; select(e, l.id); }}
+              ondblclick={(e) => { e.stopPropagation(); dock.show('properties'); }}
+            ><Icon name={adjustmentIcon(l.adjustment.kind)} size={18} /></button>
           {:else}
             <button
               class="thumb-btn"
@@ -232,7 +246,17 @@
     </ul>
 
     <div class="bar">
-      <button class="icon-btn" title={`${t('mask.add')} — ${t('mask.addHint')}`} disabled={!!active.mask} onclick={(e) => maskAct.addAuto(e.altKey)}><Icon name="adjustments" size={16} /></button>
+      <span class="adj-wrap">
+        <button class="icon-btn" title={t('adj.add')} aria-expanded={adjMenu} onclick={(e) => { e.stopPropagation(); adjMenu = !adjMenu; }}><Icon name="adjustments" size={16} /></button>
+        {#if adjMenu}
+          <ul class="adj-menu" role="menu">
+            {#each ADJUSTMENT_KINDS as k (k)}
+              <li><button role="menuitem" onclick={() => { adjMenu = false; adjust.add(k); }}><Icon name={adjustmentIcon(k)} size={15} />{t(`adj.${k}` as Key)}</button></li>
+            {/each}
+          </ul>
+        {/if}
+      </span>
+      <button class="icon-btn" title={`${t('mask.add')} — ${t('mask.addHint')}`} disabled={!!active.mask} onclick={(e) => maskAct.addAuto(e.altKey)}><Icon name="mask" size={16} /></button>
       <button class="icon-btn" title={t('layer.newGroup')} onclick={act.newGroup}><Icon name="folder" size={16} /></button>
       <button class="icon-btn" title={t('layer.new')} onclick={act.new}><Icon name="plus" size={16} /></button>
       <button class="icon-btn" title={t('layer.delete')} onclick={act.delete}><Icon name="trash" size={16} /></button>
@@ -277,5 +301,10 @@
   .mode, .op { color: var(--fg-3); font-size: var(--fs-0); }
   .bar { display: flex; justify-content: flex-end; gap: 2px; padding: 4px 6px; border-top: 1px solid var(--line); }
   .empty { padding: 16px; color: var(--fg-3); }
+  .adj-thumb { width: 36px; height: 36px; place-items: center; color: var(--fg-1); background: var(--bg-1); box-shadow: 0 0 0 1px var(--line-strong); }
+  .adj-wrap { position: relative; }
+  .adj-menu { position: absolute; bottom: 32px; inset-inline-end: 0; z-index: 40; min-width: 190px; margin: 0; padding: 4px; list-style: none; background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+  .adj-menu button { display: flex; align-items: center; gap: 8px; width: 100%; height: 28px; padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--fg-1); text-align: start; }
+  .adj-menu button:hover { background: var(--accent); color: var(--accent-ink); }
   .dragging { cursor: grabbing; }
 </style>

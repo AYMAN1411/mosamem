@@ -1,4 +1,6 @@
 // Typed calls into the native engine.
+import type { Adjustment, Histogram } from './adjust';
+import type { Filter } from './filter';
 import { invoke } from '@tauri-apps/api/core';
 import type { BlendMode } from './blend';
 
@@ -11,7 +13,7 @@ export interface Locks {
 export interface LayerInfo {
   id: number;
   name: string;
-  kind: 'pixel' | 'group';
+  kind: 'pixel' | 'group' | 'adjustment';
   visible: boolean;
   opacity: number;
   fill: number;
@@ -23,6 +25,8 @@ export interface LayerInfo {
   mask: { enabled: boolean; density: number; feather: number; thumb: number } | null;
   /** Changes when the layer's pixels change (thumbnail cache key). */
   thumb: number;
+  /** Settings of an adjustment layer. */
+  adjustment?: Adjustment;
   /** Top to bottom. */
   children?: LayerInfo[];
 }
@@ -182,7 +186,21 @@ export const engine = {
     invoke<DocInfo>('paint_gradient', { doc, spec }),
   sampleColor: (doc: number, x: number, y: number, size: number, allLayers: boolean) => invoke<[number, number, number, number] | null>('sample_color', { doc, x, y, size, allLayers }),
 
+  adjustmentNew: (doc: number, name: string, settings: Adjustment) => invoke<DocInfo>('adjustment_new', { doc, name, settings }),
+  adjustmentSet: (doc: number, id: number, settings: Adjustment, transient: boolean) => invoke<DocInfo>('adjustment_set', { doc, id, settings, transient }),
+  /** Previews a filter on a live session's layer; false when it can't be previewed live. */
+  liveFilter: (doc: number, session: number, filter: Filter | null) => invoke<boolean>('live_filter', { doc, session, filter }),
+  filterApply: (doc: number, id: number, filter: Filter, target: 'pixels' | 'mask', name: string) => invoke<DocInfo>('filter_apply', { doc, id, filter, target, name }),
+  /** Settings compiled for the GPU preview (see `decodeCompiledAdjustment`). */
+  adjustmentCompile: (settings: Adjustment) => invoke<ArrayBuffer>('adjustment_compile', { settings }),
+  /** [backdrop, coverage, CPU result], each 256×256 RGBA8, for the GPU-vs-CPU adjustment test. */
+  debugAdjustReference: async (settings: Adjustment, mode: string, opacity: number) => new Uint8Array(await invoke<ArrayBuffer>('debug_adjust_reference', { settings, mode, opacity })),
+  /** Histogram of the image below a layer (or the whole image). */
+  histogram: (doc: number, below: number | null) => invoke<Histogram>('histogram', { doc, below }),
+
   liveBegin: (doc: number, layer: number) => invoke<number | null>('live_begin', { doc, layer }),
+  /** A whole-document session, for previews where the layer can't be split out. */
+  liveBeginFull: (doc: number, layer: number) => invoke<number | null>('live_begin_full', { doc, layer }),
   liveEnd: (session: number) => invoke<void>('live_end', { session }),
 
   undo: (doc: number) => invoke<DocInfo>('undo', { doc }),

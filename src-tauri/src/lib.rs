@@ -41,6 +41,12 @@ pub fn run() {
             commands::layer_duplicate,
             commands::layer_delete,
             commands::layer_set,
+            commands::adjustment_new,
+            commands::adjustment_set,
+            commands::histogram,
+            commands::adjustment_compile,
+            commands::live_filter,
+            commands::filter_apply,
             commands::layer_solo,
             commands::layer_move,
             commands::layer_merge_down,
@@ -69,6 +75,7 @@ pub fn run() {
             commands::paint_gradient,
             commands::sample_color,
             commands::live_begin,
+            commands::live_begin_full,
             commands::live_end,
             commands::undo,
             commands::redo,
@@ -79,6 +86,8 @@ pub fn run() {
             commands::debug_doc_hash,
             #[cfg(any(debug_assertions, feature = "harness"))]
             commands::debug_blend_reference,
+            #[cfg(any(debug_assertions, feature = "harness"))]
+            commands::debug_adjust_reference,
             #[cfg(any(debug_assertions, feature = "harness"))]
             harness::harness_reply,
         ])

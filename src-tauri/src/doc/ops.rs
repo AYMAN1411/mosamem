@@ -13,7 +13,7 @@ use super::{Document, Label};
 
 pub type OpResult = Result<(), String>;
 
-fn active_slot(doc: &Document) -> Slot {
+pub(crate) fn active_slot(doc: &Document) -> Slot {
     doc.content.slot_of(doc.content.active).unwrap_or(Slot { parent: None, index: doc.content.root.len().saturating_sub(1) })
 }
 
@@ -263,6 +263,7 @@ fn tile_keys(node: &Node) -> Vec<(i32, i32)> {
         match &n.kind {
             NodeKind::Pixel { tiles } => keys.extend(tiles.keys().copied()),
             NodeKind::Group { children, .. } => children.iter().for_each(|c| walk(c, keys)),
+            NodeKind::Adjustment { .. } => {}
         }
     }
     walk(node, &mut keys);
@@ -279,6 +280,9 @@ pub fn merge_down(doc: &mut Document, id: u64) -> OpResult {
     let (below, top) = (&sib[slot.index - 1], &sib[slot.index]);
     if below.is_group() {
         return Err("can't merge into a group".into());
+    }
+    if below.is_adjustment() {
+        return Err("can't merge into an adjustment layer".into());
     }
     let below_tiles = rasterize(below);
     let mut keys: HashSet<(i32, i32)> = below_tiles.keys().copied().collect();

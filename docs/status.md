@@ -172,3 +172,38 @@ The engine itself paints a batch in 1–6 ms. The rest is waiting for the next d
 - **Performance on a real Windows PC is not verified**: there is only a Windows 11 ARM VM.
 - No brush tip shapes beyond round (no textured, scattered or angled tips), and no mixer brush, smudge or dodge/burn.
 - The latency above was measured on a dev build with optimized code. The release build (LTO) should be the same or faster, but it was not measured separately.
+
+## Milestone 5: adjustments and filters ✔︎ (2026-10-20)
+
+| Feature | How it was checked |
+|---|---|
+| **Adjustment layers**: Levels, Curves, Hue/Saturation, Brightness/Contrast, Exposure, Vibrance, Color Balance, Black & White, Gradient Map, Invert, Threshold. Added from the Adjustments panel, the Layers panel button or Layer › New Adjustment Layer. The selection becomes the layer's mask. Opacity, fill, blend modes, masks, clipping (only the base layer is changed) and groups (an isolated group keeps the change inside, a pass-through group lets it through) all work. Saved in `.lawha`, and every change is one history step. | Rust tests: known input → output for every kind; defaults leave every color unchanged; scope in groups and clipping; blend modes; selection → mask; save/load round trip; histogram |
+| **Properties panel editors**: Levels (per channel, histogram, draggable black/gray/white handles, output range), Curves (up to 14 points, histogram behind, per channel; drawn with the same monotone spline as the engine), Hue/Saturation (master and six hue ranges, colorize), Brightness/Contrast (with legacy), Exposure, Vibrance, Color Balance (three tones, preserve luminosity), Black & White (six weights, tint), Gradient Map (color stops, reverse, dither), Threshold (with histogram). | Screenshots `m5-curves-*`, `m5-levels-ar`; TypeScript test for the spline |
+| **Live preview while dragging**: the GPU applies the adjustment (a GLSL port of the engine's math, fed the numbers the engine compiles) to the cached part below the layer. Where the tree can't be split exactly (an adjustment under another adjustment, a clipped adjustment), the engine recomposites instead. | GPU vs CPU: 16 settings × 4 blend modes, all within ±1/255 (`docs/gpu-adjust-m5.json`). The canvas during a drag and after release: identical at 100% zoom. At 25% zoom the mean difference is 0.2 levels, and about 1% of pixels differ by more than 2 (the preview adjusts colors after the zoomed-out view blends neighbouring pixels, not before). |
+| **Filters**: Gaussian Blur, Motion Blur, Unsharp Mask, Add Noise, Mosaic (Filter menu). A floating panel with a live preview on the canvas at the zoom shown, computed tile by tile. Applied through the selection (soft edges included); locked pixels refuse, and locked transparency keeps alpha. Also works on layer masks (without a live preview). The canvas edge repeats, so blurring a full layer doesn't fade its border. | Rust tests (10 core, 6 engine): flat areas stay flat, Gaussian σ is checked by variance, transparent neighbours don't darken colors, unsharp threshold, noise is repeatable and tied to image coordinates, mosaic cells align to the canvas, tile-by-tile results equal whole-image results, the preview under an adjustment layer equals the applied result; screenshots `m5-blur-preview`, `m5-motion-ar` |
+
+### Speed (6000×4000, 30 full layers, 60 Hz)
+
+| Operation | Time |
+|---|---|
+| Adjustment slider, GPU preview | one frame per change: p50 16.6 ms, p95 18–20 ms (60 fps). The first change of a drag takes 0.15 s (100%) to 0.6 s (fit) to build the cached parts. |
+| Adjustment slider, engine fallback | 65 ms (100%) to 235 ms (fit) per change |
+| Gaussian blur on one full 24 MP layer | 146 ms (radius 4), 515 ms (radius 50), 323 ms (radius 250) |
+| Unsharp mask / add noise / mosaic | 139 / 109 / 19 ms |
+| Motion blur, 40 px | 1.2 s |
+
+Raw numbers: `docs/perf-adjust-m5.json`, `docs/perf-filter-m5.json`.
+
+### Fixed during this milestone
+
+- Filters had no preview on a layer below an adjustment layer: the GPU split can't hold an adjustment above the layer. Such previews now use a whole-document session, where the engine composites everything per tile with the layer's pixels replaced by the filtered ones.
+- Long-reaching filters ran tile by tile with large margins (1.3 s for a radius-50 blur). Past a 32 px reach they now run over the whole canvas at once (0.5 s).
+- Test scripts: when Lawha's window is behind other windows, WebKit slows its timers and replies to about 500 ms per step even with background throttling turned off. Timings in this report were all taken with the window in front.
+
+### Not done or not verified in M5
+
+- Several formulas are our own definitions, marked ✱ in `docs/research.md`: modern Brightness/Contrast, the Hue/Saturation and Vibrance saturation curves, Color Balance tone weights, the Black & White mix, the Curves spline (monotone, where Photoshop's may overshoot), the blur radius → σ mapping and the noise amounts. They are tested against their own formulas, not against Photoshop. Calibration comes with the Photoshop-made test files in M9.
+- No destructive Image › Adjustments yet (adjustment layers only), no presets, no eyedroppers or Auto in Levels and Curves, no dragging on the image to edit a curve, and gradient stops are edited in a list rather than on the bar.
+- No smart (re-editable) filters. Filters change only pixels inside the canvas, and on masks there is no live preview.
+- Heavy motion blurs are slow: a 150 px preview over the whole photo took 6 s to fill in at fit.
+- A long filter shows "Applying…" without a progress bar.

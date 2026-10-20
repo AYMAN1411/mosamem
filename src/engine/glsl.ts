@@ -96,3 +96,121 @@ vec4 compositePx(int m, vec4 dst, vec3 cs, float a) {
   return vec4(co, a + ab * (1.0 - a));
 }
 `;
+
+/**
+ * Adjustments, as in lawha-core/src/adjust.rs (`Op::apply` and `apply_to_accum`), on the numbers
+ * the engine compiles (`adjustment_compile`). Needs BLEND_GLSL before it.
+ */
+export const ADJUST_GLSL = `
+uniform int uAdjKind; // 0 = none, else lawha_core::adjust::OpKind
+uniform vec4 uAdjP[8];
+uniform highp sampler2D uAdjTable;
+uniform int uAdjN;
+
+float adjLookup(float x, int ch) {
+  float p = clamp(x, 0.0, 1.0) * float(uAdjN - 1);
+  int i = min(int(p), uAdjN - 2);
+  float f = p - float(i);
+  float a = texelFetch(uAdjTable, ivec2(i, 0), 0)[ch];
+  float b = texelFetch(uAdjTable, ivec2(i + 1, 0), 0)[ch];
+  return a + (b - a) * f;
+}
+vec3 rgbToHsl(vec3 c) {
+  float mx = max(c.r, max(c.g, c.b));
+  float mn = min(c.r, min(c.g, c.b));
+  float l = (mx + mn) / 2.0;
+  float d = mx - mn;
+  if (d <= 1e-6) return vec3(0.0, 0.0, l);
+  float s = d / max(1.0 - abs(2.0 * l - 1.0), 1e-6);
+  float h;
+  if (mx == c.r) h = mod((c.g - c.b) / d, 6.0);
+  else if (mx == c.g) h = (c.b - c.r) / d + 2.0;
+  else h = (c.r - c.g) / d + 4.0;
+  return vec3(h * 60.0, min(s, 1.0), l);
+}
+vec3 hslToRgb(float h, float s, float l) {
+  float c = (1.0 - abs(2.0 * l - 1.0)) * s;
+  float hp = mod(h, 360.0) / 60.0;
+  float x = c * (1.0 - abs(mod(hp, 2.0) - 1.0));
+  int seg = int(hp);
+  vec3 rgb = seg == 0 ? vec3(c, x, 0.0) : seg == 1 ? vec3(x, c, 0.0) : seg == 2 ? vec3(0.0, c, x) : seg == 3 ? vec3(0.0, x, c) : seg == 4 ? vec3(x, 0.0, c) : vec3(c, 0.0, x);
+  return rgb + (l - c / 2.0);
+}
+float hueDistance(float a, float b) {
+  float d = mod(a - b, 360.0);
+  return min(d, 360.0 - d);
+}
+float rangeWeight(float h, float center) { return clamp((45.0 - hueDistance(h, center)) / 30.0, 0.0, 1.0); }
+vec3 lighten(vec3 c, float dl) { return dl >= 0.0 ? c + (1.0 - c) * dl : c * (1.0 + dl); }
+vec3 adjHueSaturation(vec3 c) {
+  vec3 hsl = rgbToHsl(c);
+  if (uAdjP[0].w > 0.5) {
+    vec4 k = uAdjP[7];
+    return lighten(hslToRgb(k.x, clamp(k.y, 0.0, 1.0), hsl.z), k.z);
+  }
+  float dh = uAdjP[0].x, ds = uAdjP[0].y, dl = uAdjP[0].z;
+  if (hsl.y > 0.0) {
+    for (int i = 0; i < 6; i++) {
+      float w = rangeWeight(hsl.x, float(i) * 60.0);
+      dh += w * uAdjP[i + 1].x;
+      ds += w * uAdjP[i + 1].y;
+      dl += w * uAdjP[i + 1].z;
+    }
+  }
+  float s2 = clamp(hsl.y * (1.0 + clamp(ds, -1.0, 1.0)), 0.0, 1.0);
+  return lighten(hslToRgb(hsl.x + dh, s2, hsl.z), clamp(dl, -1.0, 1.0));
+}
+vec3 adjVibrance(vec3 c) {
+  float v = uAdjP[0].x, sat = uAdjP[0].y;
+  vec3 hsl = rgbToHsl(c);
+  float skin = v > 0.0 ? 1.0 - 0.5 * max(1.0 - hueDistance(hsl.x, 25.0) / 35.0, 0.0) : 1.0;
+  float s1 = clamp(hsl.y * (1.0 + v * (1.0 - hsl.y) * skin), 0.0, 1.0);
+  return hslToRgb(hsl.x, clamp(s1 * (1.0 + sat), 0.0, 1.0), hsl.z);
+}
+vec3 adjColorBalance(vec3 c) {
+  float l = clamp(lum(c), 0.0, 1.0);
+  vec3 w = vec3((1.0 - l) * (1.0 - l), 2.0 * l * (1.0 - l), l * l);
+  vec3 shift = w.x * uAdjP[0].xyz + w.y * uAdjP[1].xyz + w.z * uAdjP[2].xyz;
+  vec3 o = clamp(c + 0.5 * shift, 0.0, 1.0);
+  return uAdjP[3].x > 0.5 ? setLum(o, lum(c)) : o;
+}
+float bwWeight(int i) { return i < 4 ? uAdjP[0][i] : uAdjP[1][i - 4]; }
+vec3 adjBlackWhite(vec3 c) {
+  float r = c.r, g = c.g, b = c.b;
+  float mx, mid, mn;
+  int pr, sc;
+  if (r >= g && r >= b) {
+    if (g >= b) { mx = r; mid = g; mn = b; pr = 0; sc = 1; } else { mx = r; mid = b; mn = g; pr = 0; sc = 5; }
+  } else if (g >= r && g >= b) {
+    if (r >= b) { mx = g; mid = r; mn = b; pr = 2; sc = 1; } else { mx = g; mid = b; mn = r; pr = 2; sc = 3; }
+  } else if (r >= g) { mx = b; mid = r; mn = g; pr = 4; sc = 5; } else { mx = b; mid = g; mn = r; pr = 4; sc = 3; }
+  float gray = clamp(mn + (mid - mn) * bwWeight(sc) + (mx - mid) * bwWeight(pr), 0.0, 1.0);
+  return uAdjP[1].z > 0.5 ? setLum(uAdjP[2].xyz, gray) : vec3(gray);
+}
+vec3 applyAdjust(vec3 c, ivec2 px) {
+  if (uAdjKind == 1) return vec3(adjLookup(c.r, 0), adjLookup(c.g, 1), adjLookup(c.b, 2));
+  if (uAdjKind == 2) return adjHueSaturation(c);
+  if (uAdjKind == 3) return adjVibrance(c);
+  if (uAdjKind == 4) return adjColorBalance(c);
+  if (uAdjKind == 5) return adjBlackWhite(c);
+  if (uAdjKind == 6) {
+    float t = clamp(lum(c), 0.0, 1.0);
+    if (uAdjP[0].x > 0.5) t = 1.0 - t;
+    if (uAdjP[0].y > 0.5) t += (dissolveThreshold(px) - 0.5) / 255.0;
+    return vec3(adjLookup(t, 0), adjLookup(t, 1), adjLookup(t, 2));
+  }
+  if (uAdjKind == 7) return vec3(lum(c) * 255.0 + 1e-3 >= uAdjP[0].x ? 1.0 : 0.0);
+  return c;
+}
+// an adjustment layer over a premultiplied backdrop: mixed in by k, alpha unchanged
+vec4 adjustPx(int mode, vec4 dst, float k, ivec2 px) {
+  float a = dst.a;
+  if (a <= 0.0) return dst;
+  if (mode == 1) k = dissolveThreshold(px) < k ? 1.0 : 0.0;
+  if (k <= 0.0) return dst;
+  vec3 cb = clamp(dst.rgb / a, 0.0, 1.0);
+  vec3 adj = applyAdjust(cb, px);
+  vec3 b = (mode == 0 || mode == 1) ? adj : blendRGB(mode, cb, adj);
+  return vec4((cb + (b - cb) * k) * a, a);
+}
+`;

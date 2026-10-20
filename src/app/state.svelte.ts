@@ -1,5 +1,6 @@
 // App-wide UI state. Pixels and the document model live in the native engine; this holds what the
 // UI shows and how the user is viewing it.
+import type { FilterKind } from '../engine/filter';
 import type { DocInfo } from '../engine/bridge';
 
 export type ToolId =
@@ -123,7 +124,9 @@ class AppState {
   });
   sel = $state<SelectionOptions>({ mode: 'replace', feather: 0, antialias: true, style: 'normal', ratioW: 1, ratioH: 1, sizeW: 1080, sizeH: 1080, tolerance: 32, contiguous: true, allLayers: false, brush: 30 });
   gridSubdivisions = $state(4);
-  dialog = $state<null | 'new' | 'export' | 'recovery' | 'unsaved' | 'modify' | 'refine'>(null);
+  dialog = $state<null | 'new' | 'export' | 'recovery' | 'unsaved' | 'modify' | 'refine' | 'filter'>(null);
+  /** The filter the filter panel is showing. */
+  filterKind = $state<FilterKind>('gaussianBlur');
   modifyOp = $state<'feather' | 'expand' | 'contract' | 'border' | 'smooth'>('feather');
   /** True when the layer mask (not the pixels) of the active layer is the editing target. */
   maskTarget = $state(false);

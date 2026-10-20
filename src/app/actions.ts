@@ -3,6 +3,9 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { engine, findLayer, type DocInfo, type ExportFormat, type LayerProps, type Modify, type NewMask } from '../engine/bridge';
 import { app, type DocState } from './state.svelte';
 import { t } from './i18n/index.svelte';
+import { defaultAdjustment, type Adjustment, type AdjustmentKind } from '../engine/adjust';
+import type { FilterKind } from '../engine/filter';
+import { dock } from './dock/layout.svelte';
 
 const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'tif', 'tiff', 'heic', 'heif'];
 
@@ -210,3 +213,45 @@ export const mask = {
   set: (props: { density?: number; feather?: number }, transient = false) => run((d) => engine.maskSet(d.info.id, d.info.active, props, transient)),
   toSelection: (id: number) => run((d) => engine.maskToSelection(d.info.id, id)),
 };
+
+// ---- adjustment layers ----
+
+let adjBusy: Promise<void> | null = null;
+let adjQueued: { id: number; settings: Adjustment } | null = null;
+
+export const adjust = {
+  add: async (kind: AdjustmentKind) => {
+    await run((d) => engine.adjustmentNew(d.info.id, t(`adj.${kind}`), defaultAdjustment(kind)));
+    app.maskTarget = false;
+    dock.show('properties');
+  },
+  /** While a control is dragged: no history step, and at most one update in flight (the latest wins). */
+  preview: (id: number, settings: Adjustment) => {
+    adjQueued = { id, settings };
+    if (adjBusy) return;
+    adjBusy = (async () => {
+      while (adjQueued) {
+        const q = adjQueued;
+        adjQueued = null;
+        await run((d) => engine.adjustmentSet(d.info.id, q.id, q.settings, true));
+      }
+      adjBusy = null;
+    })();
+  },
+  /** The final value: one history step. */
+  commit: async (id: number, settings: Adjustment) => {
+    adjQueued = null;
+    if (adjBusy) await adjBusy;
+    await run((d) => engine.adjustmentSet(d.info.id, id, settings, false));
+  },
+};
+
+// ---- filters ----
+
+export function openFilter(kind: FilterKind) {
+  if (!app.active) return;
+  app.filterKind = kind;
+  app.dialog = null;
+  // a fresh panel each time
+  queueMicrotask(() => (app.dialog = 'filter'));
+}

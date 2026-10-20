@@ -516,6 +516,12 @@ pub fn live_begin(engine: State<'_, Engine>, doc: u64, layer: u64) -> Option<u64
     engine.live_begin(doc, layer)
 }
 
+/// A whole-document live session, for previews where the layer can't be split out.
+#[tauri::command]
+pub fn live_begin_full(engine: State<'_, Engine>, doc: u64, layer: u64) -> Option<u64> {
+    engine.live_begin_full(doc, layer)
+}
+
 #[tauri::command]
 pub fn live_end(engine: State<'_, Engine>, session: u64) {
     engine.live_end(session);
@@ -608,4 +614,111 @@ pub fn debug_test_document(engine: State<'_, Engine>, width: u32, height: u32, l
     let content = Content::new(width, height, 72.0, stack.last().unwrap().id, stack);
     let doc = Document::new(format!("perf {width}×{height}×{layers}"), None, content, Label::new("history.new"));
     engine.insert(doc).doc.read().info()
+}
+
+// ---- adjustments ----
+
+use crate::doc::adjustments::{self, Histogram};
+use lawha_core::adjust::Adjustment;
+
+#[tauri::command]
+pub fn adjustment_new(engine: State<'_, Engine>, doc: u64, name: String, settings: Adjustment) -> Res<DocInfo> {
+    edit(&engine, doc, |d| adjustments::new_adjustment(d, name, settings))
+}
+
+#[tauri::command]
+pub fn adjustment_set(engine: State<'_, Engine>, doc: u64, id: u64, settings: Adjustment, transient: bool) -> Res<DocInfo> {
+    edit(&engine, doc, |d| adjustments::set_adjustment(d, id, settings, transient))
+}
+
+/// Histogram of the image below a layer (or of the whole image).
+#[tauri::command]
+pub async fn histogram(engine: State<'_, Engine>, doc: u64, below: Option<u64>) -> Res<Histogram> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let d = h.doc.read();
+        Ok(adjustments::histogram(&d, below))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// The compiled form of adjustment settings, for the GPU preview: kind (u32), table length (u32),
+/// 32 parameters (f32), then the table (4 × f32 per entry), all little-endian. The shader runs the
+/// same math as the engine on exactly these numbers.
+#[tauri::command]
+pub fn adjustment_compile(settings: Adjustment) -> tauri::ipc::Response {
+    let op = lawha_core::adjust::compile(&settings);
+    let mut bytes = Vec::with_capacity(8 + 32 * 4 + op.table.len() * 16);
+    bytes.extend_from_slice(&(op.kind as u32).to_le_bytes());
+    bytes.extend_from_slice(&(op.table.len() as u32).to_le_bytes());
+    for v in op.params.iter().flatten().chain(op.table.iter().flatten()) {
+        bytes.extend_from_slice(&v.to_le_bytes());
+    }
+    tauri::ipc::Response::new(bytes)
+}
+
+/// Debug builds only: [backdrop, coverage, CPU result] (256×256 RGBA8 each) for the GPU-vs-CPU
+/// adjustment test. Coverage is white with the mask in alpha.
+#[cfg(any(debug_assertions, feature = "harness"))]
+#[tauri::command]
+pub fn debug_adjust_reference(settings: Adjustment, mode: lawha_core::BlendMode, opacity: f32) -> tauri::ipc::Response {
+    use lawha_core::tile::{Accum, Tile};
+    let op = lawha_core::adjust::compile(&settings);
+    let mut back = Tile::transparent();
+    let mut cover = Tile::transparent();
+    for (i, (b, c)) in back.0.chunks_exact_mut(4).zip(cover.0.chunks_exact_mut(4)).enumerate() {
+        let (x, y) = (i % 256, i / 256);
+        // a wide spread of colors, a band of partial alpha, and a mask with full, partial and no cover
+        b.copy_from_slice(&[x as u8, (y * 3 % 256) as u8, ((x ^ y) % 256) as u8, if y < 32 { (x % 256) as u8 } else { 255 }]);
+        c.copy_from_slice(&[255, 255, 255, if x < 24 { 0 } else if y > 224 { (y * 2 % 256) as u8 } else { 255 }]);
+    }
+    let mask: Vec<f32> = cover.0.chunks_exact(4).map(|p| p[3] as f32 / 255.0).collect();
+    let mut acc = Accum::from_tile(&back, 1.0);
+    lawha_core::adjust::apply_to_accum(&mut acc, &op, mode, opacity, Some(&mask), (0, 0));
+    let mut out = Tile::transparent();
+    acc.to_tile(&mut out);
+    let mut bytes = Vec::with_capacity(3 * back.0.len());
+    bytes.extend_from_slice(&back.0);
+    bytes.extend_from_slice(&cover.0);
+    bytes.extend_from_slice(&out.0);
+    tauri::ipc::Response::new(bytes)
+}
+
+// ---- filters ----
+
+use crate::doc::filters::{self, FilterTarget};
+use lawha_core::filter::Filter;
+
+/// Previews a filter on a live session's layer (or stops previewing with `None`). Returns false
+/// when the layer can't be previewed (only pixels are previewed live).
+#[tauri::command]
+pub fn live_filter(engine: State<'_, Engine>, doc: u64, session: u64, filter: Option<Filter>) -> Res<bool> {
+    let s = engine.live(session).ok_or("no live session")?;
+    let h = handle(&engine, doc)?;
+    let preview = match filter {
+        None => None,
+        Some(filter) => {
+            let d = h.doc.read();
+            let node = d.content.find(s.layer).ok_or("layer not found")?;
+            if !matches!(node.kind, crate::doc::NodeKind::Pixel { .. }) {
+                return Ok(false);
+            }
+            Some(filters::Preview { filter, selection: d.content.selection.clone(), keep_alpha: node.locks.transparent })
+        }
+    };
+    s.set_filter(preview);
+    Ok(true)
+}
+
+#[tauri::command]
+pub async fn filter_apply(engine: State<'_, Engine>, doc: u64, id: u64, filter: Filter, target: FilterTarget, name: String) -> Res<DocInfo> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = h.doc.write();
+        filters::apply(&mut d, id, &filter, target, name)?;
+        Ok(d.info())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }

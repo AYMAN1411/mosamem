@@ -7,6 +7,7 @@
   import PendingPanel from '../panels/PendingPanel.svelte';
   import HistoryPanel from '../panels/HistoryPanel.svelte';
   import BrushesPanel from '../panels/BrushesPanel.svelte';
+  import AdjustmentsPanel from '../panels/AdjustmentsPanel.svelte';
 
   let { panel }: { panel: PanelId } = $props();
 </script>
@@ -21,6 +22,8 @@
   <BrushesPanel />
 {:else if panel === 'history'}
   <HistoryPanel />
+{:else if panel === 'adjustments'}
+  <AdjustmentsPanel />
 {:else if panel === 'navigator'}
   <NavigatorPanel />
 {:else}

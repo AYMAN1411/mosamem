@@ -1,6 +1,8 @@
 // Native menu bar, rebuilt when the language or toggled state changes.
 import { Menu, Submenu, MenuItem, CheckMenuItem, PredefinedMenuItem } from '@tauri-apps/api/menu';
-import { t, i18n } from './i18n/index.svelte';
+import { t, i18n, type Key } from './i18n/index.svelte';
+import { ADJUSTMENT_KINDS } from '../engine/adjust';
+import { FILTER_MENU } from '../engine/filter';
 import { app } from './state.svelte';
 import { dock } from './dock/layout.svelte';
 import * as act from './actions';
@@ -86,6 +88,11 @@ export async function buildMenu() {
     items: [
       await item(t('layer.new'), act.layer.new, 'CmdOrCtrl+Shift+N', hasDoc),
       await item(t('layer.newGroup'), act.layer.newGroup, undefined, hasDoc),
+      await Submenu.new({
+        text: t('adj.add'),
+        enabled: hasDoc,
+        items: await Promise.all(ADJUSTMENT_KINDS.map((k) => item(t(`adj.${k}` as Key), () => act.adjust.add(k)))),
+      }),
       await item(t('layer.duplicate'), act.layer.duplicate, 'CmdOrCtrl+J', hasDoc),
       await item(t('layer.delete'), act.layer.delete, undefined, hasDoc),
       await sep(),
@@ -141,11 +148,23 @@ export async function buildMenu() {
   });
   await layerMenu.append([await sep(), maskMenu]);
   const placeholders = await Promise.all(
-    (['menu.image', 'menu.filter'] as const).map(async (k) =>
+    (['menu.image'] as const).map(async (k) =>
       Submenu.new({ text: t(k), items: [await item(t('tool.notYet'), () => {}, undefined, false)] }),
     ),
   );
-  const items = [file, edit, placeholders[0], layerMenu, selectMenu, placeholders[1], viewMenu, windowMenu];
+  const filterMenu = await Submenu.new({
+    text: t('menu.filter'),
+    items: await Promise.all(
+      FILTER_MENU.map(async (g) =>
+        Submenu.new({
+          text: t(`filter.group.${g.group}` as Key),
+          enabled: hasDoc,
+          items: await Promise.all(g.kinds.map((k) => item(`${t(`filter.${k}` as Key)}…`, () => act.openFilter(k)))),
+        }),
+      ),
+    ),
+  });
+  const items = [file, edit, placeholders[0], layerMenu, selectMenu, filterMenu, viewMenu, windowMenu];
   const menu = await Menu.new({ items: isMac ? [appMenu, ...items] : items });
   await menu.setAsAppMenu();
 }

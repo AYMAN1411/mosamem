@@ -13,6 +13,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock, Weak};
 
+use lawha_core::adjust::{apply_to_accum, Op};
 use lawha_core::mask::{Mask, MaskMap, MaskTile};
 use lawha_core::tile::{downsample, Accum, Tile, TILE};
 use parking_lot::Mutex;
@@ -110,7 +111,7 @@ pub fn layer_tile(tiles: &Arc<TileMap>, lod: u8, key: (i32, i32)) -> Option<Arc<
 }
 
 /// A mask at a mip level; `None` where the whole tile has the mask's outside value.
-fn mask_tile(m: &Mask, lod: u8, key: (i32, i32)) -> Option<Arc<MaskTile>> {
+pub(crate) fn mask_tile(m: &Mask, lod: u8, key: (i32, i32)) -> Option<Arc<MaskTile>> {
     if lod == 0 {
         return m.tiles.get(&key).cloned();
     }
@@ -208,16 +209,21 @@ fn apply_mask(acc: &mut Accum, f: &MaskFactor) {
 
 /// Isolated content of a node at one tile, with its layer mask applied (None when it draws
 /// nothing there).
-fn isolated(node: &Node, lod: u8, key: (i32, i32), origin: (i64, i64)) -> Option<Source> {
+fn isolated(node: &Node, lod: u8, key: (i32, i32), origin: (i64, i64), sub: Sub) -> Option<Source> {
     let mask = mask_factor(node, lod, key);
     if matches!(mask, Some(MaskFactor::Const(k)) if k <= 0.0) {
         return None;
     }
     let src = match &node.kind {
-        NodeKind::Pixel { tiles } => Source::Tile(layer_tile(tiles, lod, key)?, node.fill),
+        NodeKind::Pixel { tiles } => match sub {
+            Some(s) if s.layer == node.id => Source::Tile((s.tile)(lod, key)?, node.fill),
+            _ => Source::Tile(layer_tile(tiles, lod, key)?, node.fill),
+        },
+        // adjustments have no content of their own (see `adjust`)
+        NodeKind::Adjustment { .. } => return None,
         NodeKind::Group { children, .. } => {
             let mut acc = Accum::new();
-            composite_stack(children, &mut acc, lod, key, origin);
+            stack(children, &mut acc, lod, key, origin, sub);
             if acc.is_empty() {
                 return None;
             }
@@ -242,6 +248,17 @@ fn isolated(node: &Node, lod: u8, key: (i32, i32), origin: (i64, i64)) -> Option
 /// resolution; above that, the layers' own mips are blended, which is how zoomed-out views stay
 /// cheap).
 pub fn composite_stack(nodes: &[Node], acc: &mut Accum, lod: u8, key: (i32, i32), origin: (i64, i64)) {
+    stack(nodes, acc, lod, key, origin, None);
+}
+
+/// Pixels to use instead of one layer's own (a filter preview), at a level and tile.
+pub struct Substitute<'a> {
+    pub layer: u64,
+    pub tile: &'a (dyn Fn(u8, (i32, i32)) -> Option<Arc<Tile>> + Sync),
+}
+type Sub<'a> = Option<&'a Substitute<'a>>;
+
+fn stack(nodes: &[Node], acc: &mut Accum, lod: u8, key: (i32, i32), origin: (i64, i64), sub: Sub) {
     let mut i = 0;
     while i < nodes.len() {
         let base = &nodes[i];
@@ -252,24 +269,39 @@ pub fn composite_stack(nodes: &[Node], acc: &mut Accum, lod: u8, key: (i32, i32)
         // a clipped layer whose base is the first sibling (no base below) is drawn normally
         let clipped = &nodes[i + 1..j];
         if base.visible && base.opacity > 0.0 {
-            composite_unit(base, clipped, acc, lod, key, origin);
+            composite_unit(base, clipped, acc, lod, key, origin, sub);
         }
         i = j;
     }
 }
 
-fn composite_unit(base: &Node, clipped: &[Node], acc: &mut Accum, lod: u8, key: (i32, i32), origin: (i64, i64)) {
+/// Applies an adjustment layer to what is below it, through its mask, opacity and fill.
+fn adjust(node: &Node, op: &Op, acc: &mut Accum, lod: u8, key: (i32, i32), origin: (i64, i64)) {
+    let k = node.opacity * node.fill;
+    match mask_factor(node, lod, key) {
+        None => apply_to_accum(acc, op, node.blend, k, None, origin),
+        Some(MaskFactor::Const(m)) => apply_to_accum(acc, op, node.blend, k * m, None, origin),
+        Some(MaskFactor::Each(v)) => apply_to_accum(acc, op, node.blend, k, Some(&v), origin),
+    }
+}
+
+fn composite_unit(base: &Node, clipped: &[Node], acc: &mut Accum, lod: u8, key: (i32, i32), origin: (i64, i64), sub: Sub) {
+    // an adjustment layer changes the backdrop; layers clipped to it have no content to clip to
+    if let NodeKind::Adjustment { op, .. } = &base.kind {
+        adjust(base, op, acc, lod, key, origin);
+        return;
+    }
     let has_clips = clipped.iter().any(|c| c.visible && c.opacity > 0.0);
     // pass-through group without clipped layers: children go straight onto the backdrop
     if let NodeKind::Group { children, pass_through: true, .. } = &base.kind {
         if !has_clips {
             let mask = mask_factor(base, lod, key);
             if base.opacity >= 1.0 && mask.is_none() {
-                composite_stack(children, acc, lod, key, origin);
+                stack(children, acc, lod, key, origin, sub);
                 return;
             }
             let mut with = Accum(acc.0.clone());
-            composite_stack(children, &mut with, lod, key, origin);
+            stack(children, &mut with, lod, key, origin, sub);
             match mask {
                 None => acc.lerp_to(&with, base.opacity),
                 Some(MaskFactor::Const(k)) => acc.lerp_to(&with, base.opacity * k),
@@ -278,7 +310,7 @@ fn composite_unit(base: &Node, clipped: &[Node], acc: &mut Accum, lod: u8, key: 
             return;
         }
     }
-    let Some(src) = isolated(base, lod, key, origin) else { return };
+    let Some(src) = isolated(base, lod, key, origin, sub) else { return };
     if !has_clips {
         match src {
             Source::Tile(t, fill) => acc.composite(&t, base.blend, base.opacity * fill, origin),
@@ -292,7 +324,12 @@ fn composite_unit(base: &Node, clipped: &[Node], acc: &mut Accum, lod: u8, key: 
         Source::Accum(a) => a,
     };
     for c in clipped.iter().filter(|c| c.visible && c.opacity > 0.0) {
-        match isolated(c, lod, key, origin) {
+        // a clipped adjustment changes only its base
+        if let NodeKind::Adjustment { op, .. } = &c.kind {
+            adjust(c, op, &mut unit, lod, key, origin);
+            continue;
+        }
+        match isolated(c, lod, key, origin, sub) {
             Some(Source::Tile(t, fill)) => unit.composite_atop(&t, c.blend, c.opacity * fill),
             Some(Source::Accum(a)) => unit.composite_accum_atop(&a, c.blend, c.opacity),
             None => {}
@@ -308,8 +345,13 @@ pub fn composite_nodes(nodes: &[Node], tx: i32, ty: i32) -> Option<Tile> {
 
 /// Composite of a list of nodes at a mip level, onto transparency; `None` when empty.
 pub fn composite_nodes_lod(nodes: &[Node], lod: u8, tx: i32, ty: i32) -> Option<Tile> {
+    composite_nodes_with(nodes, lod, tx, ty, None)
+}
+
+/// Like `composite_nodes_lod`, with one layer's pixels substituted.
+pub fn composite_nodes_with(nodes: &[Node], lod: u8, tx: i32, ty: i32, sub: Option<&Substitute>) -> Option<Tile> {
     let mut acc = Accum::new();
-    composite_stack(nodes, &mut acc, lod, (tx, ty), (tx as i64 * TILE as i64, ty as i64 * TILE as i64));
+    stack(nodes, &mut acc, lod, (tx, ty), (tx as i64 * TILE as i64, ty as i64 * TILE as i64), sub);
     if acc.is_empty() {
         return None;
     }

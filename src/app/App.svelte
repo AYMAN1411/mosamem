@@ -14,6 +14,7 @@
   import RecoveryDialog from './dialogs/RecoveryDialog.svelte';
   import ModifyDialog from './dialogs/ModifyDialog.svelte';
   import RefinePanel from './dialogs/RefinePanel.svelte';
+  import FilterPanel from './dialogs/FilterPanel.svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { engine, type RecoveredFile } from '../engine/bridge';
   import { app } from './state.svelte';
@@ -89,6 +90,7 @@
 {#if app.dialog === 'recovery'}<RecoveryDialog files={recovered} />{/if}
 {#if app.dialog === 'modify'}<ModifyDialog />{/if}
 {#if app.dialog === 'refine'}<RefinePanel />{/if}
+{#if app.dialog === 'filter'}<FilterPanel />{/if}
 {#if app.toast}
   <div class="toast" class:error={app.toast.kind === 'error'} role="status">{app.toast.text}</div>
 {/if}

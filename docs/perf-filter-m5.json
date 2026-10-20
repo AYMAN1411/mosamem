@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-20",
+  "machine": "Apple Silicon Mac, dev build with optimized code",
+  "what": "apply one filter to one full 6000×4000 layer of the 30-layer test document (engine time, including the history step)",
+  "results": [
+    {
+      "kind": "gaussianBlur",
+      "radius": 4,
+      "ms": 146
+    },
+    {
+      "kind": "gaussianBlur",
+      "radius": 50,
+      "ms": 515
+    },
+    {
+      "kind": "gaussianBlur",
+      "radius": 250,
+      "ms": 323
+    },
+    {
+      "kind": "motionBlur",
+      "angle": 30,
+      "distance": 40,
+      "ms": 1239
+    },
+    {
+      "kind": "unsharpMask",
+      "amount": 120,
+      "radius": 3,
+      "threshold": 2,
+      "ms": 139
+    },
+    {
+      "kind": "addNoise",
+      "amount": 12,
+      "gaussian": true,
+      "monochromatic": false,
+      "seed": 5,
+      "ms": 109
+    },
+    {
+      "kind": "pixelate",
+      "cell": 24,
+      "ms": 19
+    }
+  ]
+}
