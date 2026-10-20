@@ -1,0 +1,8 @@
+[package]
+name = "lawha-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Lawha pixel math: one implementation shared by the app (WASM) and the tests (native)"
+
+[dependencies]

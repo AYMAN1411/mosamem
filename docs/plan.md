@@ -128,5 +128,9 @@ report to you.
   everything runs offline.
 - **Test PSDs:** public MIT-licensed fixtures, plus PSDs the user makes in their own Photoshop from a
   checklist we provide.
-- **Not available:** a pen tablet, a real Windows PC and an Apple Developer ID. Checks that need them
-  are reported as "not verified", and the Mac build ships unsigned.
+- **No pen tablet, no real Windows PC, no Apple Developer ID yet.**
+  - Ship unsigned, like Adawat. The README explains macOS "Open Anyway" (System Settings → Privacy &
+    Security) and Windows SmartScreen "More info → Run anyway".
+  - Pen pressure is tested with simulated input: synthetic pointer events with pressure ramps, and
+    simulated samples fed into the native pressure bridge.
+  - Real-pen pressure and real-PC Windows performance are reported as **not verified**.
