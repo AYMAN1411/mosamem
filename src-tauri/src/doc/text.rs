@@ -23,6 +23,10 @@ pub struct TextData {
     pub height: Option<f32>,
     /// Layout px → document px, row-major 2×3 (x' = m0·x + m1·y + m2, y' = m3·x + m4·y + m5).
     pub matrix: [f64; 6],
+    /// Opened from another program's file: its pixels are shown until the text is edited, since
+    /// fonts and layout may differ from ours.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub keep_pixels: bool,
 }
 
 impl TextData {
@@ -37,7 +41,7 @@ impl TextData {
             return None;
         }
         let n = lawha_core::resample::multiply(m, &self.mat3());
-        Some(TextData { matrix: [n[0], n[1], n[2], n[3], n[4], n[5]], ..self.clone() })
+        Some(TextData { matrix: [n[0], n[1], n[2], n[3], n[4], n[5]], keep_pixels: false, ..self.clone() })
     }
 }
 
@@ -86,6 +90,7 @@ pub fn set_text(doc: &mut Document, id: u64, data: TextData, transient: bool) ->
     if node.name == name_for(&old.text) {
         node.name = name_for(&data.text);
     }
+    let data = TextData { keep_pixels: false, ..data };
     let tiles = render(&data, w, h);
     node.kind = NodeKind::Text { data, tiles: Arc::new(tiles) };
     let name = node.name.clone();
@@ -126,6 +131,7 @@ mod tests {
             width: None,
             height: None,
             matrix: [1.0, 0.0, 600.0, 0.0, 1.0, 200.0],
+            keep_pixels: false,
         }
     }
 

@@ -8,6 +8,7 @@ pub mod live;
 pub mod model;
 pub mod ops;
 pub mod paint;
+pub mod psd;
 pub mod raster;
 pub mod selection;
 pub mod styles;

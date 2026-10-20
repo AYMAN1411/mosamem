@@ -208,6 +208,14 @@ export const engine = {
 
   liveBegin: (doc: number, layer: number) => invoke<number | null>('live_begin', { doc, layer }),
   layerStyleSet: (doc: number, id: number, style: LayerStyle | null, transient: boolean) => invoke<DocInfo>('layer_style_set', { doc, id, style, transient }),
+  readFile: (path: string) => invoke<ArrayBuffer>('read_file', { path }),
+  writeFile: (path: string, bytes: Uint8Array) => invoke<void>('write_file', bytes, { headers: { 'x-path': encodeURIComponent(path) } }),
+  /** A new document from the PSD reader's message. */
+  psdImport: (message: Uint8Array, name: string) => invoke<DocInfo>('psd_import', message, { headers: { 'x-name': encodeURIComponent(name) } }),
+  /** A document described for the PSD writer. */
+  psdExport: (doc: number) => invoke<ArrayBuffer>('psd_export', { doc }),
+  /** Debug builds: [u32 width][u32 height][RGBA…] of the flattened image. */
+  debugFlatten: (doc: number) => invoke<ArrayBuffer>('debug_flatten', { doc }),
   textNew: (doc: number, data: TextData) => invoke<DocInfo>('text_new', { doc, data }),
   textSet: (doc: number, id: number, data: TextData, transient: boolean) => invoke<DocInfo>('text_set', { doc, id, data, transient }),
   layerRasterize: (doc: number, id: number) => invoke<DocInfo>('layer_rasterize', { doc, id }),

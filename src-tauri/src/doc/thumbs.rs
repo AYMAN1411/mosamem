@@ -1,7 +1,7 @@
 //! Small layer thumbnails for the Layers panel, cached by the layer's pixel data.
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 
 use lawha_core::tile::TILE;
 use parking_lot::Mutex;
@@ -10,14 +10,29 @@ use super::model::TileMap;
 
 #[derive(Default)]
 pub struct Cache {
-    map: Mutex<HashMap<(usize, u32), Arc<Vec<u8>>>>,
+    /// Keyed by the data's address; the weak handle keeps that address from being reused by other
+    /// data while the entry exists, and tells when the data is gone.
+    map: Mutex<HashMap<(usize, u32), (Weak<dyn Send + Sync>, Arc<Vec<u8>>)>>,
+}
+
+impl Cache {
+    fn get(&self, key: &(usize, u32)) -> Option<Arc<Vec<u8>>> {
+        self.map.lock().get(key).filter(|(w, _)| w.strong_count() > 0).map(|(_, t)| t.clone())
+    }
+    fn put(&self, key: (usize, u32), owner: Weak<dyn Send + Sync>, out: &Arc<Vec<u8>>) {
+        let mut m = self.map.lock();
+        if m.len() > 512 {
+            m.retain(|_, (w, _)| w.strong_count() > 0);
+        }
+        m.insert(key, (owner, out.clone()));
+    }
 }
 
 /// Thumbnail of a layer's pixels that fits in `size`×`size`, as `[w u16 LE][h u16 LE][RGBA…]`.
 pub fn thumbnail(cache: &Cache, tiles: &Arc<TileMap>, width: u32, height: u32, size: u32) -> Arc<Vec<u8>> {
     let key = (Arc::as_ptr(tiles) as usize, size);
-    if let Some(hit) = cache.map.lock().get(&key) {
-        return hit.clone();
+    if let Some(hit) = cache.get(&key) {
+        return hit;
     }
     let scale = (width.max(height) as f64 / size as f64).max(1.0);
     let (tw, th) = (((width as f64 / scale).round() as u32).max(1), ((height as f64 / scale).round() as u32).max(1));
@@ -78,19 +93,15 @@ pub fn thumbnail(cache: &Cache, tiles: &Arc<TileMap>, width: u32, height: u32, s
         }
     }
     let out = Arc::new(out);
-    let mut m = cache.map.lock();
-    if m.len() > 512 {
-        m.clear();
-    }
-    m.insert(key, out.clone());
+    cache.put(key, Arc::downgrade(tiles) as Weak<dyn Send + Sync>, &out);
     out
 }
 
 /// Thumbnail of a layer mask (gray, opaque), same format as `thumbnail`.
 pub fn mask_thumbnail(cache: &Cache, mask: &lawha_core::mask::Mask, width: u32, height: u32, size: u32) -> Arc<Vec<u8>> {
     let key = (Arc::as_ptr(&mask.tiles) as usize ^ (mask.outside as usize) << 1 ^ 1, size);
-    if let Some(hit) = cache.map.lock().get(&key) {
-        return hit.clone();
+    if let Some(hit) = cache.get(&key) {
+        return hit;
     }
     let scale = (width.max(height) as f64 / size as f64).max(1.0);
     let (tw, th) = (((width as f64 / scale).round() as u32).max(1), ((height as f64 / scale).round() as u32).max(1));
@@ -106,6 +117,6 @@ pub fn mask_thumbnail(cache: &Cache, mask: &lawha_core::mask::Mask, width: u32, 
         }
     }
     let out = Arc::new(out);
-    cache.map.lock().insert(key, out.clone());
+    cache.put(key, Arc::downgrade(&mask.tiles) as Weak<dyn Send + Sync>, &out);
     out
 }

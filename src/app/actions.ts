@@ -2,12 +2,12 @@
 import { open, save } from '@tauri-apps/plugin-dialog';
 import { engine, findLayer, type DocInfo, type ExportFormat, type LayerProps, type Modify, type NewMask } from '../engine/bridge';
 import { app, type DocState } from './state.svelte';
-import { t } from './i18n/index.svelte';
+import { t, type Key } from './i18n/index.svelte';
 import { defaultAdjustment, type Adjustment, type AdjustmentKind } from '../engine/adjust';
 import type { FilterKind } from '../engine/filter';
 import { dock } from './dock/layout.svelte';
 
-const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'tif', 'tiff', 'heic', 'heif'];
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'tif', 'tiff', 'heic', 'heif', 'psd', 'psb'];
 
 export function message(e: unknown): string {
   return typeof e === 'string' ? e : e instanceof Error ? e.message : JSON.stringify(e);
@@ -34,6 +34,10 @@ export async function openPaths(paths: string[]) {
       continue;
     }
     try {
+      if (/\.ps[db]$/i.test(path)) {
+        await openPsd(path);
+        continue;
+      }
       app.addDocument(await engine.openFile(path, t('layer.background')));
     } catch (e) {
       app.notify(t('err.open', { msg: message(e) }), 'error');
@@ -314,3 +318,37 @@ export const image = {
     app.fit();
   },
 };
+
+// ---- PSD ----
+
+/** Opens a Photoshop file: the worker parses it, the engine builds the document. */
+async function openPsd(path: string) {
+  const { readPsd } = await import('../engine/psdClient');
+  const name = path.split(/[\\/]/).pop() ?? 'image.psd';
+  let r;
+  try {
+    r = await readPsd(await engine.readFile(path));
+  } catch (e) {
+    const mode = /Color mode not supported: (\w+)/.exec(message(e));
+    throw mode ? new Error(t('psd.colorMode', { mode: mode[1] })) : e;
+  }
+  app.addDocument(await engine.psdImport(r.message, name));
+  if (r.warnings.length) app.notify(t('psd.warnings', { list: r.warnings.map((w) => t(`psdw.${w.key}` as Key, w.params)).join(t('psd.sep')) }), 'info');
+}
+
+/** File › Save a Copy as PSD. */
+export async function savePsd() {
+  const d = app.active;
+  if (!d) return;
+  const base = d.info.name.replace(/\.[^.]+$/, '') || 'image';
+  const path = await save({ defaultPath: `${base}.psd`, filters: [{ name: 'Photoshop', extensions: ['psd'] }] });
+  if (!path) return;
+  try {
+    const { writePsd } = await import('../engine/psdClient');
+    const bytes = await writePsd(await engine.psdExport(d.info.id));
+    await engine.writeFile(path, bytes);
+    app.notify(t('psd.saved'), 'info');
+  } catch (e) {
+    app.notify(t('err.generic', { msg: message(e) }), 'error');
+  }
+}

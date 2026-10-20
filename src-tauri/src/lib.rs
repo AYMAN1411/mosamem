@@ -59,6 +59,10 @@ pub fn run() {
             commands::layer_rasterize,
             commands::text_metrics,
             commands::layer_style_set,
+            commands::read_file,
+            commands::write_file,
+            commands::psd_import,
+            commands::psd_export,
             commands::layer_solo,
             commands::layer_move,
             commands::layer_merge_down,
@@ -100,6 +104,8 @@ pub fn run() {
             commands::debug_blend_reference,
             #[cfg(any(debug_assertions, feature = "harness"))]
             commands::debug_adjust_reference,
+            #[cfg(any(debug_assertions, feature = "harness"))]
+            commands::debug_flatten,
             #[cfg(any(debug_assertions, feature = "harness"))]
             harness::harness_reply,
         ])

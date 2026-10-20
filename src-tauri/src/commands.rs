@@ -814,3 +814,91 @@ pub fn text_metrics(style: lawha_core::text::TextStyle) -> (f32, f32) {
 pub fn layer_style_set(engine: State<'_, Engine>, doc: u64, id: u64, style: Option<lawha_core::style::LayerStyle>, transient: bool) -> Res<DocInfo> {
     edit(&engine, doc, |d| crate::doc::styles::set_style(d, id, style, transient))
 }
+
+// ---- PSD (the codec runs in the webview; the engine builds and describes documents) ----
+
+fn raw_body<'a>(request: &'a tauri::ipc::Request<'_>) -> Res<&'a [u8]> {
+    match request.body() {
+        tauri::ipc::InvokeBody::Raw(b) => Ok(b),
+        _ => Err("expected raw bytes".into()),
+    }
+}
+
+fn header(request: &tauri::ipc::Request<'_>, name: &str) -> Res<String> {
+    let v = request.headers().get(name).ok_or_else(|| format!("missing header {name}"))?;
+    let s = v.to_str().map_err(|e| e.to_string())?;
+    percent_decode(s)
+}
+
+fn percent_decode(s: &str) -> Res<String> {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' && i + 2 < b.len() {
+            let h = std::str::from_utf8(&b[i + 1..i + 3]).map_err(|e| e.to_string())?;
+            out.push(u8::from_str_radix(h, 16).map_err(|e| e.to_string())?);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).map_err(|e| e.to_string())
+}
+
+/// The bytes of a file the user picked (for the PSD reader).
+#[tauri::command]
+pub async fn read_file(path: PathBuf) -> Res<tauri::ipc::Response> {
+    let bytes = tauri::async_runtime::spawn_blocking(move || std::fs::read(&path)).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+/// Writes bytes to the file the user picked (`x-path` header), atomically.
+#[tauri::command]
+pub async fn write_file(request: tauri::ipc::Request<'_>) -> Res<()> {
+    let path = PathBuf::from(header(&request, "x-path")?);
+    let bytes = raw_body(&request)?.to_vec();
+    tauri::async_runtime::spawn_blocking(move || crate::fsx::write_atomic(&path, &bytes)).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())
+}
+
+/// A new document from a PSD manifest and pixels (see doc::psd); `x-name` is the file name.
+#[tauri::command]
+pub async fn psd_import(engine: State<'_, Engine>, request: tauri::ipc::Request<'_>) -> Res<DocInfo> {
+    let name = header(&request, "x-name")?;
+    let body = raw_body(&request)?.to_vec();
+    let doc = tauri::async_runtime::spawn_blocking(move || crate::doc::psd::import(&body, name)).await.map_err(|e| e.to_string())??;
+    Ok(engine.insert(doc).doc.read().info())
+}
+
+/// A document's layers, pixels and flattened image for the PSD writer.
+#[tauri::command]
+pub async fn psd_export(engine: State<'_, Engine>, doc: u64) -> Res<tauri::ipc::Response> {
+    let h = handle(&engine, doc)?;
+    let bytes = tauri::async_runtime::spawn_blocking(move || {
+        let d = h.doc.read();
+        crate::doc::psd::export(&d, crate::doc::psd::flatten_content(&d.content))
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+/// Debug builds only: the flattened image as [u32 width][u32 height][RGBA8…].
+#[cfg(any(debug_assertions, feature = "harness"))]
+#[tauri::command]
+pub async fn debug_flatten(engine: State<'_, Engine>, doc: u64) -> Res<tauri::ipc::Response> {
+    let h = handle(&engine, doc)?;
+    let bytes = tauri::async_runtime::spawn_blocking(move || {
+        let d = h.doc.read();
+        let (w, hh, rgba) = crate::doc::psd::flatten_content(&d.content);
+        let mut out = Vec::with_capacity(8 + rgba.len());
+        out.extend_from_slice(&w.to_le_bytes());
+        out.extend_from_slice(&hh.to_le_bytes());
+        out.extend_from_slice(&rgba);
+        out
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(tauri::ipc::Response::new(bytes))
+}

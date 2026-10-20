@@ -28,6 +28,8 @@ export interface TextData {
   height: number | null;
   /** Layout px → document px, row-major 2×3. */
   matrix: [number, number, number, number, number, number];
+  /** Opened from another program's file: its pixels show until the text is edited. */
+  keepPixels?: boolean;
 }
 
 export const FAMILIES: { id: Family; css: string; weights: number[]; italic: boolean }[] = [

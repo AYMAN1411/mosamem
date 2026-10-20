@@ -13,5 +13,8 @@ export default defineConfig({
   server: { port: 1420, strictPort: true, headers: isolation, watch: { ignored: ['**/src-tauri/**', '**/target/**'] } },
   preview: { headers: isolation },
   build: { target: 'safari16', sourcemap: true },
+  // prepared up front so the dev server doesn't reload the page when the PSD worker first loads it
+  optimizeDeps: { include: ['ag-psd'] },
+  worker: { format: 'es' },
   test: { environment: 'happy-dom', include: ['src/**/*.test.ts'] },
 });

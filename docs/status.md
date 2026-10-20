@@ -287,3 +287,19 @@ Screenshot: `docs/shots/m7-textsheet-ar.jpg` (each font, mixed text, digits, vow
 - Effects blend inside the layer (interior effects) or onto the backdrop (shadow, glow) with our own simplified order; not compared with Photoshop yet (M9's test files will show the differences).
 - Effects are drawn by the engine, not the GPU: dragging an effect slider updates about 4–5 times a second at fit on very large documents.
 - A layer with effects can't use the GPU paint preview, so painting on it recomposites in the engine.
+
+## Milestone 9: PSD ✔︎ (2026-10-20)
+
+| Feature | How it was checked |
+|---|---|
+| **Open PSD/PSB** (File › Open, or drop): layers, groups (and pass through), blend modes, opacity and fill, clipping, locks, layer masks (density, feather, disabled), adjustment layers Lawha has (Levels, Curves, Hue/Saturation, Brightness/Contrast, Exposure, Vibrance, Color Balance, Black & White, Gradient Map, Invert, Threshold), layer styles Lawha has (kept even when switched off), text as editable text layers (Photoshop's pixels shown until edited). Vector masks become pixel masks; shape layers saved without pixels are drawn from their paths; 16/32-bit files become 8-bit (32-bit linear light encoded to sRGB). A file whose layer section is damaged opens flattened. The file is read by ag-psd (MIT) in a worker, so the window stays responsive. | `tools/psd-report.mjs` over the 90 public psd-tools test files: 87 open; **50 match Photoshop's own flattened image** (≥ 99.9% of pixels within 1 level), 8 are close (≥ 99% within 8 levels), 20 differ, 9 carry no image to compare with. Details: `docs/psd-report.md` |
+| **Save a Copy as PSD** (File menu): layers, groups, masks, adjustment layers, styles and text, with a flattened image for other programs. | Same tool: each opened file is saved as PSD and opened again; **87 of 87 keep their layer structure and render identically** |
+| Whatever isn't carried over is listed when the file opens, in the interface language. CMYK files get a clear message. | Screenshots `m9-psd-ar` (vector mask and text, Arabic warning), `m9-psd-en` (groups, pass through, clipping) |
+| Fixed on the way: effect caches were keyed by memory address only, so a closed document's freed address could hand a new layer stale shadows or gradient bounds. Every such cache now holds a weak handle that keeps the address from being reused. | Was intermittent in the PSD round trip (2 of 87 files); 87 of 87 in two runs in a row after the fix |
+
+### Not done or not verified in M9
+
+- Not tested with files from a real, current Photoshop: the test files come from one open-source project. `docs/psd-checklist.md` lists the files to make and how to check them.
+- Lawha's adjustment formulas are its own (from Adobe's public help pages); files with adjustment layers differ from Photoshop, sometimes a lot (`fill_adjustments`: mean 53 levels). They are the calibration data for later.
+- Not read: CMYK, Lab and other non-RGB modes; inner glow, bevel and emboss, satin, pattern overlay; gradient and pattern strokes; gradient and pattern fill layers saved without pixels; "blend if"; knockout; artboards; layer comps; smart object contents (kept as pixels); vector paths (kept as pixel masks, no path editing).
+- 16/32-bit files lose their depth (8-bit only).

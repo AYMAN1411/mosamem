@@ -9,3 +9,5 @@ tools/winid
 /shots/
 target-release/
 src-tauri/target-release/
+tests/psd-fixtures/
+/tests/psd-mine/

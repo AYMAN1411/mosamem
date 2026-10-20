@@ -384,6 +384,7 @@ mod tests {
             width: Some(300.0),
             height: Some(120.0),
             matrix: [1.0, 0.0, 50.0, 0.0, 1.0, 60.0],
+            keep_pixels: false,
         };
         let mut text = Node::pixel("نص", Default::default());
         text.style = Some(lawha_core::style::LayerStyle {

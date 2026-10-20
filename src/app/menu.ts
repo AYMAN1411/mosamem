@@ -43,6 +43,7 @@ export async function buildMenu() {
       await sep(),
       await item(t('file.save'), () => act.saveDocument(), 'CmdOrCtrl+S', hasDoc),
       await item(t('file.saveAs'), () => act.saveDocument(app.active, true), 'CmdOrCtrl+Shift+S', hasDoc),
+      await item(t('psd.saveCopy'), act.savePsd, undefined, hasDoc),
       await item(t('file.exportAs'), () => (app.dialog = 'export'), 'CmdOrCtrl+Alt+Shift+W', hasDoc),
       await sep(),
       await item(t('file.close'), () => act.closeDocument(), 'CmdOrCtrl+W', hasDoc),

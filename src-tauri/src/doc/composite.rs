@@ -157,7 +157,8 @@ pub enum MaskFactor {
     Each(Vec<f32>),
 }
 
-static FEATHERED: OnceLock<Mutex<HashMap<(usize, u32), Arc<Mask>>>> = OnceLock::new();
+type Feathered = HashMap<(usize, u32), (Weak<MaskMap>, Arc<Mask>)>;
+static FEATHERED: OnceLock<Mutex<Feathered>> = OnceLock::new();
 
 /// The mask after its render-time feather, cached by mask content and radius.
 fn feathered(m: &LayerMask) -> Arc<Mask> {
@@ -166,8 +167,11 @@ fn feathered(m: &LayerMask) -> Arc<Mask> {
     }
     let key = (Arc::as_ptr(&m.mask.tiles) as usize, m.feather.to_bits());
     let cache = FEATHERED.get_or_init(Default::default);
-    if let Some(hit) = cache.lock().get(&key) {
-        return hit.clone();
+    // the weak handle keeps the address from being reused while the entry exists
+    if let Some((w, hit)) = cache.lock().get(&key) {
+        if w.strong_count() > 0 {
+            return hit.clone();
+        }
     }
     // the region the stored tiles cover, plus room for the blur to spread
     let margin = ((m.feather * 2.0) as i32 / TILE as i32) + 1;
@@ -179,7 +183,7 @@ fn feathered(m: &LayerMask) -> Arc<Mask> {
     if c.len() > 64 {
         c.clear();
     }
-    c.insert(key, out.clone());
+    c.insert(key, (Arc::downgrade(&m.mask.tiles), out.clone()));
     out
 }
 

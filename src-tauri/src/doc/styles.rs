@@ -9,7 +9,7 @@
 //! the layer's pixels, mask and style, so edits elsewhere don't recompute them.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock, Weak};
 
 use lawha_core::blend::{composite_px, dissolve_threshold};
 use lawha_core::style::{self, LayerStyle, Mattes};
@@ -23,6 +23,11 @@ use super::ops::OpResult;
 use super::{Document, Label};
 
 struct Cached {
+    /// The pixels and mask the entry was made from. Keys hold their addresses; these weak handles
+    /// keep those addresses from being reused by other data while the entry exists, and tell when
+    /// the data itself is gone.
+    pixels: Weak<TileMap>,
+    mask: Option<Weak<lawha_core::mask::MaskMap>>,
     mattes: Mattes,
     /// The layer's shape (alpha through its mask) at the tile.
     shape: Vec<f32>,
@@ -46,17 +51,20 @@ fn mask_key(n: &Node) -> u64 {
 
 /// Content bounds of a layer's pixels at full size (cached by the pixels' identity).
 fn bounds(tiles: &Arc<TileMap>) -> Option<(i64, i64, i64, i64)> {
-    static C: OnceLock<Mutex<HashMap<usize, Option<(i64, i64, i64, i64)>>>> = OnceLock::new();
+    type Entry = (Weak<TileMap>, Option<(i64, i64, i64, i64)>);
+    static C: OnceLock<Mutex<HashMap<usize, Entry>>> = OnceLock::new();
     let key = Arc::as_ptr(tiles) as usize;
-    if let Some(b) = C.get_or_init(Default::default).lock().unwrap().get(&key) {
-        return *b;
+    if let Some((w, b)) = C.get_or_init(Default::default).lock().unwrap().get(&key) {
+        if w.strong_count() > 0 {
+            return *b;
+        }
     }
     let b = super::raster::content_bounds(tiles);
     let mut c = C.get().unwrap().lock().unwrap();
     if c.len() > 4096 {
         c.clear();
     }
-    c.insert(key, b);
+    c.insert(key, (Arc::downgrade(tiles), b));
     b
 }
 
@@ -111,7 +119,9 @@ pub(crate) fn composite_styled(base: &Node, st: &LayerStyle, clipped: &[Node], a
     let (x0, y0) = (key.0 as i64 * t - reach, key.1 as i64 * t - reach);
     let (w, h) = ((t + 2 * reach) as usize, (t + 2 * reach) as usize);
     let ck = (Arc::as_ptr(tiles) as usize, st.key(), mask_key(base), lod, key.0, key.1);
-    let cached = mattes_cache().lock().unwrap().get(&ck).cloned();
+    let mask = base.mask.as_ref().filter(|m| m.enabled).map(|m| &m.mask.tiles);
+    let alive = |c: &Arc<Cached>| c.pixels.strong_count() > 0 && c.mask.as_ref().is_none_or(|w| w.strong_count() > 0);
+    let cached = mattes_cache().lock().unwrap().get(&ck).filter(|c| alive(c)).cloned();
     let c = cached.unwrap_or_else(|| {
         let alpha = shape_region(base, tiles, lod, x0, y0, w, h);
         let r = reach as usize;
@@ -119,7 +129,7 @@ pub(crate) fn composite_styled(base: &Node, st: &LayerStyle, clipped: &[Node], a
         for y in 0..TILE {
             shape[y * TILE..(y + 1) * TILE].copy_from_slice(&alpha[(y + r) * w + r..(y + r) * w + r + TILE]);
         }
-        let c = Arc::new(Cached { mattes: style::mattes(st, w, h, &alpha, r, r, s), shape });
+        let c = Arc::new(Cached { pixels: Arc::downgrade(tiles), mask: mask.map(Arc::downgrade), mattes: style::mattes(st, w, h, &alpha, r, r, s), shape });
         let mut m = mattes_cache().lock().unwrap();
         if m.len() > 3000 {
             m.clear();
