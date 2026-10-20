@@ -22,7 +22,7 @@ adjustment layers, filters, Arabic text that stays editable, layer styles, PSD f
 your own computer. The interface is Arabic, right to left, with English one click away.
 
 <p align="center">
-  <img src="docs/media/hero-ar.jpg" alt="Mosamem in Arabic: a photo with layers, an Arabic title with a layer style" width="860">
+  <img src="docs/media/hero-en.jpg" alt="Mosamem: a poster with an Arabic title, layer styles and an adjustment layer" width="860">
 </p>
 
 ## Install

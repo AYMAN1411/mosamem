@@ -340,3 +340,38 @@ Fixed on the way:
 - Models come from their upstream Hugging Face repositories (pinned commits), not from Mosamem's own GitHub Releases as planned: there is no Mosamem repository yet. `MOSAMEM_MODEL_MIRROR` can point the app at another source.
 - ONNX Runtime crashed once in three test runs while tearing down a session (a malloc trap in `~InferenceSession`). Mosamem now never destroys a session while it runs: replaced or deleted ones are parked until the app quits. The cause inside ONNX Runtime is not known.
 - Object Selection uses one click or one box per selection. There is no refining with several points on one object.
+
+## Milestone 11: export, reference, installers (Mac ✔︎, Windows partly) (2026-10-21)
+
+| Feature | How it was checked |
+|---|---|
+| **Export**: the whole picture, one layer (trimmed to its pixels) or the selection (trimmed to it); any size with the aspect kept, a percentage, or a web preset (long side 3840/1920/1280/1080/800); the file's size and pixel size shown before saving. | Rust tests: a layer trims to its content, the selection is cut out, a resize scales the resolution, oversized requests are refused. Screenshot `m11-export-ar` |
+| **Help › Keyboard Shortcuts** (⌘/): tool letters from the tool list itself, single keys, menu shortcuts, shown the platform's way (⌘⇧S / Ctrl+Shift+S). | A test checks every listed menu shortcut against `menu.ts` (same key, same action). Screenshots `m11-shortcuts-en`, `m11-shortcuts-ar` |
+| **Icon and mark**: an initial meem (مـ) as one brush stroke on a graphite tile (`assets/icon.svg`), rendered for macOS and Windows. | By eye, in the Dock, the window and the Windows taskbar |
+| **README** in English and Arabic: what it does, the unsigned-install steps (macOS "Open Anyway", Windows "More info → Run anyway"), building from source, privacy. `LICENSE` (GPL-3.0) and `THIRD-PARTY-NOTICES.md` (fonts under OFL, ONNX Runtime, Dawn, ag-psd, the AI models' licenses). Hero picture made in Mosamem itself. | Read through; `docs/media/hero-ar.jpg`, `hero-en.jpg` |
+| **Mac installer** `Mosamem.dmg` (24 MB, Apple silicon, macOS 13.4+): the app bundles Dawn's dylib in Frameworks. | Built and opened from the bundle. A harness build of the same bundle ran Select Subject, Object Selection, Smart Fill and Remove Background, all on the GPU |
+| **Windows installer** `Mosamem-Setup-x64.exe` (24 MB): cross-built on the Mac (cargo-xwin); the installer itself is made by NSIS in a Windows VM (`tools/windows/make-installer-vm.sh`, since Homebrew's makensis crashes on macOS 27). It carries DirectML.dll; AI runs through DirectML or the CPU. | Installed silently in the Windows 11 ARM VM (as x64, emulated), launched: Arabic interface, menus, icon. A harness build there downloaded the three models and ran all four AI features (on the CPU: the VM's GPU has no DirectML) |
+
+Fixed in this milestone:
+- **The Text tool couldn't type** (since M7). The editor focused itself once, when the canvas was built, so the editor that a click opened had no keyboard focus. Space didn't type either: the canvas took it for panning, because it didn't count the editor as a text field. Also:
+  - A very quick click could open nothing.
+  - While typing, the menu's Undo, Redo and Select All acted on the document.
+
+  M7's checks set the text through the test harness and never typed. `tools/text-typing.js` now follows the user's path: a quick click, focus, keys reaching the editor, typing, committing, re-editing. The old code fails it.
+- A fresh checkout's dev build looked for Dawn's dylib in the release folder. `build.rs` now copies it (and DirectML.dll on Windows) from ONNX Runtime's build output.
+
+### Not done or not verified in M11
+
+- **Windows is only partly tested.** Not tried there:
+  - painting, layers, text, filters, files, PSD and export;
+  - the installer's visible wizard, its Start menu shortcut and uninstalling;
+  - the Visual C++ runtime prompt;
+  - DirectML on a real GPU;
+  - a real x64 PC.
+
+  The x64 installer in `release/` predates the Text tool fixes: rebuild it before sharing. Windows work is paused at the user's request.
+- **No Windows arm64 build.** ONNX Runtime's prebuilt for arm64 has DirectML only, and the cross-compiler couldn't build libwebp's NEON code with MSVC's headers. The x64 build runs on ARM PCs through emulation.
+- **No Intel Mac build.**
+- **Not tested with real keyboard and mouse input.** The tests drive the interface from inside the page: the agent has no Accessibility permission to post events. The user's own typing confirmed the Text tool fixes.
+- **Not run: the GitHub Actions workflow and the release links in the README.** The repository isn't on GitHub yet; the links assume `motalim-ai/mosamem`.
+- **Windows menu bar order.** The native menu bar runs left to right even in Arabic: Tauri's menus have no right-to-left mode.

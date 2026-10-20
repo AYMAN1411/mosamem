@@ -1,10 +1,13 @@
-// Prints the CGWindowID of the first on-screen window owned by a process with the given name.
+// Prints the CGWindowID of the first on-screen window owned by a process with the given name, or
+// with the given process id (a number).
 import CoreGraphics
 import Foundation
 let name = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "mosamem"
 let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as! [[String: Any]]
 for w in list {
-  if let owner = w[kCGWindowOwnerName as String] as? String, owner.lowercased() == name.lowercased(),
+  let pid = w[kCGWindowOwnerPID as String] as? Int
+  let owner = w[kCGWindowOwnerName as String] as? String
+  if (Int(name).map { $0 == pid } ?? (owner?.lowercased() == name.lowercased())),
      let layer = w[kCGWindowLayer as String] as? Int, layer == 0,
      let id = w[kCGWindowNumber as String] as? Int {
     print(id); exit(0)

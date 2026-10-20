@@ -9,7 +9,7 @@
   const tools = toolShortcuts();
 </script>
 
-<Modal title={t('shortcuts.title')} onclose={() => (app.dialog = null)} width={760}>
+<Modal title={t('shortcuts.title')} onclose={() => (app.dialog = null)} width={860}>
   <div class="sheet">
     <section>
       <h3>{t('shortcuts.tools')}</h3>
@@ -34,8 +34,9 @@
 </Modal>
 
 <style>
-  .sheet { columns: 3 220px; column-gap: 24px; max-height: 64vh; overflow: auto; }
-  section { break-inside: avoid; margin-bottom: 14px; }
+  /* three balanced columns; the dialog scrolls when the window is short */
+  .sheet { columns: 3; column-gap: 28px; }
+  section { break-inside: avoid; margin-bottom: 12px; }
   h3 { margin: 0 0 6px; font-size: var(--fs-1); font-weight: 600; color: var(--fg-0); }
   dl { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; margin: 0 0 10px; font-size: var(--fs-0); }
   dt { color: var(--fg-1); }

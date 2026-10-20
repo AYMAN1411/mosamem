@@ -84,8 +84,8 @@ export const MENU_SHORTCUTS: Section[] = [
 
 /** Single keys handled in shortcuts.ts and the canvas. */
 export const KEY_SHORTCUTS: Shortcut[] = [
-  { keys: '[  ]', label: 'keys.brushSize' },
-  { keys: 'Shift+[  Shift+]', label: 'keys.hardness' },
+  { keys: '[ ]', label: 'keys.brushSize' },
+  { keys: 'Shift+[ ]', label: 'keys.hardness' },
   { keys: '1 … 0', label: 'keys.opacity' },
   { keys: 'Shift+1 … 0', label: 'keys.flow' },
   { keys: 'X', label: 'keys.swap' },
