@@ -244,3 +244,29 @@ Raw numbers: `docs/perf-transform-m6.json`.
 - Warp, puppet warp, content-aware scale and perspective crop aren't there. The crop tool has no content-aware fill for empty corners.
 - Image Size resamples each layer in one piece (about 1 GB of working memory for a 24 MP layer). Very large documents may need band-by-band resizing later.
 - A pressure pen and the Windows build were not involved in this milestone.
+
+## Milestone 7: Arabic-first text ✔︎ (2026-10-20)
+
+| Feature | How it was checked |
+|---|---|
+| **Shaping** with harfrust (the HarfBuzz project's Rust port): joining forms, lam-alef, marks (shadda, fatha, tanween, wasla), contextual alternates (Amiri), mirrored parentheses. | Rust goldens with the fonts' own glyph names; **the whole corpus shaped again by HarfBuzz 14.6.0 itself (harfbuzzjs): 60 of 60 cases identical** in glyph ids, clusters, advances and offsets, across five font files including variable Cairo (`docs/shaping-oracle.json`, `tools/shaping-oracle.mjs`) |
+| **Bidi** (UAX #9, unicode-bidi): right-to-left, left-to-right or automatic paragraphs; Latin and numbers inside Arabic read correctly. | Rust tests (positions of «مرحبا Hello 123», «عام 2026», direction from the first letter) |
+| **Line breaking** (UAX #14, icu_segmenter) for box text; **alignment** start/center/end/justify; **justification** by spaces, or by **kashida** (tatweel, one point per word, ALREQ's preferences simplified) with short/medium/long, re-measured so contextual fonts still fill the line. | Rust tests (every justified line exactly the box width, in Plex and in Amiri); text sheet |
+| **Digits**: Western, Arabic-Indic, Persian. **Letter spacing**, **line spacing** (auto = 120%). | Rust tests |
+| **Bundled fonts** (SIL OFL, inside the program): IBM Plex Sans Arabic (7 weights), Cairo (variable 200–1000), Tajawal (7 weights), Amiri (regular, bold, italics). Characters a font lacks come from another bundled font, a whole word at a time so its letters still join. | Rust tests (every font loads; Tajawal's missing wasla and Persian digits filled in) |
+| **Text layers**: click for point text or drag for a text box; type on the canvas in a native editor (caret, selection, input methods, mixed Arabic/English) shown in the same font, size and placement; ⌘Enter or a click outside commits, Esc cancels. Click a text layer (or double-click its T) to edit it again. The options bar sets font, weight, size, color, alignment, direction, spacing, digits and kashida, for the text being typed or the selected text layer. Moving, scaling, turning and image-wide changes keep text editable; distortions and painting need Layer › Rasterize Type. Saved in `.lawha`. | Rust tests (render, edit, undo, name follows text, move keeps text, perspective rasterizes, save/load); the editor and the committed text compared on screen (`m7-editing-ar` vs `m7-committed-ar`: the same) |
+
+Screenshot: `docs/shots/m7-textsheet-ar.jpg` (each font, mixed text, digits, vowelled Amiri, kashida vs space justification).
+
+### Fixed during this milestone
+
+- Painting refused every layer that wasn't a pixel layer, even on its mask, so adjustment-layer masks couldn't be painted (since M5). Masks of any layer can now be painted.
+- Kashida in Amiri: tatweels change the letters around them, so the first try overflowed and the line was left ragged. Justification now measures, retries with fewer kashidas, and finishes with spaces.
+
+### Not done or not verified in M7
+
+- One style per text layer (no mixed fonts, sizes or colors inside one layer).
+- Text on a path, vertical text, OpenType feature toggles (discretionary ligatures, stylistic sets), and per-character baseline shift aren't there.
+- Box text doesn't clip what overflows the box.
+- Kashida placement follows a simplified version of ALREQ's priorities; it is not checked against Photoshop.
+- Engine error messages (for example "rasterize the text layer to paint on it") are in English only.

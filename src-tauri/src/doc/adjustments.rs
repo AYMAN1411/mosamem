@@ -265,6 +265,29 @@ mod tests {
     }
 
     #[test]
+    fn an_adjustment_mask_can_be_painted() {
+        use crate::doc::paint::{begin, PaintTool, StrokeSpec, Target};
+        let mut d = doc(vec![solid("a", [200, 100, 50, 255])]);
+        new_adjustment(&mut d, "inv".into(), Adjustment::Invert).unwrap();
+        let id = d.content.active;
+        let spec = StrokeSpec {
+            tool: PaintTool::Brush,
+            target: Target::Mask,
+            layer: id,
+            color: [0, 0, 0],
+            brush: lawha_core::paint::Brush { diameter: 40.0, hardness: 1.0, spacing: 0.1, flow: 1.0, opacity: 1.0, pressure_size: false, pressure_opacity: false, min_size: 0.0 },
+            offset: None,
+            sample_all: false,
+        };
+        let mut s = begin(&d, spec).unwrap();
+        s.add(&mut d, &[(50.0, 50.0, 1.0), (150.0, 50.0, 1.0)]);
+        s.end(&mut d);
+        // black on the mask: the adjustment doesn't reach there
+        assert_eq!(px(&d, 100, 50), [200, 100, 50, 255]);
+        assert_eq!(px(&d, 100, 200), [55, 155, 205, 255]);
+    }
+
+    #[test]
     fn histogram_sees_only_what_is_below() {
         let mut d = doc(vec![solid("a", [200, 100, 50, 255])]);
         new_adjustment(&mut d, "inv".into(), Adjustment::Invert).unwrap();

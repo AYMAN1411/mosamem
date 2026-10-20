@@ -10,6 +10,8 @@
   import { drawOverlay } from './overlay';
   import { transform } from './transform.svelte';
   import { crop } from './crop.svelte';
+  import { textTool } from './text.svelte';
+  import TextEditor from './TextEditor.svelte';
   import { nudge } from '../actions';
 
   let stage = $state<HTMLDivElement>();
@@ -28,6 +30,14 @@
   const paintTool = new PaintInteraction(() => overlayTick++);
   transform.setRedraw(() => overlayTick++);
   crop.setRedraw(() => overlayTick++);
+  textTool.setRedraw(() => overlayTick++);
+
+  // leaving the Text tool (or the document) commits what was typed
+  $effect(() => {
+    const tool = app.tool;
+    const id = app.activeId;
+    if (textTool.editing && (tool !== 'text' || textTool.editing.doc !== id)) void textTool.commit();
+  });
 
   // the crop rectangle follows the document; switching tools drops a pending crop
   $effect(() => {
@@ -95,6 +105,7 @@
     selTool.draw(ctx);
     paintTool.draw(ctx);
     transform.draw(ctx);
+    textTool.draw(ctx);
     if (app.tool === 'crop') {
       void crop.rect;
       crop.draw(ctx);
@@ -183,6 +194,10 @@
       crop.down(e, p);
       return;
     }
+    if (effectiveTool === 'text') {
+      void textTool.down(e, p);
+      return;
+    }
     if (SELECTION_TOOLS.includes(effectiveTool)) {
       void selTool.down(e, p);
       return;
@@ -208,6 +223,10 @@
     }
     if (!drag && effectiveTool === 'crop') {
       crop.move(e, p);
+      return;
+    }
+    if (!drag && effectiveTool === 'text') {
+      textTool.move(e, p);
       return;
     }
     if (SELECTION_TOOLS.includes(effectiveTool) && !drag) {
@@ -248,6 +267,10 @@
     }
     if (!drag && effectiveTool === 'crop') {
       crop.up();
+      return;
+    }
+    if (!drag && effectiveTool === 'text') {
+      textTool.up();
       return;
     }
     if (SELECTION_TOOLS.includes(effectiveTool) && !drag) {
@@ -355,6 +378,8 @@
         return 'crosshair';
       case 'bucket':
         return 'cell';
+      case 'text':
+        return 'text';
       default:
         return settingsFor(effectiveTool) ? 'none' : 'default';
     }
@@ -388,6 +413,7 @@
   >
     <canvas class="gpu" bind:this={gpuCanvas}></canvas>
     <canvas class="overlay" bind:this={overlay}></canvas>
+    <TextEditor />
   </div>
 </div>
 

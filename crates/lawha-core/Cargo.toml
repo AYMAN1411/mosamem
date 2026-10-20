@@ -8,6 +8,11 @@ description = "Lawha pixel math: one implementation shared by the app (WASM) and
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 rayon = "1.12"
+harfrust = "0.14.0"
+skrifa = "0.48.0"
+unicode-bidi = "0.3.18"
+icu_segmenter = "2.3.0"
+tiny-skia = "0.12.0"
 
 [dev-dependencies]
 serde_json = "1"

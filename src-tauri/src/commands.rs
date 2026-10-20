@@ -433,11 +433,14 @@ pub async fn paint_begin(engine: State<'_, Engine>, doc: u64, spec: StrokeSpec) 
     let h = handle(&engine, doc)?;
     let layer = spec.layer;
     let e: &Engine = &engine;
-    let stroke = {
+    let (stroke, pixel_layer) = {
         let d = h.doc.read();
-        paint::begin(&d, spec)?
+        let pixel_layer = d.content.find(layer).is_some_and(|n| matches!(n.kind, crate::doc::NodeKind::Pixel { .. }));
+        (paint::begin(&d, spec)?, pixel_layer)
     };
-    let live = e.live_begin(doc, layer);
+    // the GPU preview draws a pixel layer's part; strokes on other layers' masks (adjustments,
+    // text, groups) recomposite in the engine instead
+    let live = if pixel_layer { e.live_begin(doc, layer) } else { None };
     let id = crate::doc::next_id();
     e.strokes.map.lock().insert(id, stroke);
     Ok(StrokeStarted { stroke: id, live })
@@ -778,4 +781,29 @@ pub async fn turn_image(engine: State<'_, Engine>, doc: u64, turn: Turn) -> Res<
 #[tauri::command]
 pub fn live_begin_transform(engine: State<'_, Engine>, doc: u64, layer: u64) -> Option<u64> {
     engine.live_begin_transform(doc, layer)
+}
+
+// ---- text ----
+
+use crate::doc::text::{self as textdoc, TextData};
+
+#[tauri::command]
+pub fn text_new(engine: State<'_, Engine>, doc: u64, data: TextData) -> Res<DocInfo> {
+    edit(&engine, doc, |d| textdoc::new_text(d, data))
+}
+
+#[tauri::command]
+pub fn text_set(engine: State<'_, Engine>, doc: u64, id: u64, data: TextData, transient: bool) -> Res<DocInfo> {
+    edit(&engine, doc, |d| textdoc::set_text(d, id, data, transient))
+}
+
+#[tauri::command]
+pub fn layer_rasterize(engine: State<'_, Engine>, doc: u64, id: u64) -> Res<DocInfo> {
+    edit(&engine, doc, |d| textdoc::rasterize(d, id))
+}
+
+/// Ascent and descent (px) of a style's font, so the on-canvas editor can sit on the baseline.
+#[tauri::command]
+pub fn text_metrics(style: lawha_core::text::TextStyle) -> (f32, f32) {
+    lawha_core::text::render::vertical_metrics(&style.face(), style.size)
 }

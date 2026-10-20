@@ -28,6 +28,8 @@ pub enum NodeKind {
     /// Changes the colors of everything below it (in its group, or its clip base when clipped).
     /// `op` is `adj` compiled; keep them in step with `Node::set_adjustment`.
     Adjustment { adj: Adjustment, op: Arc<Op> },
+    /// Editable text, with its last drawing (`tiles`) for compositing.
+    Text { data: super::text::TextData, tiles: Arc<TileMap> },
 }
 
 /// A layer mask: white shows, black hides.
@@ -114,6 +116,13 @@ impl Node {
         self.kind = NodeKind::Adjustment { op: Arc::new(adjust::compile(&a)), adj: a };
     }
 
+    pub fn text_data(&self) -> Option<&super::text::TextData> {
+        match &self.kind {
+            NodeKind::Text { data, .. } => Some(data),
+            _ => None,
+        }
+    }
+
     pub fn is_adjustment(&self) -> bool {
         matches!(self.kind, NodeKind::Adjustment { .. })
     }
@@ -138,7 +147,7 @@ impl Node {
 
     pub fn tiles(&self) -> Option<&Arc<TileMap>> {
         match &self.kind {
-            NodeKind::Pixel { tiles } => Some(tiles),
+            NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } => Some(tiles),
             _ => None,
         }
     }

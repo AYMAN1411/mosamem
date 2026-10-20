@@ -25,6 +25,7 @@ pub fn tiles_bbox(keys: impl Iterator<Item = (i32, i32)>) -> Option<(i64, i64, i
     b
 }
 
+#[cfg(test)]
 pub fn map_bbox(map: &TileMap) -> Option<(i64, i64, i64, i64)> {
     tiles_bbox(map.keys().copied())
 }

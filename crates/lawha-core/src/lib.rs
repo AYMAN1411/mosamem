@@ -10,6 +10,7 @@ pub mod mask;
 pub mod paint;
 pub mod resample;
 pub mod select;
+pub mod text;
 pub mod tile;
 
 pub use blend::BlendMode;

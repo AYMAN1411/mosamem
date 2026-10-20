@@ -78,8 +78,12 @@ fn label_for(t: PaintTool) -> &'static str {
 
 pub fn begin(doc: &Document, spec: StrokeSpec) -> Result<Stroke, String> {
     let node = doc.content.find(spec.layer).ok_or("layer not found")?;
-    let NodeKind::Pixel { tiles } = &node.kind else {
-        return Err("choose a pixel layer to paint on".into());
+    // pixels need a pixel layer; any layer with a mask can have its mask painted
+    let tiles = match (&node.kind, spec.target) {
+        (NodeKind::Pixel { tiles }, _) => tiles.clone(),
+        (_, Target::Mask) => node.tiles().cloned().unwrap_or_default(),
+        (NodeKind::Text { .. }, Target::Pixels) => return Err("rasterize the text layer to paint on it".into()),
+        _ => return Err("choose a pixel layer to paint on".into()),
     };
     if spec.target == Target::Pixels && node.locks.pixels {
         return Err("the layer's pixels are locked".into());
@@ -94,7 +98,7 @@ pub fn begin(doc: &Document, spec: StrokeSpec) -> Result<Stroke, String> {
         doc: doc.id,
         w: doc.content.width,
         h: doc.content.height,
-        orig: tiles.clone(),
+        orig: tiles,
         orig_mask,
         source,
         buffer: StrokeBuffer::default(),

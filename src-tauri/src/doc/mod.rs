@@ -10,6 +10,7 @@ pub mod ops;
 pub mod paint;
 pub mod raster;
 pub mod selection;
+pub mod text;
 pub mod thumbs;
 pub mod transform;
 
@@ -161,6 +162,7 @@ impl Document {
                     ("group", *pass_through, *expanded, Some(children.iter().rev().map(layer).collect()), 0)
                 }
                 NodeKind::Adjustment { .. } => ("adjustment", false, false, None, 0),
+                NodeKind::Text { tiles, .. } => ("text", false, false, None, Arc::as_ptr(tiles) as usize as u64),
             };
             LayerInfo {
                 mask: n.mask.as_ref().map(|m| MaskInfo {
@@ -182,6 +184,7 @@ impl Document {
                 clipped: n.clipped,
                 thumb,
                 adjustment: n.adjustment_settings().cloned(),
+                text: n.text_data().cloned(),
                 children,
             }
         }
@@ -231,6 +234,9 @@ pub struct LayerInfo {
     /// The settings of an adjustment layer.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub adjustment: Option<lawha_core::adjust::Adjustment>,
+    /// The text, style and placement of a text layer.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<text::TextData>,
     /// Top to bottom.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub children: Option<Vec<LayerInfo>>,

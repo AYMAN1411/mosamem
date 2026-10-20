@@ -72,6 +72,9 @@ struct Props {
     /// Settings of an adjustment layer.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     adjustment: Option<lawha_core::adjust::Adjustment>,
+    /// A text layer's text, style and placement (its last drawing is in the tiles table).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    text: Option<crate::doc::text::TextData>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -135,6 +138,12 @@ pub fn save(path: &Path, content: &Content, name: &str, extra: &Extra, hashes: &
                 }
                 NodeKind::Group { pass_through, expanded, .. } => ("group", *pass_through, *expanded),
                 NodeKind::Adjustment { .. } => ("adjustment", false, false),
+                NodeKind::Text { tiles, .. } => {
+                    for (&(tx, ty), t) in tiles.iter() {
+                        rows.push((n.id, tx, ty, t.clone()));
+                    }
+                    ("text", false, false)
+                }
             };
             let mask = n.mask.as_ref().map(|m| {
                 for (&(tx, ty), t) in m.mask.tiles.iter() {
@@ -142,7 +151,7 @@ pub fn save(path: &Path, content: &Content, name: &str, extra: &Extra, hashes: &
                 }
                 MaskProps { enabled: m.enabled, density: m.density, feather: m.feather, outside: m.mask.outside }
             });
-            let props = Props { name: n.name.clone(), visible: n.visible, opacity: n.opacity, fill: n.fill, blend: n.blend, locks: n.locks, clipped: n.clipped, pass_through, expanded, mask, adjustment: n.adjustment_settings().cloned() };
+            let props = Props { name: n.name.clone(), visible: n.visible, opacity: n.opacity, fill: n.fill, blend: n.blend, locks: n.locks, clipped: n.clipped, pass_through, expanded, mask, adjustment: n.adjustment_settings().cloned(), text: n.text_data().cloned() };
             nodes.push((n.id, parent, i, kind, serde_json::to_string(&props).unwrap()));
             if let Some(c) = n.children() {
                 walk(c, Some(n.id), rows, mask_rows, nodes);
@@ -296,6 +305,10 @@ pub fn load(path: &Path) -> Result<Loaded, PersistError> {
             let p: Props = serde_json::from_str(props).map_err(|e| PersistError::Damaged(e.to_string()))?;
             let kind = match kind.as_str() {
                 "group" => NodeKind::Group { children: build(Some(*id), by_parent, tiles, masks, depth + 1)?, pass_through: p.pass_through, expanded: p.expanded },
+                "text" => {
+                    let data = p.text.clone().ok_or_else(|| PersistError::Damaged("text layer without text".into()))?;
+                    NodeKind::Text { data, tiles: Arc::new(tiles.remove(id).unwrap_or_default()) }
+                }
                 "adjustment" => {
                     let adj = p.adjustment.clone().ok_or_else(|| PersistError::Damaged("adjustment layer without settings".into()))?;
                     NodeKind::Adjustment { op: Arc::new(lawha_core::adjust::compile(&adj)), adj }
@@ -362,7 +375,16 @@ mod tests {
             channels: [vec![[0.0, 0.0], [90.0, 140.0], [255.0, 255.0]], vec![[0.0, 30.0], [255.0, 255.0]], vec![[0.0, 0.0], [255.0, 255.0]], vec![[0.0, 0.0], [255.0, 220.0]]],
         });
         adj.opacity = 0.7;
-        Content::new(700, 500, 300.0, active, vec![a, g, adj])
+        let data = crate::doc::text::TextData {
+            text: "مرحبا Hello ١٢٣".into(),
+            style: lawha_core::text::TextStyle { size: 40.0, align: lawha_core::text::Align::Center, ..Default::default() },
+            width: Some(300.0),
+            height: Some(120.0),
+            matrix: [1.0, 0.0, 50.0, 0.0, 1.0, 60.0],
+        };
+        let mut text = Node::pixel("نص", Default::default());
+        text.kind = NodeKind::Text { tiles: Arc::new(crate::doc::text::render(&data, 700, 500)), data };
+        Content::new(700, 500, 300.0, active, vec![a, g, adj, text])
     }
 
     fn same_tree(a: &[Node], b: &[Node]) {
@@ -384,6 +406,10 @@ mod tests {
                 (NodeKind::Group { children: c1, pass_through: p1, .. }, NodeKind::Group { children: c2, pass_through: p2, .. }) => {
                     assert_eq!(p1, p2);
                     same_tree(c1, c2);
+                }
+                (NodeKind::Text { data: d1, tiles: t1 }, NodeKind::Text { data: d2, tiles: t2 }) => {
+                    assert_eq!(d1, d2);
+                    assert_eq!(t1.len(), t2.len());
                 }
                 (NodeKind::Adjustment { adj: a1, op: o1 }, NodeKind::Adjustment { adj: a2, op: o2 }) => {
                     assert_eq!(a1, a2);

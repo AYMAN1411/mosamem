@@ -12,6 +12,7 @@
   import { adjust } from '../actions';
   import { adjustmentIcon } from './adjust/icons';
   import { dock } from '../dock/layout.svelte';
+  import { textTool } from '../canvas/text.svelte';
 
   let adjMenu = $state(false);
 
@@ -194,6 +195,14 @@
           {#if l.clipped}<span class="clip" title={t('layer.clipped')}>↳</span>{/if}
           {#if l.kind === 'group'}
             <span class="folder"><Icon name="folder" size={22} /></span>
+          {:else if l.kind === 'text'}
+            <button
+              class="thumb-btn adj-thumb text-thumb"
+              class:target={l.id === doc.info.active && !app.maskTarget}
+              title={t('text.edit')}
+              onclick={(e) => { e.stopPropagation(); app.maskTarget = false; select(e, l.id); }}
+              ondblclick={(e) => { e.stopPropagation(); app.tool = 'text'; void textTool.edit(l); }}
+            ><Icon name="textLayer" size={18} /></button>
           {:else if l.kind === 'adjustment' && l.adjustment}
             <button
               class="thumb-btn adj-thumb"

@@ -215,7 +215,7 @@ fn isolated(node: &Node, lod: u8, key: (i32, i32), origin: (i64, i64), sub: Sub)
         return None;
     }
     let src = match &node.kind {
-        NodeKind::Pixel { tiles } => match sub {
+        NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } => match sub {
             Some(s) if s.layer == node.id => Source::Tile((s.tile)(lod, key)?, node.fill),
             _ => Source::Tile(layer_tile(tiles, lod, key)?, node.fill),
         },

@@ -1,0 +1,370 @@
+{
+  "summary": {
+    "harfbuzz": "14.6.0",
+    "cases": 60,
+    "matching": 60,
+    "failed": 0
+  },
+  "results": [
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
+      "text": "لا",
+      "glyphs": 1,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
+      "text": "ببب",
+      "glyphs": 3,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
+      "text": "مرحبا",
+      "glyphs": 5,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
+      "text": "بَّ",
+      "glyphs": 2,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
+      "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+      "glyphs": 35,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
+      "text": "كِتَابًا",
+      "glyphs": 8,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
+      "text": "شُكْرًا جَزِيلًا",
+      "glyphs": 15,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
+      "text": "لوحة: محرر صور عربي أولاً",
+      "glyphs": 23,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
+      "text": "قال: (نعم)",
+      "glyphs": 10,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
+      "text": "ـــ تطويل ـــ",
+      "glyphs": 13,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
+      "text": "١٢٣٤٥٦٧٨٩٠",
+      "glyphs": 10,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf",
+      "text": "Hello, Lawha 2026!",
+      "glyphs": 18,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
+      "text": "لا",
+      "glyphs": 1,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
+      "text": "ببب",
+      "glyphs": 3,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
+      "text": "مرحبا",
+      "glyphs": 5,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
+      "text": "بَّ",
+      "glyphs": 2,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
+      "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+      "glyphs": 35,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
+      "text": "كِتَابًا",
+      "glyphs": 8,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
+      "text": "شُكْرًا جَزِيلًا",
+      "glyphs": 15,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
+      "text": "لوحة: محرر صور عربي أولاً",
+      "glyphs": 23,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
+      "text": "قال: (نعم)",
+      "glyphs": 10,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
+      "text": "ـــ تطويل ـــ",
+      "glyphs": 13,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
+      "text": "١٢٣٤٥٦٧٨٩٠",
+      "glyphs": 10,
+      "match": true
+    },
+    {
+      "font": "ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf",
+      "text": "Hello, Lawha 2026!",
+      "glyphs": 18,
+      "match": true
+    },
+    {
+      "font": "tajawal/Tajawal-Regular.ttf",
+      "text": "لا",
+      "glyphs": 1,
+      "match": true
+    },
+    {
+      "font": "tajawal/Tajawal-Regular.ttf",
+      "text": "ببب",
+      "glyphs": 3,
+      "match": true
+    },
+    {
+      "font": "tajawal/Tajawal-Regular.ttf",
+      "text": "مرحبا",
+      "glyphs": 5,
+      "match": true
+    },
+    {
+      "font": "tajawal/Tajawal-Regular.ttf",
+      "text": "بَّ",
+      "glyphs": 2,
+      "match": true
+    },
+    {
+      "font": "tajawal/Tajawal-Regular.ttf",
+      "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+      "glyphs": 35,
+      "match": true
+    },
+    {
+      "font": "tajawal/Tajawal-Regular.ttf",
+      "text": "كِتَابًا",
+      "glyphs": 8,
+      "match": true
+    },
+    {
+      "font": "tajawal/Tajawal-Regular.ttf",
+      "text": "شُكْرًا جَزِيلًا",
+      "glyphs": 16,
+      "match": true
+    },
+    {
+      "font": "tajawal/Tajawal-Regular.ttf",
+      "text": "لوحة: محرر صور عربي أولاً",
+      "glyphs": 24,
+      "match": true
+    },
+    {
+      "font": "tajawal/Tajawal-Regular.ttf",
+      "text": "قال: (نعم)",
+      "glyphs": 10,
+      "match": true
+    },
+    {
+      "font": "tajawal/Tajawal-Regular.ttf",
+      "text": "ـــ تطويل ـــ",
+      "glyphs": 13,
+      "match": true
+    },
+    {
+      "font": "tajawal/Tajawal-Regular.ttf",
+      "text": "١٢٣٤٥٦٧٨٩٠",
+      "glyphs": 10,
+      "match": true
+    },
+    {
+      "font": "tajawal/Tajawal-Regular.ttf",
+      "text": "Hello, Lawha 2026!",
+      "glyphs": 18,
+      "match": true
+    },
+    {
+      "font": "amiri/Amiri-Regular.ttf",
+      "text": "لا",
+      "glyphs": 2,
+      "match": true
+    },
+    {
+      "font": "amiri/Amiri-Regular.ttf",
+      "text": "ببب",
+      "glyphs": 3,
+      "match": true
+    },
+    {
+      "font": "amiri/Amiri-Regular.ttf",
+      "text": "مرحبا",
+      "glyphs": 5,
+      "match": true
+    },
+    {
+      "font": "amiri/Amiri-Regular.ttf",
+      "text": "بَّ",
+      "glyphs": 3,
+      "match": true
+    },
+    {
+      "font": "amiri/Amiri-Regular.ttf",
+      "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+      "glyphs": 38,
+      "match": true
+    },
+    {
+      "font": "amiri/Amiri-Regular.ttf",
+      "text": "كِتَابًا",
+      "glyphs": 8,
+      "match": true
+    },
+    {
+      "font": "amiri/Amiri-Regular.ttf",
+      "text": "شُكْرًا جَزِيلًا",
+      "glyphs": 16,
+      "match": true
+    },
+    {
+      "font": "amiri/Amiri-Regular.ttf",
+      "text": "لوحة: محرر صور عربي أولاً",
+      "glyphs": 25,
+      "match": true
+    },
+    {
+      "font": "amiri/Amiri-Regular.ttf",
+      "text": "قال: (نعم)",
+      "glyphs": 10,
+      "match": true
+    },
+    {
+      "font": "amiri/Amiri-Regular.ttf",
+      "text": "ـــ تطويل ـــ",
+      "glyphs": 9,
+      "match": true
+    },
+    {
+      "font": "amiri/Amiri-Regular.ttf",
+      "text": "١٢٣٤٥٦٧٨٩٠",
+      "glyphs": 10,
+      "match": true
+    },
+    {
+      "font": "amiri/Amiri-Regular.ttf",
+      "text": "Hello, Lawha 2026!",
+      "glyphs": 18,
+      "match": true
+    },
+    {
+      "font": "cairo/Cairo[slnt,wght].ttf",
+      "text": "لا",
+      "glyphs": 1,
+      "match": true
+    },
+    {
+      "font": "cairo/Cairo[slnt,wght].ttf",
+      "text": "ببب",
+      "glyphs": 3,
+      "match": true
+    },
+    {
+      "font": "cairo/Cairo[slnt,wght].ttf",
+      "text": "مرحبا",
+      "glyphs": 5,
+      "match": true
+    },
+    {
+      "font": "cairo/Cairo[slnt,wght].ttf",
+      "text": "بَّ",
+      "glyphs": 2,
+      "match": true
+    },
+    {
+      "font": "cairo/Cairo[slnt,wght].ttf",
+      "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+      "glyphs": 32,
+      "match": true
+    },
+    {
+      "font": "cairo/Cairo[slnt,wght].ttf",
+      "text": "كِتَابًا",
+      "glyphs": 8,
+      "match": true
+    },
+    {
+      "font": "cairo/Cairo[slnt,wght].ttf",
+      "text": "شُكْرًا جَزِيلًا",
+      "glyphs": 15,
+      "match": true
+    },
+    {
+      "font": "cairo/Cairo[slnt,wght].ttf",
+      "text": "لوحة: محرر صور عربي أولاً",
+      "glyphs": 24,
+      "match": true
+    },
+    {
+      "font": "cairo/Cairo[slnt,wght].ttf",
+      "text": "قال: (نعم)",
+      "glyphs": 10,
+      "match": true
+    },
+    {
+      "font": "cairo/Cairo[slnt,wght].ttf",
+      "text": "ـــ تطويل ـــ",
+      "glyphs": 13,
+      "match": true
+    },
+    {
+      "font": "cairo/Cairo[slnt,wght].ttf",
+      "text": "١٢٣٤٥٦٧٨٩٠",
+      "glyphs": 10,
+      "match": true
+    },
+    {
+      "font": "cairo/Cairo[slnt,wght].ttf",
+      "text": "Hello, Lawha 2026!",
+      "glyphs": 18,
+      "match": true
+    }
+  ]
+}

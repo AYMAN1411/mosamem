@@ -172,15 +172,28 @@ pub fn transform_layers(doc: &mut Document, ids: &[u64], m: &Mat3, method: Metho
             return Err("the layer's position is locked".into());
         }
     }
+    let (cw, ch) = (doc.content.width, doc.content.height);
     for id in ids {
         let node = doc.content.find_mut(id).unwrap();
-        if let NodeKind::Pixel { tiles } = &node.kind {
+        // text stays text under moves, scales, turns and skews of the whole layer
+        if let (NodeKind::Text { data, .. }, None) = (&node.kind, &sel) {
+            if let Some(nd) = data.transformed(m) {
+                let tiles = super::text::render(&nd, cw, ch);
+                node.kind = NodeKind::Text { data: nd, tiles: Arc::new(tiles) };
+                if let Some(lm) = node.mask.as_mut() {
+                    lm.mask = transform_mask(&lm.mask, m, method, limit);
+                }
+                continue;
+            }
+        }
+        // pixels (and text that can't stay text: it becomes pixels)
+        if let Some(tiles) = node.tiles().cloned() {
             let new = match &sel {
                 Some(s) => {
-                    let (inside, rest) = split_by(tiles, s);
+                    let (inside, rest) = split_by(&tiles, s);
                     over(&transform_map(&inside, m, method, limit), &rest)
                 }
-                None => transform_map(tiles, m, method, limit),
+                None => transform_map(&tiles, m, method, limit),
             };
             node.kind = NodeKind::Pixel { tiles: Arc::new(new) };
         }
@@ -222,7 +235,7 @@ pub fn bounds(doc: &Document, ids: &[u64]) -> Option<Bounds> {
         for id in targets(doc, ids) {
             let n = doc.content.find(id)?;
             match &n.kind {
-                NodeKind::Pixel { tiles } => {
+                NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } => {
                     if let Some(r) = raster::content_bounds(tiles) {
                         add(r);
                     }
@@ -237,22 +250,36 @@ pub fn bounds(doc: &Document, ids: &[u64]) -> Option<Bounds> {
 
 // ---- the whole image ----
 
-/// Applies `f` to every layer's pixels and mask, and to the selection.
-fn every_layer(doc: &mut Document, pixels: &(dyn Fn(&TileMap) -> TileMap + Sync), mask: &(dyn Fn(&Mask) -> Mask + Sync)) {
-    fn walk(nodes: &mut [Node], pixels: &(dyn Fn(&TileMap) -> TileMap + Sync), mask: &(dyn Fn(&Mask) -> Mask + Sync)) {
+/// Applies a change of the whole image to every layer: `pixels` to pixel layers and masks, the
+/// affine `geometry` to text layers (which stay editable; `size` is the canvas afterwards), and
+/// `mask` to the selection.
+fn every_layer(doc: &mut Document, size: (u32, u32), geometry: &Mat3, pixels: &(dyn Fn(&TileMap) -> TileMap + Sync), mask: &(dyn Fn(&Mask) -> Mask + Sync)) {
+    type Px<'a> = &'a (dyn Fn(&TileMap) -> TileMap + Sync);
+    type Mk<'a> = &'a (dyn Fn(&Mask) -> Mask + Sync);
+    fn walk(nodes: &mut [Node], size: (u32, u32), geometry: &Mat3, pixels: Px, mask: Mk) {
         for n in nodes {
-            if let NodeKind::Pixel { tiles } = &n.kind {
-                n.kind = NodeKind::Pixel { tiles: Arc::new(pixels(tiles)) };
+            match &n.kind {
+                NodeKind::Pixel { tiles } => n.kind = NodeKind::Pixel { tiles: Arc::new(pixels(tiles)) },
+                NodeKind::Text { data, tiles } => {
+                    n.kind = match data.transformed(geometry) {
+                        Some(nd) => {
+                            let t = super::text::render(&nd, size.0, size.1);
+                            NodeKind::Text { data: nd, tiles: Arc::new(t) }
+                        }
+                        None => NodeKind::Pixel { tiles: Arc::new(pixels(tiles)) },
+                    }
+                }
+                _ => {}
             }
             if let Some(lm) = n.mask.as_mut() {
                 lm.mask = mask(&lm.mask);
             }
             if let Some(c) = n.children_mut() {
-                walk(c, pixels, mask);
+                walk(c, size, geometry, pixels, mask);
             }
         }
     }
-    walk(&mut doc.content.root, pixels, mask);
+    walk(&mut doc.content.root, size, geometry, pixels, mask);
     if let Some(s) = doc.content.selection.take() {
         doc.content.selection = Some(mask(&s));
     }
@@ -293,7 +320,7 @@ pub fn image_size(doc: &mut Document, width: u32, height: u32, ppi: f64, method:
         let out = resample::resize(rw, rh, &gray, nw, nh, method);
         raster::mask_write(&out.chunks_exact(4).map(|p| p[0]).collect::<Vec<_>>(), n.0, n.1, nw, nh, m.outside)
     };
-    every_layer(doc, &pixels, &mask);
+    every_layer(doc, (width, height), &[sx, 0.0, 0.0, 0.0, sy, 0.0, 0.0, 0.0, 1.0], &pixels, &mask);
     doc.content.width = width;
     doc.content.height = height;
     doc.content.ppi = ppi;
@@ -311,7 +338,7 @@ pub fn canvas_size(doc: &mut Document, width: u32, height: u32, anchor: (f64, f6
     let (ow, oh) = (doc.content.width as i64, doc.content.height as i64);
     let dx = ((width as i64 - ow) as f64 * anchor.0).round() as i64;
     let dy = ((height as i64 - oh) as f64 * anchor.1).round() as i64;
-    every_layer(doc, &|m| raster::translate(m, dx, dy), &|m| raster::translate_mask(m, dx, dy));
+    every_layer(doc, (width, height), &shift(dx as f64, dy as f64), &|m| raster::translate(m, dx, dy), &|m| raster::translate_mask(m, dx, dy));
     doc.content.width = width;
     doc.content.height = height;
     if let Some(color) = fill {
@@ -377,7 +404,8 @@ fn trim_to_canvas(doc: &mut Document) {
             })
             .collect()
     };
-    every_layer(doc, &trim, &|m| m.clone());
+    let size = (doc.content.width, doc.content.height);
+    every_layer(doc, size, &resample::IDENTITY, &trim, &|m| m.clone());
 }
 
 /// Image › Crop / the Crop tool: the canvas becomes the rectangle (x, y, w, h), turned by `angle`
@@ -389,7 +417,7 @@ pub fn crop(doc: &mut Document, x: f64, y: f64, w: f64, h: f64, angle: f64, dele
     }
     if angle.abs() < 1e-6 {
         let (dx, dy) = (-(x.round() as i64), -(y.round() as i64));
-        every_layer(doc, &|m| raster::translate(m, dx, dy), &|m| raster::translate_mask(m, dx, dy));
+        every_layer(doc, (nw, nh), &shift(dx as f64, dy as f64), &|m| raster::translate(m, dx, dy), &|m| raster::translate_mask(m, dx, dy));
     } else {
         // turn the crop rectangle upright around its center, then move it to the origin
         let (cx, cy) = (x + w / 2.0, y + h / 2.0);
@@ -397,7 +425,7 @@ pub fn crop(doc: &mut Document, x: f64, y: f64, w: f64, h: f64, angle: f64, dele
         let rot: Mat3 = [c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0];
         let m = resample::multiply(&shift(w / 2.0, h / 2.0), &resample::multiply(&rot, &shift(-cx, -cy)));
         let limit = (-(nw as i64) * 2, -(nh as i64) * 2, nw as i64 * 3, nh as i64 * 3);
-        every_layer(doc, &|t| transform_map(t, &m, method, limit), &|mk| transform_mask(mk, &m, method, limit));
+        every_layer(doc, (nw, nh), &m, &|t| transform_map(t, &m, method, limit), &|mk| transform_mask(mk, &m, method, limit));
     }
     doc.content.width = nw;
     doc.content.height = nh;
@@ -430,7 +458,7 @@ pub fn turn_image(doc: &mut Document, t: Turn) -> OpResult {
         Turn::FlipV => ([1.0, 0.0, 0.0, 0.0, -1.0, h, 0.0, 0.0, 1.0], w, h),
     };
     let limit = (-(w.max(h) as i64) * 3, -(w.max(h) as i64) * 3, w.max(h) as i64 * 4, w.max(h) as i64 * 4);
-    every_layer(doc, &|t| transform_map(t, &m, Method::Nearest, limit), &|mk| transform_mask(mk, &m, Method::Nearest, limit));
+    every_layer(doc, (nw as u32, nh as u32), &m, &|t| transform_map(t, &m, Method::Nearest, limit), &|mk| transform_mask(mk, &m, Method::Nearest, limit));
     doc.content.width = nw as u32;
     doc.content.height = nh as u32;
     doc.commit(Label::new(match t {

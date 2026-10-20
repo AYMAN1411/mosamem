@@ -261,7 +261,7 @@ fn tile_keys(node: &Node) -> Vec<(i32, i32)> {
     let mut keys = HashSet::new();
     fn walk(n: &Node, keys: &mut HashSet<(i32, i32)>) {
         match &n.kind {
-            NodeKind::Pixel { tiles } => keys.extend(tiles.keys().copied()),
+            NodeKind::Pixel { tiles } | NodeKind::Text { tiles, .. } => keys.extend(tiles.keys().copied()),
             NodeKind::Group { children, .. } => children.iter().for_each(|c| walk(c, keys)),
             NodeKind::Adjustment { .. } => {}
         }

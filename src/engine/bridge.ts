@@ -1,6 +1,7 @@
 // Typed calls into the native engine.
 import type { Adjustment, Histogram } from './adjust';
 import type { Filter } from './filter';
+import type { TextData, TextStyle } from './text';
 import { invoke } from '@tauri-apps/api/core';
 import type { BlendMode } from './blend';
 
@@ -13,7 +14,7 @@ export interface Locks {
 export interface LayerInfo {
   id: number;
   name: string;
-  kind: 'pixel' | 'group' | 'adjustment';
+  kind: 'pixel' | 'group' | 'adjustment' | 'text';
   visible: boolean;
   opacity: number;
   fill: number;
@@ -27,6 +28,8 @@ export interface LayerInfo {
   thumb: number;
   /** Settings of an adjustment layer. */
   adjustment?: Adjustment;
+  /** Text, style and placement of a text layer. */
+  text?: TextData;
   /** Top to bottom. */
   children?: LayerInfo[];
 }
@@ -201,6 +204,11 @@ export const engine = {
   histogram: (doc: number, below: number | null) => invoke<Histogram>('histogram', { doc, below }),
 
   liveBegin: (doc: number, layer: number) => invoke<number | null>('live_begin', { doc, layer }),
+  textNew: (doc: number, data: TextData) => invoke<DocInfo>('text_new', { doc, data }),
+  textSet: (doc: number, id: number, data: TextData, transient: boolean) => invoke<DocInfo>('text_set', { doc, id, data, transient }),
+  layerRasterize: (doc: number, id: number) => invoke<DocInfo>('layer_rasterize', { doc, id }),
+  /** [ascent, descent] in px for a style's font and size. */
+  textMetrics: (style: TextStyle) => invoke<[number, number]>('text_metrics', { style }),
   /** A session for previewing a transform of one layer (the selected pixels, with a selection). */
   liveBeginTransform: (doc: number, layer: number) => invoke<number | null>('live_begin_transform', { doc, layer }),
   layerTransform: (doc: number, ids: number[], matrix: number[], method: ResampleMethod, label: string) => invoke<DocInfo>('layer_transform', { doc, ids, matrix, method, label }),

@@ -141,6 +141,8 @@ export const layer = {
   solo: (id: number) => run((d) => engine.layerSolo(d.info.id, id)),
   move: (ids: number[], parent: number | null, index: number) => run((d) => engine.layerMove(d.info.id, ids, parent, index)),
   activate: (id: number) => run((d) => engine.setActive(d.info.id, id)),
+  /** Turns the active text layer into pixels. */
+  rasterize: () => run((d) => engine.layerRasterize(d.info.id, activeId())),
 };
 
 function countLayers(info: DocInfo): number {
