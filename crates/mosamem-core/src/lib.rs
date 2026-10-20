@@ -13,6 +13,7 @@ pub mod select;
 pub mod style;
 pub mod text;
 pub mod tile;
+pub mod vector;
 
 pub use blend::BlendMode;
 pub use tile::{Tile, TILE, TILE_BYTES, TILE_PX};
