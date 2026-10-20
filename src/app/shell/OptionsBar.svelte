@@ -6,6 +6,9 @@
   import * as act from '../actions';
   import SelectionOptions from './SelectionOptions.svelte';
   import PaintOptions from './PaintOptions.svelte';
+  import TransformOptions from './TransformOptions.svelte';
+  import CropOptions from './CropOptions.svelte';
+  import { transform } from '../canvas/transform.svelte';
   import { PAINT_TOOLS } from '../canvas/paintTools';
   import { SELECTION_TOOLS } from '../canvas/selectionTools';
   import { DONE_MILESTONE } from '../tools';
@@ -17,7 +20,11 @@
   <div class="tool"><Icon name={tool.icon} size={18} /><span>{t(tool.title)}</span></div>
   <div class="sep"></div>
 
-  {#if app.tool === 'zoom'}
+  {#if transform.active?.free || app.tool === 'move'}
+    <TransformOptions />
+  {:else if app.tool === 'crop'}
+    <CropOptions />
+  {:else if app.tool === 'zoom'}
     <button class="icon-btn" title={t('opt.zoomIn')} onclick={act.view.zoomIn}><Icon name="zoom" /></button>
     <button class="icon-btn" title={t('opt.zoomOut')} onclick={act.view.zoomOut}><Icon name="zoomOut" /></button>
     <button class="btn" onclick={act.view.actual}>{t('opt.actual')}</button>

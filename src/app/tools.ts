@@ -19,7 +19,7 @@ export interface ToolGroup {
 }
 
 /** Tools whose milestone is at or below this are working. */
-export const DONE_MILESTONE = 4;
+export const DONE_MILESTONE = 6;
 
 export const TOOL_GROUPS: ToolGroup[] = [
   { code: 'KeyV', letter: 'V', tools: [{ id: 'move', icon: 'move', title: 'tool.move', milestone: 2 }] },

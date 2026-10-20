@@ -124,7 +124,7 @@ class AppState {
   });
   sel = $state<SelectionOptions>({ mode: 'replace', feather: 0, antialias: true, style: 'normal', ratioW: 1, ratioH: 1, sizeW: 1080, sizeH: 1080, tolerance: 32, contiguous: true, allLayers: false, brush: 30 });
   gridSubdivisions = $state(4);
-  dialog = $state<null | 'new' | 'export' | 'recovery' | 'unsaved' | 'modify' | 'refine' | 'filter'>(null);
+  dialog = $state<null | 'new' | 'export' | 'recovery' | 'unsaved' | 'modify' | 'refine' | 'filter' | 'imageSize' | 'canvasSize'>(null);
   /** The filter the filter panel is showing. */
   filterKind = $state<FilterKind>('gaussianBlur');
   modifyOp = $state<'feather' | 'expand' | 'contract' | 'border' | 'smooth'>('feather');

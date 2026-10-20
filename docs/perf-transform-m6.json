@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-20",
+  "machine": "Apple Silicon Mac, dev build with optimized code",
+  "document": "6000×4000, 30 full layers",
+  "what": "engine time per step, including its history step",
+  "results": [
+    {
+      "step": "move one layer by whole pixels",
+      "ms": 8
+    },
+    {
+      "step": "rotate 15° and scale 90%, one layer, bicubic",
+      "ms": 157
+    },
+    {
+      "step": "same, Lanczos",
+      "ms": 357
+    },
+    {
+      "step": "image size to 3000×2000, all 30 layers, bicubic",
+      "ms": 833
+    },
+    {
+      "step": "canvas size to 6400×4400, all layers",
+      "ms": 589
+    },
+    {
+      "step": "crop 5000×3000 with a 3° straighten, all layers",
+      "ms": 3608
+    },
+    {
+      "step": "rotate the image 90°, all layers",
+      "ms": 949
+    }
+  ],
+  "livePreview": {
+    "what": "Free Transform on the top layer at fit: start (cached parts), then each change to the drawn frame (40 changes)",
+    "startMs": 71,
+    "p50": 16.6,
+    "p95": 21.3,
+    "max": 24.3
+  }
+}

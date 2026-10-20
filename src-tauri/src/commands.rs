@@ -722,3 +722,60 @@ pub async fn filter_apply(engine: State<'_, Engine>, doc: u64, id: u64, filter: 
     .await
     .map_err(|e| e.to_string())?
 }
+
+// ---- transform and resize ----
+
+use crate::doc::transform::{self, Bounds, Turn};
+use lawha_core::resample::Method;
+
+async fn edit_async(engine: &Engine, doc: u64, f: impl FnOnce(&mut Document) -> Res<()> + Send + 'static) -> Res<DocInfo> {
+    let h = handle(engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = h.doc.write();
+        f(&mut d)?;
+        Ok(d.info())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Transforms layers (or the selected pixels) by a 3×3 matrix, document px → document px.
+#[tauri::command]
+pub async fn layer_transform(engine: State<'_, Engine>, doc: u64, ids: Vec<u64>, matrix: [f64; 9], method: Method, label: String) -> Res<DocInfo> {
+    edit_async(&engine, doc, move |d| transform::transform_layers(d, &ids, &matrix, method, &label)).await
+}
+
+#[tauri::command]
+pub fn transform_bounds(engine: State<'_, Engine>, doc: u64, ids: Vec<u64>) -> Res<Option<Bounds>> {
+    let h = handle(&engine, doc)?;
+    let d = h.doc.read();
+    Ok(transform::bounds(&d, &ids))
+}
+
+#[tauri::command]
+pub async fn image_size(engine: State<'_, Engine>, doc: u64, width: u32, height: u32, ppi: f64, method: Option<Method>) -> Res<DocInfo> {
+    edit_async(&engine, doc, move |d| transform::image_size(d, width, height, ppi, method)).await
+}
+
+#[tauri::command]
+pub async fn canvas_size(engine: State<'_, Engine>, doc: u64, width: u32, height: u32, anchor: (f64, f64), fill: Option<[u8; 4]>) -> Res<DocInfo> {
+    edit_async(&engine, doc, move |d| transform::canvas_size(d, width, height, anchor, fill)).await
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn crop(engine: State<'_, Engine>, doc: u64, x: f64, y: f64, w: f64, h: f64, angle: f64, delete: bool, method: Method) -> Res<DocInfo> {
+    edit_async(&engine, doc, move |d| transform::crop(d, x, y, w, h, angle, delete, method)).await
+}
+
+#[tauri::command]
+pub async fn turn_image(engine: State<'_, Engine>, doc: u64, turn: Turn) -> Res<DocInfo> {
+    edit_async(&engine, doc, move |d| transform::turn_image(d, turn)).await
+}
+
+/// A live session for a transform preview: the layer part holds what moves (the selected pixels
+/// when there is a selection), and the part below holds what stays.
+#[tauri::command]
+pub fn live_begin_transform(engine: State<'_, Engine>, doc: u64, layer: u64) -> Option<u64> {
+    engine.live_begin_transform(doc, layer)
+}

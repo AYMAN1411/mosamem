@@ -43,6 +43,8 @@ pub struct Session {
     /// Whole-document mode (`begin_full`): `below` is the entire tree and the layer part holds the
     /// layer's (filtered) pixels for compositing it, not for the GPU to draw.
     full: bool,
+    /// A transform preview (`begin_transform`).
+    transform: bool,
     cache: Mutex<HashMap<(Part, u8, i32, i32), Option<Arc<Tile>>>>,
 }
 
@@ -93,6 +95,12 @@ fn fingerprint(below: &[Node], above: &[Node], layer: &Node) -> u64 {
 
 /// Splits the tree around `layer`. Returns None when a live session can't be exact.
 fn split(content: &Content, layer: u64) -> Option<(Vec<Node>, Vec<Node>)> {
+    split_with(content, layer, None)
+}
+
+/// Like `split`, with `extra` composited in the layer's place at the end of `below` (what stays of
+/// the layer while its selected pixels are being moved).
+fn split_with(content: &Content, layer: u64, extra: Option<Node>) -> Option<(Vec<Node>, Vec<Node>)> {
     // path of indices from the root to the layer
     fn path(nodes: &[Node], id: u64, out: &mut Vec<usize>) -> bool {
         for (i, n) in nodes.iter().enumerate() {
@@ -132,7 +140,11 @@ fn split(content: &Content, layer: u64) -> Option<(Vec<Node>, Vec<Node>)> {
                 return None;
             }
         }
-        below_levels.push(nodes[..i].to_vec());
+        let mut level = nodes[..i].to_vec();
+        if last {
+            level.extend(extra.clone());
+        }
+        below_levels.push(level);
         let later = &nodes[i + 1..];
         if !later.iter().all(associative) {
             return None;
@@ -182,7 +194,7 @@ impl Session {
         let mask = node.mask.as_ref().filter(|m| m.enabled).map(|_| node.clone());
         let (below, above) = split(content, layer)?;
         let fingerprint = fingerprint(&below, &above, node);
-        Some(Session { doc, layer, fingerprint, width: content.width, height: content.height, below, above, layer_tiles: parking_lot::RwLock::new(layer_tiles), mask: parking_lot::RwLock::new(mask), filter: parking_lot::RwLock::new(None), full: false, cache: Mutex::new(HashMap::new()) })
+        Some(Session { doc, layer, fingerprint, width: content.width, height: content.height, below, above, layer_tiles: parking_lot::RwLock::new(layer_tiles), mask: parking_lot::RwLock::new(mask), filter: parking_lot::RwLock::new(None), full: false, transform: false, cache: Mutex::new(HashMap::new()) })
     }
 
     /// For previews where the layer can't be split out exactly (an adjustment above it, a clipping
@@ -203,12 +215,60 @@ impl Session {
             mask: parking_lot::RwLock::new(None),
             filter: parking_lot::RwLock::new(None),
             full: true,
+            transform: false,
             cache: Mutex::new(HashMap::new()),
         })
     }
 
-    pub fn is_full(&self) -> bool {
-        self.full
+    /// A later stroke can reuse this session (a plain split, not a preview of something else).
+    pub fn reusable(&self) -> bool {
+        !self.full && !self.transform
+    }
+
+    /// For previewing a transform: with a selection, the layer part holds only the selected pixels
+    /// and `below` gets the rest of the layer in its place.
+    pub fn begin_transform(doc: u64, content: &Content, layer: u64) -> Option<Session> {
+        let node = content.find(layer)?;
+        let NodeKind::Pixel { tiles } = &node.kind else { return None };
+        let (moving, rest) = match &content.selection {
+            Some(sel) => {
+                let (inside, rest) = super::transform::split_selected(tiles, sel);
+                let mut r = node.clone();
+                r.kind = NodeKind::Pixel { tiles: Arc::new(rest) };
+                (Arc::new(inside), Some(r))
+            }
+            None => (tiles.clone(), None),
+        };
+        let (below, above) = match split_with(content, layer, rest.clone()) {
+            Some(parts) => parts,
+            None => {
+                // the layer can't be split out exactly (an adjustment above it…): the whole document
+                // without the moving pixels below, the layer drawn on top while it moves
+                let mut c = content.clone();
+                let n = c.find_mut(layer)?;
+                n.kind = match rest {
+                    Some(r) => r.kind,
+                    None => NodeKind::Pixel { tiles: Arc::new(super::model::TileMap::new()) },
+                };
+                (c.root, Vec::new())
+            }
+        };
+        let mask = node.mask.as_ref().filter(|m| m.enabled).map(|_| node.clone());
+        Some(Session {
+            doc,
+            layer,
+            fingerprint: 0,
+            width: content.width,
+            height: content.height,
+            below,
+            above,
+            layer_tiles: parking_lot::RwLock::new(moving),
+            mask: parking_lot::RwLock::new(mask),
+            filter: parking_lot::RwLock::new(None),
+            full: false,
+            transform: true,
+            cache: Mutex::new(HashMap::new()),
+        })
     }
 
     fn lod0(&self, part: Part, tx: i32, ty: i32) -> Option<Tile> {

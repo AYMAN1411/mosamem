@@ -8,6 +8,9 @@
   import { SelectionInteraction, SELECTION_TOOLS } from './selectionTools';
   import { PaintInteraction, PAINT_TOOLS, settingsFor } from './paintTools';
   import { drawOverlay } from './overlay';
+  import { transform } from './transform.svelte';
+  import { crop } from './crop.svelte';
+  import { nudge } from '../actions';
 
   let stage = $state<HTMLDivElement>();
   let gpuCanvas = $state<HTMLCanvasElement>();
@@ -23,6 +26,13 @@
   let overlayTick = $state(0);
   const selTool = new SelectionInteraction(() => overlayTick++);
   const paintTool = new PaintInteraction(() => overlayTick++);
+  transform.setRedraw(() => overlayTick++);
+  crop.setRedraw(() => overlayTick++);
+
+  // the crop rectangle follows the document; switching tools drops a pending crop
+  $effect(() => {
+    if (app.tool === 'crop' && app.active) crop.ensure();
+  });
 
   const doc = $derived(app.active);
 
@@ -84,6 +94,12 @@
     });
     selTool.draw(ctx);
     paintTool.draw(ctx);
+    transform.draw(ctx);
+    if (app.tool === 'crop') {
+      void crop.rect;
+      crop.draw(ctx);
+    }
+    void transform.active?.quad;
   });
 
   function local(e: { clientX: number; clientY: number }) {
@@ -148,6 +164,11 @@
       drag = { kind: 'pan', x: e.clientX, y: e.clientY };
       return;
     }
+    // a free transform takes every press until it is committed or cancelled
+    if (transform.active?.free) {
+      transform.down(e, p);
+      return;
+    }
     if (app.tool === 'move') {
       const g = guideAt(p);
       if (g) {
@@ -155,6 +176,12 @@
         drag = { kind: 'guide' };
         return;
       }
+      transform.down(e, p);
+      return;
+    }
+    if (effectiveTool === 'crop') {
+      crop.down(e, p);
+      return;
     }
     if (SELECTION_TOOLS.includes(effectiveTool)) {
       void selTool.down(e, p);
@@ -175,6 +202,14 @@
   function onPointerMove(e: PointerEvent) {
     if (!doc) return;
     const p = local(e);
+    if (!drag && (transform.busy || (app.tool === 'move' && !hoverGuide))) {
+      transform.move(e, p);
+      if (transform.busy) return;
+    }
+    if (!drag && effectiveTool === 'crop') {
+      crop.move(e, p);
+      return;
+    }
     if (SELECTION_TOOLS.includes(effectiveTool) && !drag) {
       selTool.move(e, p);
       if (app.tool === 'quickSelect') overlayTick++;
@@ -207,6 +242,14 @@
   }
 
   function onPointerUp(e: PointerEvent) {
+    if (!drag && transform.busy) {
+      transform.up();
+      return;
+    }
+    if (!drag && effectiveTool === 'crop') {
+      crop.up();
+      return;
+    }
     if (SELECTION_TOOLS.includes(effectiveTool) && !drag) {
       void selTool.up(e, local(e));
       return;
@@ -252,6 +295,29 @@
     return t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement;
   }
   function onKey(e: KeyboardEvent, down: boolean) {
+    if (down && !editable(e.target)) {
+      if (transform.active?.free && (e.key === 'Enter' || e.key === 'Escape')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === 'Enter') void transform.commit();
+        else transform.cancel();
+        return;
+      }
+      if (app.tool === 'crop' && (e.key === 'Enter' || e.key === 'Escape')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === 'Enter') void crop.commit();
+        else crop.reset();
+        return;
+      }
+      if (app.tool === 'move' && !transform.busy && e.key.startsWith('Arrow') && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        const k = e.shiftKey ? 10 : 1;
+        void nudge(e.key === 'ArrowLeft' ? -k : e.key === 'ArrowRight' ? k : 0, e.key === 'ArrowUp' ? -k : e.key === 'ArrowDown' ? k : 0);
+        return;
+      }
+    }
     if (down && !editable(e.target) && selTool.key(e)) {
       e.preventDefault();
       e.stopPropagation();
@@ -266,6 +332,8 @@
 
   const cursor = $derived.by(() => {
     if (drag?.kind === 'pan') return 'grabbing';
+    if (transform.active) return transform.cursor() ?? 'default';
+    if (effectiveTool === 'crop') return crop.cursor() ?? 'default';
     if (hoverGuide || draggingGuide) return (hoverGuide ?? draggingGuide)!.axis === 'h' ? 'row-resize' : 'col-resize';
     switch (effectiveTool) {
       case 'hand':

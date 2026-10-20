@@ -255,3 +255,53 @@ export function openFilter(kind: FilterKind) {
   // a fresh panel each time
   queueMicrotask(() => (app.dialog = 'filter'));
 }
+
+// ---- move, transform and resize ----
+
+const selectedIds = () => {
+  const d = app.active;
+  return d ? (d.selection.length ? [...d.selection] : [d.info.active]) : [];
+};
+
+/** Arrow keys with the Move tool: whole pixels, so nothing is resampled. */
+export async function nudge(dx: number, dy: number) {
+  if (!dx && !dy) return;
+  await run((d) => engine.layerTransform(d.info.id, selectedIds(), [1, 0, dx, 0, 1, dy, 0, 0, 1], 'nearest', 'history.nudge'));
+}
+
+/** Edit › Transform › flips and quarter turns of the selected layers, exact (no resampling). */
+export async function turnLayers(kind: 'flipH' | 'flipV' | 'cw90' | 'ccw90' | 'half') {
+  const d = app.active;
+  if (!d) return;
+  const b = await engine.transformBounds(d.info.id, selectedIds()).catch(() => null);
+  if (!b) return;
+  // a whole-pixel center (or the edge between two) keeps pixel centers on pixel centers
+  const cx = Math.round((b.x * 2 + b.w) / 2);
+  const cy = Math.round((b.y * 2 + b.h) / 2);
+  const m: number[] =
+    kind === 'flipH'
+      ? [-1, 0, b.x * 2 + b.w, 0, 1, 0, 0, 0, 1]
+      : kind === 'flipV'
+        ? [1, 0, 0, 0, -1, b.y * 2 + b.h, 0, 0, 1]
+        : kind === 'half'
+          ? [-1, 0, b.x * 2 + b.w, 0, -1, b.y * 2 + b.h, 0, 0, 1]
+          : kind === 'cw90'
+            ? [0, -1, cx + cy, 1, 0, cy - cx, 0, 0, 1]
+            : [0, 1, cx - cy, -1, 0, cx + cy, 0, 0, 1];
+  await run((doc) => engine.layerTransform(doc.info.id, selectedIds(), m, 'nearest', 'history.transform'));
+}
+
+export const image = {
+  turn: (turn: 'cw90' | 'ccw90' | 'half' | 'flipH' | 'flipV') => run((d) => engine.turnImage(d.info.id, turn)).then(() => app.fit()),
+  sizeDialog: () => app.active && (app.dialog = 'imageSize'),
+  canvasDialog: () => app.active && (app.dialog = 'canvasSize'),
+  /** Image › Crop: to the selection's bounds. */
+  cropToSelection: async () => {
+    const d = app.active;
+    if (!d?.info.hasSelection) return;
+    const b = await engine.transformBounds(d.info.id, [d.info.active]).catch(() => null);
+    if (!b) return;
+    await run((doc) => engine.crop(doc.info.id, b.x, b.y, b.w, b.h, 0, true, 'bicubic'));
+    app.fit();
+  },
+};

@@ -8,8 +8,10 @@ pub mod live;
 pub mod model;
 pub mod ops;
 pub mod paint;
+pub mod raster;
 pub mod selection;
 pub mod thumbs;
+pub mod transform;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -313,7 +315,7 @@ impl Engine {
         // reuse the document's session when only this layer changed since it was made: its below
         // and above parts (and the GPU's copies of them) stay valid
         let fp = live::Session::matches(&content, layer)?;
-        let existing = self.live.read().values().find(|s| s.doc == doc && s.layer == layer && s.fingerprint == fp && !s.is_full()).cloned();
+        let existing = self.live.read().values().find(|s| s.doc == doc && s.layer == layer && s.fingerprint == fp && s.reusable()).cloned();
         if let Some((id, s)) = existing.map(|s| (self.live.read().iter().find(|(_, x)| Arc::ptr_eq(x, &s)).map(|(id, _)| *id), s)) {
             if let (Some(id), Some(node)) = (id, content.find(layer)) {
                 s.reset_layer(node);
@@ -324,6 +326,18 @@ impl Engine {
         let s = live::Session::begin(doc, &content, layer)?;
         let mut live = self.live.write();
         live.retain(|_, x| x.doc != doc); // one session per document
+        live.insert(id, Arc::new(s));
+        Some(id)
+    }
+
+    /// A session for previewing a transform of one layer (see `Session::begin_transform`).
+    pub fn live_begin_transform(&self, doc: DocId, layer: u64) -> Option<u64> {
+        let h = self.get(doc)?;
+        let content = h.doc.read().content.clone();
+        let s = live::Session::begin_transform(doc, &content, layer)?;
+        let id = next_id();
+        let mut live = self.live.write();
+        live.retain(|_, x| x.doc != doc);
         live.insert(id, Arc::new(s));
         Some(id)
     }

@@ -8,6 +8,7 @@ pub mod heal;
 pub mod inpaint;
 pub mod mask;
 pub mod paint;
+pub mod resample;
 pub mod select;
 pub mod tile;
 

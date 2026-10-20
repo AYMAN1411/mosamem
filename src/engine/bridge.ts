@@ -36,6 +36,8 @@ export interface HistoryLabel {
   arg: string | null;
 }
 
+export type ResampleMethod = 'nearest' | 'bilinear' | 'bicubic' | 'lanczos';
+
 export interface DocInfo {
   id: number;
   name: string;
@@ -199,6 +201,15 @@ export const engine = {
   histogram: (doc: number, below: number | null) => invoke<Histogram>('histogram', { doc, below }),
 
   liveBegin: (doc: number, layer: number) => invoke<number | null>('live_begin', { doc, layer }),
+  /** A session for previewing a transform of one layer (the selected pixels, with a selection). */
+  liveBeginTransform: (doc: number, layer: number) => invoke<number | null>('live_begin_transform', { doc, layer }),
+  layerTransform: (doc: number, ids: number[], matrix: number[], method: ResampleMethod, label: string) => invoke<DocInfo>('layer_transform', { doc, ids, matrix, method, label }),
+  /** What a transform would move: the selection's bounds, or the layers' pixels. */
+  transformBounds: (doc: number, ids: number[]) => invoke<{ x: number; y: number; w: number; h: number } | null>('transform_bounds', { doc, ids }),
+  imageSize: (doc: number, width: number, height: number, ppi: number, method: ResampleMethod | null) => invoke<DocInfo>('image_size', { doc, width, height, ppi, method }),
+  canvasSize: (doc: number, width: number, height: number, anchor: [number, number], fill: [number, number, number, number] | null) => invoke<DocInfo>('canvas_size', { doc, width, height, anchor, fill }),
+  crop: (doc: number, x: number, y: number, w: number, h: number, angle: number, del: boolean, method: ResampleMethod) => invoke<DocInfo>('crop', { doc, x, y, w, h, angle, delete: del, method }),
+  turnImage: (doc: number, turn: 'cw90' | 'ccw90' | 'half' | 'flipH' | 'flipV') => invoke<DocInfo>('turn_image', { doc, turn }),
   /** A whole-document session, for previews where the layer can't be split out. */
   liveBeginFull: (doc: number, layer: number) => invoke<number | null>('live_begin_full', { doc, layer }),
   liveEnd: (session: number) => invoke<void>('live_end', { session }),

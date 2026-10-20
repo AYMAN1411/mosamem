@@ -53,6 +53,9 @@ export interface LiveState {
   visible: boolean;
   /** An adjustment layer: the GPU applies this to the part below (the layer part is its coverage). */
   adjust?: CompiledAdjustment | null;
+  /** A transform preview: the layer part drawn through this matrix (document px → document px,
+   *  row-major 3×3). */
+  transform?: number[] | null;
 }
 
 /** Adjustment settings compiled by the engine (`adjustment_compile`). */
@@ -94,6 +97,8 @@ uniform float uCanvasH;
 uniform bool uLive;
 uniform int uLiveMode;
 uniform float uLiveAlpha;
+uniform bool uLiveXf;
+uniform mat3 uLiveInv;
 uniform bool uSel;
 uniform vec2 uSelOffset;
 uniform vec2 uDx;
@@ -154,7 +159,15 @@ void main() {
   vec4 c;
   if (uLive) {
     c = sampleSource(1, doc);
-    vec4 l = sampleSource(2, doc);
+    vec4 l = vec4(0.0);
+    if (uLiveXf) {
+      // the layer part seen through the inverse transform; nothing outside the layer's canvas
+      vec3 q = uLiveInv * vec3(doc, 1.0);
+      vec2 src = q.xy / q.z;
+      if (q.z > 0.0 && src.x >= 0.0 && src.y >= 0.0 && src.x < uDoc.x && src.y < uDoc.y) l = sampleSource(2, src);
+    } else {
+      l = sampleSource(2, doc);
+    }
     float a = l.a * uLiveAlpha;
     if (uAdjKind > 0) {
       c = adjustPx(uLiveMode, c, a, ivec2(floor(doc / exp2(float(uLod)))));
@@ -287,7 +300,7 @@ export class Compositor {
     if (!gl) throw new Error('WebGL2 is not available');
     this.gl = gl;
     this.prog = program(gl, VS, FS);
-    for (const n of ['uAtlas', 'uPages', 'uScreenToDoc', 'uDoc', 'uZoom', 'uLod', 'uPasteboard', 'uPixelGrid', 'uCanvasH', 'uLive', 'uLiveMode', 'uLiveAlpha', 'uSel', 'uSelOffset', 'uDx', 'uDy', 'uTime', 'uRefineView', 'uAdjKind', 'uAdjP', 'uAdjTable', 'uAdjN']) {
+    for (const n of ['uAtlas', 'uPages', 'uScreenToDoc', 'uDoc', 'uZoom', 'uLod', 'uPasteboard', 'uPixelGrid', 'uCanvasH', 'uLive', 'uLiveMode', 'uLiveAlpha', 'uSel', 'uSelOffset', 'uDx', 'uDy', 'uTime', 'uRefineView', 'uAdjKind', 'uAdjP', 'uAdjTable', 'uAdjN', 'uLiveXf', 'uLiveInv']) {
       this.u[n] = gl.getUniformLocation(this.prog, n);
     }
     this.atlas = gl.createTexture()!;
@@ -679,6 +692,10 @@ export class Compositor {
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.pages);
     gl.uniform1i(this.u.uPages, 1);
+    const inv = this.live?.transform ? invert3(this.live.transform) : null;
+    gl.uniform1i(this.u.uLiveXf, inv ? 1 : 0);
+    // GLSL matrices are column-major
+    if (inv) gl.uniformMatrix3fv(this.u.uLiveInv, false, new Float32Array([inv[0], inv[3], inv[6], inv[1], inv[4], inv[7], inv[2], inv[5], inv[8]]));
     const adj = this.live?.adjust ?? null;
     gl.uniform1i(this.u.uAdjKind, adj ? adj.kind : 0);
     gl.uniform1i(this.u.uAdjN, adj ? Math.max(adj.n, 2) : 2);
@@ -841,6 +858,15 @@ export class Compositor {
     this.generation++;
     this.gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
+}
+
+/** Inverse of a row-major 3×3 matrix (null when flat). */
+export function invert3(m: number[]): number[] | null {
+  const [a, b, c, d, e, f, g, h, i] = m;
+  const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+  if (Math.abs(det) < 1e-12) return null;
+  const k = 1 / det;
+  return [(e * i - f * h) * k, (c * h - b * i) * k, (b * f - c * e) * k, (f * g - d * i) * k, (a * i - c * g) * k, (c * d - a * f) * k, (d * h - e * g) * k, (b * g - a * h) * k, (a * e - b * d) * k];
 }
 
 function nearest(gl: WebGL2RenderingContext, target: number) {

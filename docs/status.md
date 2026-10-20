@@ -207,3 +207,40 @@ Raw numbers: `docs/perf-adjust-m5.json`, `docs/perf-filter-m5.json`.
 - No smart (re-editable) filters. Filters change only pixels inside the canvas, and on masks there is no live preview.
 - Heavy motion blurs are slow: a 150 px preview over the whole photo took 6 s to fill in at fit.
 - A long filter shows "Applying…" without a progress bar.
+
+## Milestone 6: transform and resize ✔︎ (2026-10-20)
+
+| Feature | How it was checked |
+|---|---|
+| **Move tool**: drag the selected layers (or, with a selection, only the selected pixels; the selection comes along). Arrow keys nudge by 1 px (Shift: 10). Moves are whole pixels and exact. | Rust tests (exact in every direction, one history step, selection-only moves leave a hole and keep the rest); scripted drag in the app |
+| **Free Transform** (⌘T): scale (corners keep proportions, Shift frees them), rotate (Shift snaps to 15°), skew (⌘⇧ side), distort (⌘ corner), perspective (⌘⌥⇧ corner), a 9-point reference point, numeric X, Y, W, H and angle, flip and quarter-turn commands, and the interpolation method (nearest, bilinear, bicubic, Lanczos). One homography, resampled once on Enter. Masks follow their layers. | Rust tests; screenshot `m6-transform-en` |
+| **Live preview**: the GPU draws the moving layer through the transform matrix over cached parts. For a layer under an adjustment layer the position is exact, but the moving layer is drawn without the adjustment until it lands. | Rust test (the floating selection splits correctly; the fallback session starts); speed below |
+| **Crop tool**: ratio presets (free, original, 1:1, 4:5, 5:4, 2:3, 3:2, 16:9, 9:16), W/H and angle fields, rule of thirds, a shaded outside, rotate by dragging outside, Straighten (draw a line), delete or keep cropped pixels. A turned crop shrinks to stay inside the image. Image › Crop to Selection. | Rust tests (keep vs delete, a straightened crop fully covered); screenshot `m6-crop-ar` |
+| **Image Size** (nearest, bilinear, bicubic, Lanczos, or resolution only), **Canvas Size** (absolute or relative, 3×3 anchor, color for the new area of the bottom layer; pixels outside are kept), **Image Rotation** (180°, 90° both ways, flips; exact). | Rust tests; screenshots `m6-imagesize-ar`, `m6-canvassize-en` |
+| **Resampling core**: separable kernels, widened when shrinking; colors interpolated with their alpha. | Rust tests: kernel weights against closed forms (Keys a = −0.5, Lanczos-3 = sinc·sinc), weights sum to one, constant images stay constant, a checkerboard shrinks to flat gray (no aliasing), identity and whole-pixel moves change nothing, quarter turns land exactly, homographies hit their corners, no dark fringes at transparent edges |
+
+### Speed (6000×4000, 30 full layers)
+
+| Operation | Time |
+|---|---|
+| Free Transform preview | starts in 71 ms, then one frame per change (p50 16.6 ms, max 24 ms) |
+| Move one layer by whole pixels | 8 ms |
+| Rotate 15° and scale 90%, one layer | 157 ms (bicubic), 357 ms (Lanczos) |
+| Image size to 3000×2000, all layers | 0.8 s |
+| Canvas size, all layers | 0.6 s |
+| Crop with a 3° straighten, all layers | 3.6 s |
+| Rotate the image 90°, all layers | 0.9 s |
+
+Raw numbers: `docs/perf-transform-m6.json`.
+
+### Fixed during this milestone
+
+- Whole-pixel moves went through one dense copy of the layer (382 ms); they now copy tile by tile in parallel (8 ms).
+- A straightened crop brought in empty corners; it now shrinks to fit inside the image.
+
+### Not done or not verified in M6
+
+- The transform preview doesn't show layer pixels that lie outside the canvas until the transform is applied. Moving several layers at once shows only the outline until release.
+- Warp, puppet warp, content-aware scale and perspective crop aren't there. The crop tool has no content-aware fill for empty corners.
+- Image Size resamples each layer in one piece (about 1 GB of working memory for a 24 MP layer). Very large documents may need band-by-band resizing later.
+- A pressure pen and the Windows build were not involved in this milestone.

@@ -3,6 +3,7 @@ import { Menu, Submenu, MenuItem, CheckMenuItem, PredefinedMenuItem } from '@tau
 import { t, i18n, type Key } from './i18n/index.svelte';
 import { ADJUSTMENT_KINDS } from '../engine/adjust';
 import { FILTER_MENU } from '../engine/filter';
+import { transform } from './canvas/transform.svelte';
 import { app } from './state.svelte';
 import { dock } from './dock/layout.svelte';
 import * as act from './actions';
@@ -56,6 +57,20 @@ export async function buildMenu() {
       await PredefinedMenuItem.new({ item: 'Cut', text: t('edit.cut') }),
       await PredefinedMenuItem.new({ item: 'Copy', text: t('edit.copy') }),
       await PredefinedMenuItem.new({ item: 'Paste', text: t('edit.paste') }),
+      await sep(),
+      await item(t('xf.free'), () => transform.begin(true), 'CmdOrCtrl+T', hasDoc),
+      await Submenu.new({
+        text: t('xf.menu'),
+        enabled: hasDoc,
+        items: [
+          await item(t('xf.flipH'), () => act.turnLayers('flipH')),
+          await item(t('xf.flipV'), () => act.turnLayers('flipV')),
+          await sep(),
+          await item(t('xf.rot180'), () => act.turnLayers('half')),
+          await item(t('xf.rotCw'), () => act.turnLayers('cw90')),
+          await item(t('xf.rotCcw'), () => act.turnLayers('ccw90')),
+        ],
+      }),
     ],
   });
   const viewMenu = await Submenu.new({
@@ -147,11 +162,26 @@ export async function buildMenu() {
         ],
   });
   await layerMenu.append([await sep(), maskMenu]);
-  const placeholders = await Promise.all(
-    (['menu.image'] as const).map(async (k) =>
-      Submenu.new({ text: t(k), items: [await item(t('tool.notYet'), () => {}, undefined, false)] }),
-    ),
-  );
+  const imageMenu = await Submenu.new({
+    text: t('menu.image'),
+    items: [
+      await item(t('image.size'), act.image.sizeDialog, 'CmdOrCtrl+Alt+I', hasDoc),
+      await item(t('image.canvas'), act.image.canvasDialog, 'CmdOrCtrl+Alt+C', hasDoc),
+      await Submenu.new({
+        text: t('image.rotation'),
+        enabled: hasDoc,
+        items: [
+          await item(t('xf.rot180'), () => act.image.turn('half')),
+          await item(t('xf.rotCw'), () => act.image.turn('cw90')),
+          await item(t('xf.rotCcw'), () => act.image.turn('ccw90')),
+          await sep(),
+          await item(t('image.flipH'), () => act.image.turn('flipH')),
+          await item(t('image.flipV'), () => act.image.turn('flipV')),
+        ],
+      }),
+      await item(t('image.crop'), act.image.cropToSelection, undefined, hasDoc && !!app.active?.info.hasSelection),
+    ],
+  });
   const filterMenu = await Submenu.new({
     text: t('menu.filter'),
     items: await Promise.all(
@@ -164,7 +194,7 @@ export async function buildMenu() {
       ),
     ),
   });
-  const items = [file, edit, placeholders[0], layerMenu, selectMenu, filterMenu, viewMenu, windowMenu];
+  const items = [file, edit, imageMenu, layerMenu, selectMenu, filterMenu, viewMenu, windowMenu];
   const menu = await Menu.new({ items: isMac ? [appMenu, ...items] : items });
   await menu.setAsAppMenu();
 }
