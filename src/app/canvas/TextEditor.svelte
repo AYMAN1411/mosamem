@@ -1,7 +1,6 @@
 <script lang="ts">
   // The text being typed, over the canvas: the bundled font at the layer's size, laid out in the
   // layer's own px and mapped to the screen by the layer's placement and the view.
-  import { onMount } from 'svelte';
   import { textTool } from './text.svelte';
   import { app } from '../state.svelte';
   import { FAMILIES } from '../../engine/text';
@@ -45,18 +44,22 @@
     return `${top} ${right ? 'right: 0' : 'left: 0'};`;
   });
 
-  onMount(() => {
-    if (!el) return;
-    el.innerText = ed?.data.text ?? '';
-    el.focus();
-    // caret at the end
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    range.collapse(false);
-    const sel = getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(range);
-  });
+  // Runs each time the editor appears (a new edit), not once when the canvas is built: the editor
+  // has to take the keyboard focus, or what the user types goes nowhere.
+  function start(node: HTMLDivElement) {
+    node.innerText = ed?.data.text ?? '';
+    // after this frame, so the press that opened the editor can't take the focus back
+    requestAnimationFrame(() => {
+      node.focus();
+      // caret at the end
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      range.collapse(false);
+      const sel = getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    });
+  }
 
   function keydown(e: KeyboardEvent) {
     e.stopPropagation();
@@ -74,6 +77,7 @@
   <div class="frame" style:transform={css}>
     <div
       bind:this={el}
+      use:start
       class="editor"
       contenteditable="plaintext-only"
       role="textbox"

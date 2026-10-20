@@ -26,6 +26,8 @@ class TextTool {
   /** [ascent, descent] of the edited style, for placing the editor on the baseline. */
   metrics = $state<[number, number]>([58, 14]);
   private drag: { a: Pt; b: Pt } | null = null;
+  /** The hit test of the last press (whether it landed on a text layer), until it's answered. */
+  private pressing: Promise<void> | null = null;
   private redraw: () => void = () => {};
   private busy = false;
 
@@ -126,13 +128,18 @@ class TextTool {
       return;
     }
     const at = viewportToDoc(d.view, app.viewport, p.x, p.y);
-    // on a text layer: edit it
-    const hit = await this.hitText(at);
-    if (hit) {
-      await this.edit(hit);
-      return;
-    }
+    // the press starts a new text right away; the engine's answer to "is there a text layer
+    // here?" comes later, and a quick click's release must not arrive to nothing
     this.drag = { a: at, b: at };
+    this.pressing = this.hitText(at).then(async (hit) => {
+      if (hit) {
+        // on a text layer: edit it
+        this.drag = null;
+        await this.edit(hit);
+      }
+    });
+    await this.pressing;
+    this.pressing = null;
   }
 
   move(_e: PointerEvent, p: Pt) {
@@ -142,7 +149,8 @@ class TextTool {
     this.redraw();
   }
 
-  up() {
+  async up() {
+    if (this.pressing) await this.pressing;
     const dr = this.drag;
     const d = app.active;
     this.drag = null;
