@@ -82,6 +82,89 @@ impl Accum {
         }
     }
 
+    /// Premultiplied copy of a tile, with its alpha scaled by `opacity`.
+    pub fn from_tile(src: &Tile, opacity: f32) -> Self {
+        const K: f32 = 1.0 / 255.0;
+        let mut a = Accum::new();
+        for (d, s) in a.0.iter_mut().zip(src.0.chunks_exact(4)) {
+            let al = s[3] as f32 * K * opacity;
+            let k = al * K;
+            *d = [s[0] as f32 * k, s[1] as f32 * k, s[2] as f32 * k, al];
+        }
+        a
+    }
+
+    /// Composites another premultiplied accumulator (an isolated group or clipping group) onto this
+    /// one with a blend mode and opacity.
+    pub fn composite_accum(&mut self, src: &Accum, mode: BlendMode, opacity: f32, origin: (i64, i64)) {
+        for (i, (d, s)) in self.0.iter_mut().zip(src.0.iter()).enumerate() {
+            let sa = s[3];
+            if sa <= 0.0 {
+                continue;
+            }
+            let mut a = sa * opacity;
+            if mode == BlendMode::Dissolve {
+                let (x, y) = ((i % TILE) as i64 + origin.0, (i / TILE) as i64 + origin.1);
+                a = if dissolve_threshold(x, y) < a { 1.0 } else { 0.0 };
+            }
+            let inv = 1.0 / sa;
+            composite_px(mode, d, [s[0] * inv, s[1] * inv, s[2] * inv], a);
+        }
+    }
+
+    /// Source-atop: composites a tile only where this accumulator already has alpha, keeping that
+    /// alpha (used for layers clipped to a base layer). W3C general formula with Fa = αb, Fb = 1 − αs.
+    pub fn composite_atop(&mut self, src: &Tile, mode: BlendMode, opacity: f32) {
+        const K: f32 = 1.0 / 255.0;
+        for (d, s) in self.0.iter_mut().zip(src.0.chunks_exact(4)) {
+            let ab = d[3];
+            if s[3] == 0 || ab <= 0.0 {
+                continue;
+            }
+            let a_s = s[3] as f32 * K * opacity;
+            let cs = [s[0] as f32 * K, s[1] as f32 * K, s[2] as f32 * K];
+            let cb = [d[0] / ab, d[1] / ab, d[2] / ab];
+            let b = crate::blend::blend_rgb(mode, cb, cs);
+            for k in 0..3 {
+                let cs2 = (1.0 - ab) * cs[k] + ab * b[k];
+                d[k] = a_s * ab * cs2 + ab * (1.0 - a_s) * cb[k];
+            }
+        }
+    }
+
+    /// Like `composite_atop`, for a premultiplied source (a clipped group).
+    pub fn composite_accum_atop(&mut self, src: &Accum, mode: BlendMode, opacity: f32) {
+        for (d, s) in self.0.iter_mut().zip(src.0.iter()) {
+            let ab = d[3];
+            if s[3] <= 0.0 || ab <= 0.0 {
+                continue;
+            }
+            let a_s = s[3] * opacity;
+            let inv = 1.0 / s[3];
+            let cs = [s[0] * inv, s[1] * inv, s[2] * inv];
+            let cb = [d[0] / ab, d[1] / ab, d[2] / ab];
+            let b = crate::blend::blend_rgb(mode, cb, cs);
+            for k in 0..3 {
+                let cs2 = (1.0 - ab) * cs[k] + ab * b[k];
+                d[k] = a_s * ab * cs2 + ab * (1.0 - a_s) * cb[k];
+            }
+        }
+    }
+
+    /// self = self + (other − self)·t, per premultiplied component. Used for the opacity of
+    /// pass-through groups, whose children blend straight into the backdrop.
+    pub fn lerp_to(&mut self, other: &Accum, t: f32) {
+        for (d, o) in self.0.iter_mut().zip(other.0.iter()) {
+            for k in 0..4 {
+                d[k] += (o[k] - d[k]) * t;
+            }
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.iter().all(|p| p[3] <= 0.0)
+    }
+
     /// Writes straight-alpha RGBA8.
     pub fn to_tile(&self, out: &mut Tile) {
         for (d, s) in out.0.chunks_exact_mut(4).zip(self.0.iter()) {

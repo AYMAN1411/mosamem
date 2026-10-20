@@ -32,6 +32,9 @@ rayon = "1.12"
 parking_lot = "0.12"
 thiserror = "2"
 tiny_http = "0.12"
+rusqlite = { version = "0.40", features = ["bundled"] }
+blake3 = "1.8"
+lz4_flex = "0.14"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6.5"

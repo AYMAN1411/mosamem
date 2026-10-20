@@ -5,6 +5,7 @@
   import ColorPanel from '../panels/ColorPanel.svelte';
   import NavigatorPanel from '../panels/NavigatorPanel.svelte';
   import PendingPanel from '../panels/PendingPanel.svelte';
+  import HistoryPanel from '../panels/HistoryPanel.svelte';
 
   let { panel }: { panel: PanelId } = $props();
 </script>
@@ -15,6 +16,8 @@
   <PropertiesPanel />
 {:else if panel === 'color'}
   <ColorPanel />
+{:else if panel === 'history'}
+  <HistoryPanel />
 {:else if panel === 'navigator'}
   <NavigatorPanel />
 {:else}

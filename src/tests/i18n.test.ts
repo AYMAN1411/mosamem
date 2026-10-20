@@ -14,6 +14,11 @@ describe('translations', () => {
     for (const k of Object.keys(ar) as (keyof typeof ar)[]) expect(ph(en[k]), k).toEqual(ph(ar[k]));
   });
 
+  it('inserted text is bidi-isolated, numbers are not', () => {
+    i18n.set('ar');
+    expect(t('save.unsavedOne', { name: 'photo.png' })).toBe('هل تريد حفظ التغييرات في «\u2068photo.png\u2069»؟');
+  });
+
   it('switching language flips the document direction', () => {
     i18n.set('ar');
     expect(document.documentElement.dir).toBe('rtl');

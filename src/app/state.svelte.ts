@@ -44,6 +44,8 @@ export interface DocState {
   guides: Guide[];
   /** True until the user pans or zooms; while true, resizing the window refits the document. */
   fitted: boolean;
+  /** Layers selected in the Layers panel (the active layer is always one of them). */
+  selection: number[];
 }
 
 export const ZOOM_STEPS = [0.01, 0.02, 0.03, 0.05, 0.0667, 0.0833, 0.125, 0.1667, 0.25, 0.3333, 0.5, 0.6667, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 32, 64];
@@ -65,7 +67,7 @@ class AppState {
   showPixelGrid = $state(true);
   gridSpacing = $state(100);
   gridSubdivisions = $state(4);
-  dialog = $state<null | 'new' | 'export'>(null);
+  dialog = $state<null | 'new' | 'export' | 'recovery' | 'unsaved'>(null);
   toast = $state<{ text: string; kind: 'info' | 'error' } | null>(null);
   /** Size of the canvas area in CSS px, kept current by the canvas view. */
   viewport = $state({ w: 800, h: 600 });
@@ -76,10 +78,25 @@ class AppState {
   }
 
   addDocument(info: DocInfo) {
-    const d: DocState = { info, view: { zoom: 1, cx: info.width / 2, cy: info.height / 2, rotation: 0 }, guides: [], fitted: true };
+    const d: DocState = { info, view: { zoom: 1, cx: info.width / 2, cy: info.height / 2, rotation: 0 }, guides: [], fitted: true, selection: [info.active] };
     this.docs.push(d);
     this.activeId = info.id;
     this.fit();
+  }
+
+  /** Applies a new document state returned by the engine. */
+  update(info: DocInfo) {
+    const d = this.docs.find((x) => x.info.id === info.id);
+    if (!d) return;
+    if (info.width !== d.info.width || info.height !== d.info.height) d.fitted = true;
+    d.info = info;
+    // keep the selection valid: drop removed layers and always include the active one
+    const ids = new Set<number>();
+    const walk = (ls: DocInfo['layers']) => ls.forEach((l) => (ids.add(l.id), l.children && walk(l.children)));
+    walk(info.layers);
+    d.selection = d.selection.filter((x) => ids.has(x));
+    if (!d.selection.includes(info.active)) d.selection = [info.active];
+    if (d.fitted) this.fit();
   }
 
   removeDocument(id: number) {

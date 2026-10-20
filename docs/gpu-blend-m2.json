@@ -1,0 +1,380 @@
+[
+  {
+    "mode": "normal",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "normal",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "dissolve",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "dissolve",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "darken",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "darken",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "multiply",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "multiply",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "colorBurn",
+    "opacity": 1,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "colorBurn",
+    "opacity": 0.6,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "linearBurn",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "linearBurn",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "darkerColor",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "darkerColor",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "lighten",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "lighten",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "screen",
+    "opacity": 1,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "screen",
+    "opacity": 0.6,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "colorDodge",
+    "opacity": 1,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "colorDodge",
+    "opacity": 0.6,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "linearDodge",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "linearDodge",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "lighterColor",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "lighterColor",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "overlay",
+    "opacity": 1,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "overlay",
+    "opacity": 0.6,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "softLight",
+    "opacity": 1,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "softLight",
+    "opacity": 0.6,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "hardLight",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "hardLight",
+    "opacity": 0.6,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "vividLight",
+    "opacity": 1,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "vividLight",
+    "opacity": 0.6,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "linearLight",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "linearLight",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "pinLight",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "pinLight",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "hardMix",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "hardMix",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "difference",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "difference",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "exclusion",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "exclusion",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "subtract",
+    "opacity": 1,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "subtract",
+    "opacity": 0.6,
+    "maxDiff": 0,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "divide",
+    "opacity": 1,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "divide",
+    "opacity": 0.6,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "hue",
+    "opacity": 1,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "hue",
+    "opacity": 0.6,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "saturation",
+    "opacity": 1,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "saturation",
+    "opacity": 0.6,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "color",
+    "opacity": 1,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "color",
+    "opacity": 0.6,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "luminosity",
+    "opacity": 1,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  },
+  {
+    "mode": "luminosity",
+    "opacity": 0.6,
+    "maxDiff": 1,
+    "pixelsOver1": 0,
+    "pctWithin1": 100
+  }
+]

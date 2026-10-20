@@ -9,3 +9,4 @@ else
   prev=$(cat $state 2>/dev/null)
   [[ -n $prev && $prev != lawha ]] && osascript -e "tell application \"System Events\" to set frontmost of process \"$prev\" to true" >/dev/null
 fi
+exit 0

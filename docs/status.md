@@ -55,3 +55,36 @@ optimized pixel code. Raw numbers are in `docs/perf-m1.json`.
 - Rulers show unrotated document coordinates when the view is rotated.
 - Grid spacing and ruler units can't be changed from the UI yet (preferences come in M11).
 - Windows: not built or tested yet (decided: after the core milestones, in the Windows 11 ARM VM).
+
+## Milestone 2: layers, blend modes, history, autosave ✔︎ (2026-10-20)
+
+### What works, verified
+
+| Area | Verified by |
+|---|---|
+| Layer tree: unlimited layers and groups. New, duplicate (⌘J), delete, group (⌘G), ungroup (⇧⌘G), merge down (⌘E), merge visible (⇧⌘E), flatten (onto white). Rename by double-click. Show/hide, Alt-click to show one layer alone. Lock states. Multi-select with Shift/⌘. | Rust tests `doc::ops::*`; harness runs; screenshots `m2-layers-*` |
+| Drag to reorder, including into and out of groups (a group can't be dropped into itself) | Rust test; synthetic-pointer drag test in the real panel, then undo |
+| Groups: **pass-through** (children blend with the backdrop; group opacity fades their effect) and isolated (any other mode). **Clipping masks** (⌥⌘G): clipped layers draw only inside the base and use the base's opacity and mode. **Fill vs opacity.** | Rust tests `doc::composite::*` with exact expected pixel values |
+| **All 27 blend modes**: the 16 requested plus Dissolve, Linear Burn/Dodge, Darker/Lighter Color, Vivid/Linear/Pin Light, Hard Mix, Subtract, Divide | CPU: each formula checked against an independent implementation over a value grid, plus known values, non-separable invariants, alpha compositing and PSD keys (`crates/lawha-core/tests/blend_formulas.rs`). **GPU vs CPU: 27 modes × 2 opacities, every pixel within ±1/255** (`docs/gpu-blend-m2.json`) |
+| **Live GPU preview**: dragging opacity or fill and changing the blend mode recomposites on the GPU from below / layer / above caches, at 60 fps (p50 16.7 ms, p95 19.4 ms). The engine's composite replaces it when ready, with no flash. It falls back to engine updates when the layer's position can't be previewed exactly. | Rust tests: live parts reproduce the composite within ±1; fallback for non-associative stacks |
+| History: every edit is a step, with undo (⌘Z) and redo (⇧⌘Z), labels in the UI language in the Edit menu and History panel, and click-to-jump. Steps share unchanged pixels. Limits: 200 steps and a 2 GB memory budget. | Rust tests (undo/redo, transient drags don't add steps, step limit) |
+| `.lawha` native format (SQLite): layer tree, properties, tiles stored once per distinct content (BLAKE3 + LZ4). Saving over the same file is incremental and transactional. | Rust tests (exact round-trip, dedupe, rejecting non-Lawha files). Harness: photo document round-trips with an identical pixel hash |
+| **Autosave + crash recovery**: changes are saved about 2 s after you pause, or at least every 20 s, on a background thread. After a crash, a recovery dialog offers the documents on next launch. A clean quit removes the copies. | **`tools/crash-test.sh`: edit → `kill -9` → relaunch → restore → identical pixel hash (PASS)**; screenshot `m2-recovery` |
+| Closing a document or the window with unsaved changes asks Save / Don't Save / Cancel | Screenshot `m2-unsaved-ar` |
+| Mixed-direction text: names inserted into Arabic sentences are bidi-isolated | i18n test |
+
+### Measurements (6000×4000, 30 full layers, debug app)
+
+| Operation | Time |
+|---|---|
+| Save `.lawha` (84 MB file) | 1.1 s |
+| Re-save after a small edit | 75 ms (incremental) |
+| Open | 0.32 s |
+| Undo | 1 ms |
+| Property edit | 8 ms |
+
+### Not done or not verified in M2
+
+- Locks are stored and shown, but there are no pixel tools yet to enforce them. Enforcement comes with painting (M4) and moving (M6).
+- Opacity/fill drags on a layer inside a non-pass-through group, a clipping unit, or under non-Normal layers use the engine path, which is slower on huge documents. They're correct, just not instant.
+- The special "fill-sensitive" behavior of 8 modes (docs/research.md §16 #1) isn't implemented yet; it waits on PSD test files (M9).

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { Compositor } from '../../engine/compositor';
+  import { display } from '../../engine/display';
   import { app, viewportToDoc, nextGuideId, type Guide } from '../state.svelte';
   import { i18n } from '../i18n/index.svelte';
   import Rulers from './Rulers.svelte';
@@ -21,6 +22,7 @@
 
   onMount(() => {
     compositor = new Compositor(gpuCanvas!);
+    display.compositor = compositor;
     (window as unknown as { __lawha: unknown }).__lawha = { compositor, app };
     const ro = new ResizeObserver(([e]) => {
       const { width, height } = e.contentRect;

@@ -46,10 +46,14 @@ export const i18n = {
   },
 };
 
-/** Translates a key; `{name}` placeholders are filled from `vars`. Numbers use Western digits. */
+/**
+ * Translates a key; `{name}` placeholders are filled from `vars`. Numbers use Western digits.
+ * Text values are wrapped in Unicode isolates (FSI…PDI) so a Latin file name inside an Arabic
+ * sentence (or the reverse) can't reorder the punctuation around it.
+ */
 export function t(key: Key, vars?: Record<string, string | number>): string {
   let s = tables[current][key] ?? key;
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, typeof v === 'number' ? fmt(v) : v);
+  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, typeof v === 'number' ? fmt(v) : `\u2068${v}\u2069`);
   return s;
 }
 

@@ -1,6 +1,11 @@
 //! Documents live here, in the native process. The webview only holds the tiles it is displaying.
 
 pub mod composite;
+pub mod history;
+pub mod live;
+pub mod model;
+pub mod ops;
+pub mod thumbs;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -12,7 +17,9 @@ use lawha_core::BlendMode;
 use parking_lot::RwLock;
 use serde::Serialize;
 
-pub type TileKey = (i32, i32);
+pub use history::{History, Label};
+pub use model::{Content, Locks, Node, NodeKind, TileMap};
+
 pub type DocId = u64;
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
@@ -21,89 +28,162 @@ pub fn next_id() -> u64 {
     NEXT_ID.fetch_add(1, Ordering::Relaxed)
 }
 
-pub struct Layer {
-    pub id: u64,
-    pub name: String,
-    pub visible: bool,
-    pub opacity: f32,
-    pub blend: BlendMode,
-    /// Sparse: a missing tile is fully transparent. Tiles are shared (`Arc`) and copied on write.
-    pub tiles: HashMap<TileKey, Arc<Tile>>,
+/// Ids loaded from a file must never collide with ids handed out later.
+pub fn reserve_ids_above(id: u64) {
+    NEXT_ID.fetch_max(id + 1, Ordering::Relaxed);
 }
 
-impl Layer {
-    pub fn new(name: impl Into<String>) -> Self {
-        Layer { id: next_id(), name: name.into(), visible: true, opacity: 1.0, blend: BlendMode::Normal, tiles: HashMap::new() }
-    }
-
-    /// A layer filled with one color over the whole document. Interior tiles share one allocation.
-    pub fn filled(name: impl Into<String>, width: u32, height: u32, rgba: [u8; 4]) -> Self {
-        let mut layer = Self::new(name);
-        let full = Arc::new(Tile::filled(rgba));
-        let (tw, th) = tiles_for(width, height);
-        for ty in 0..th {
-            for tx in 0..tw {
-                let (x0, y0) = (tx as u32 * TILE as u32, ty as u32 * TILE as u32);
-                let (w, h) = ((width - x0).min(TILE as u32), (height - y0).min(TILE as u32));
-                let tile = if w == TILE as u32 && h == TILE as u32 {
-                    full.clone()
-                } else {
-                    let mut t = Tile::transparent();
-                    for y in 0..h as usize {
-                        for x in 0..w as usize {
-                            let i = (y * TILE + x) * 4;
-                            t.0[i..i + 4].copy_from_slice(&rgba);
-                        }
-                    }
-                    Arc::new(t)
-                };
-                layer.tiles.insert((tx, ty), tile);
-            }
-        }
-        layer
-    }
-
-    /// A layer from a full RGBA8 image placed at the document origin. Empty tiles are skipped.
-    pub fn from_rgba(name: impl Into<String>, width: u32, height: u32, rgba: &[u8]) -> Self {
-        let mut layer = Self::new(name);
-        let (tw, th) = tiles_for(width, height);
-        let tiles: Vec<_> = (0..th)
-            .flat_map(|ty| (0..tw).map(move |tx| (tx, ty)))
-            .collect::<Vec<_>>()
-            .into_iter()
-            .filter_map(|(tx, ty)| {
+/// Tiles of a layer filled with one color over the whole canvas. Interior tiles share one allocation.
+pub fn filled_tiles(width: u32, height: u32, rgba: [u8; 4]) -> TileMap {
+    let mut map = TileMap::new();
+    let full = Arc::new(Tile::filled(rgba));
+    let (tw, th) = (width.div_ceil(TILE as u32) as i32, height.div_ceil(TILE as u32) as i32);
+    for ty in 0..th {
+        for tx in 0..tw {
+            let (x0, y0) = (tx as u32 * TILE as u32, ty as u32 * TILE as u32);
+            let (w, h) = ((width - x0).min(TILE as u32), (height - y0).min(TILE as u32));
+            let tile = if w == TILE as u32 && h == TILE as u32 {
+                full.clone()
+            } else {
                 let mut t = Tile::transparent();
-                let (x0, y0) = (tx as usize * TILE, ty as usize * TILE);
-                let w = (width as usize - x0).min(TILE);
-                let h = (height as usize - y0).min(TILE);
-                for y in 0..h {
-                    let src = ((y0 + y) * width as usize + x0) * 4;
-                    t.0[y * TILE * 4..y * TILE * 4 + w * 4].copy_from_slice(&rgba[src..src + w * 4]);
+                for y in 0..h as usize {
+                    for x in 0..w as usize {
+                        let i = (y * TILE + x) * 4;
+                        t.0[i..i + 4].copy_from_slice(&rgba);
+                    }
                 }
-                (!t.is_transparent()).then(|| ((tx, ty), Arc::new(t)))
-            })
-            .collect();
-        layer.tiles.extend(tiles);
-        layer
+                Arc::new(t)
+            };
+            map.insert((tx, ty), tile);
+        }
     }
+    map
 }
 
-pub fn tiles_for(width: u32, height: u32) -> (i32, i32) {
-    (width.div_ceil(TILE as u32) as i32, height.div_ceil(TILE as u32) as i32)
+/// Tiles from a full RGBA8 image placed at the canvas origin. Empty tiles are skipped.
+pub fn tiles_from_rgba(width: u32, height: u32, rgba: &[u8]) -> TileMap {
+    use rayon::prelude::*;
+    let (tw, th) = (width.div_ceil(TILE as u32) as i32, height.div_ceil(TILE as u32) as i32);
+    (0..th)
+        .flat_map(|ty| (0..tw).map(move |tx| (tx, ty)))
+        .collect::<Vec<_>>()
+        .into_par_iter()
+        .filter_map(|(tx, ty)| {
+            let mut t = Tile::transparent();
+            let (x0, y0) = (tx as usize * TILE, ty as usize * TILE);
+            let w = (width as usize - x0).min(TILE);
+            let h = (height as usize - y0).min(TILE);
+            for y in 0..h {
+                let src = ((y0 + y) * width as usize + x0) * 4;
+                t.0[y * TILE * 4..y * TILE * 4 + w * 4].copy_from_slice(&rgba[src..src + w * 4]);
+            }
+            (!t.is_transparent()).then(|| ((tx, ty), Arc::new(t)))
+        })
+        .collect()
 }
 
 pub struct Document {
     pub id: DocId,
     pub name: String,
     pub path: Option<PathBuf>,
-    pub width: u32,
-    pub height: u32,
-    pub ppi: f64,
-    /// Bottom to top.
-    pub layers: Vec<Layer>,
-    pub active: u64,
+    pub content: Content,
+    pub history: History,
     /// Bumped on every change; the webview uses it to drop stale tiles.
     pub version: u64,
+    /// History index at the last save, if any.
+    pub saved_at: Option<usize>,
+    /// Bumped when content changes; autosave compares it.
+    pub change_counter: u64,
+}
+
+impl Document {
+    pub fn new(name: String, path: Option<PathBuf>, content: Content, label: Label) -> Self {
+        Document { id: next_id(), name, path, history: History::new(content.clone(), label), content, version: 1, saved_at: None, change_counter: 0 }
+    }
+
+    pub fn touch(&mut self) {
+        self.version += 1;
+        self.change_counter += 1;
+    }
+
+    /// Applies a change and records it as one history step.
+    pub fn commit(&mut self, label: Label) {
+        self.history.push(label, self.content.clone());
+        self.touch();
+    }
+
+    pub fn undo(&mut self) -> bool {
+        if !self.history.can_undo() {
+            return false;
+        }
+        let i = self.history.current - 1;
+        self.jump(i)
+    }
+
+    pub fn redo(&mut self) -> bool {
+        if !self.history.can_redo() {
+            return false;
+        }
+        let i = self.history.current + 1;
+        self.jump(i)
+    }
+
+    pub fn jump(&mut self, index: usize) -> bool {
+        match self.history.jump(index) {
+            Some(c) => {
+                self.content = (*c).clone();
+                self.touch();
+                true
+            }
+            None => false,
+        }
+    }
+
+    pub fn dirty(&self) -> bool {
+        self.saved_at != Some(self.history.current)
+    }
+
+    pub fn info(&self) -> DocInfo {
+        fn layer(n: &Node) -> LayerInfo {
+            let (kind, pass_through, expanded, children, thumb) = match &n.kind {
+                NodeKind::Pixel { tiles } => ("pixel", false, false, None, Arc::as_ptr(tiles) as usize as u64),
+                NodeKind::Group { children, pass_through, expanded } => {
+                    ("group", *pass_through, *expanded, Some(children.iter().rev().map(layer).collect()), 0)
+                }
+            };
+            LayerInfo {
+                id: n.id,
+                name: n.name.clone(),
+                kind,
+                visible: n.visible,
+                opacity: n.opacity,
+                fill: n.fill,
+                blend: n.blend,
+                pass_through,
+                expanded,
+                locks: n.locks,
+                clipped: n.clipped,
+                thumb,
+                children,
+            }
+        }
+        DocInfo {
+            id: self.id,
+            name: self.name.clone(),
+            path: self.path.as_ref().map(|p| p.to_string_lossy().into_owned()),
+            width: self.content.width,
+            height: self.content.height,
+            ppi: self.content.ppi,
+            layers: self.content.root.iter().rev().map(layer).collect(),
+            active: self.content.active,
+            version: self.version,
+            dirty: self.dirty(),
+            history: HistoryInfo {
+                labels: self.history.states.iter().map(|s| s.label.clone()).collect(),
+                current: self.history.current,
+            },
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -111,9 +191,27 @@ pub struct Document {
 pub struct LayerInfo {
     pub id: u64,
     pub name: String,
+    pub kind: &'static str,
     pub visible: bool,
     pub opacity: f32,
+    pub fill: f32,
     pub blend: BlendMode,
+    pub pass_through: bool,
+    pub expanded: bool,
+    pub locks: Locks,
+    pub clipped: bool,
+    /// Changes whenever the layer's pixels change (thumbnail cache key).
+    pub thumb: u64,
+    /// Top to bottom.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub children: Option<Vec<LayerInfo>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryInfo {
+    pub labels: Vec<Label>,
+    pub current: usize,
 }
 
 #[derive(Serialize)]
@@ -129,44 +227,27 @@ pub struct DocInfo {
     pub layers: Vec<LayerInfo>,
     pub active: u64,
     pub version: u64,
+    pub dirty: bool,
+    pub history: HistoryInfo,
 }
 
-impl Document {
-    pub fn info(&self) -> DocInfo {
-        DocInfo {
-            id: self.id,
-            name: self.name.clone(),
-            path: self.path.as_ref().map(|p| p.to_string_lossy().into_owned()),
-            width: self.width,
-            height: self.height,
-            ppi: self.ppi,
-            layers: self
-                .layers
-                .iter()
-                .rev()
-                .map(|l| LayerInfo { id: l.id, name: l.name.clone(), visible: l.visible, opacity: l.opacity, blend: l.blend })
-                .collect(),
-            active: self.active,
-            version: self.version,
-        }
-    }
-}
-
-/// A document plus its composite cache.
+/// A document plus its caches.
 pub struct DocHandle {
     pub doc: RwLock<Document>,
     pub composite: composite::Cache,
+    pub thumbs: thumbs::Cache,
 }
 
 #[derive(Default)]
 pub struct Engine {
     docs: RwLock<HashMap<DocId, Arc<DocHandle>>>,
+    live: RwLock<HashMap<u64, Arc<live::Session>>>,
 }
 
 impl Engine {
     pub fn insert(&self, doc: Document) -> Arc<DocHandle> {
         let id = doc.id;
-        let h = Arc::new(DocHandle { doc: RwLock::new(doc), composite: composite::Cache::default() });
+        let h = Arc::new(DocHandle { doc: RwLock::new(doc), composite: composite::Cache::default(), thumbs: thumbs::Cache::default() });
         self.docs.write().insert(id, h.clone());
         h
     }
@@ -177,5 +258,30 @@ impl Engine {
 
     pub fn remove(&self, id: DocId) {
         self.docs.write().remove(&id);
+        self.live.write().retain(|_, s| s.doc != id);
+    }
+
+    /// Starts a live session for a layer; None when the GPU can't reproduce the composite exactly.
+    pub fn live_begin(&self, doc: DocId, layer: u64) -> Option<u64> {
+        let h = self.get(doc)?;
+        let content = h.doc.read().content.clone();
+        let id = next_id();
+        let s = live::Session::begin(doc, &content, layer)?;
+        let mut live = self.live.write();
+        live.retain(|_, x| x.doc != doc); // one session per document
+        live.insert(id, Arc::new(s));
+        Some(id)
+    }
+
+    pub fn live(&self, session: u64) -> Option<Arc<live::Session>> {
+        self.live.read().get(&session).cloned()
+    }
+
+    pub fn live_end(&self, session: u64) {
+        self.live.write().remove(&session);
+    }
+
+    pub fn all(&self) -> Vec<Arc<DocHandle>> {
+        self.docs.read().values().cloned().collect()
     }
 }

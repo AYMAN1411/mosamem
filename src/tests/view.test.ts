@@ -27,7 +27,7 @@ describe('view transform', () => {
 });
 
 describe('zooming', () => {
-  const info: DocInfo = { id: 1, name: 't', path: null, width: 6000, height: 4000, ppi: 72, layers: [], active: 0, version: 1 };
+  const info: DocInfo = { id: 1, name: 't', path: null, width: 6000, height: 4000, ppi: 72, layers: [], active: 0, version: 1, dirty: false, history: { labels: [], current: 0 } };
 
   it('fit shows the whole document inside the viewport', () => {
     app.viewport = vp;

@@ -10,16 +10,38 @@
   import Welcome from './Welcome.svelte';
   import NewDocument from './dialogs/NewDocument.svelte';
   import ExportDialog from './dialogs/ExportDialog.svelte';
+  import UnsavedDialog from './dialogs/UnsavedDialog.svelte';
+  import RecoveryDialog from './dialogs/RecoveryDialog.svelte';
+  import { getCurrentWindow } from '@tauri-apps/api/window';
+  import { engine, type RecoveredFile } from '../engine/bridge';
   import { app } from './state.svelte';
   import { i18n } from './i18n/index.svelte';
   import { buildMenu } from './menu';
-  import { openPaths } from './actions';
+  import { openPaths, pendingClose } from './actions';
   import { installShortcuts } from './shortcuts';
 
   let dropping = $state(false);
+  let recovered = $state<RecoveredFile[]>([]);
 
   onMount(() => {
     installShortcuts();
+    engine.recoveryList().then((files) => {
+      if (files.length) {
+        recovered = files;
+        app.dialog = 'recovery';
+      }
+    });
+    // closing the window asks about unsaved documents first
+    const win = getCurrentWindow();
+    const unClose = win.onCloseRequested((e) => {
+      const dirty = app.docs.filter((d) => d.info.dirty).map((d) => d.info.id);
+      if (!dirty.length) return;
+      e.preventDefault();
+      pendingClose.docs = dirty;
+      pendingClose.then = () => void win.destroy();
+      app.activeId = dirty[0];
+      app.dialog = 'unsaved';
+    });
     const un = getCurrentWebview().onDragDropEvent((e) => {
       if (e.payload.type === 'over' || e.payload.type === 'enter') dropping = true;
       else if (e.payload.type === 'leave') dropping = false;
@@ -28,12 +50,15 @@
         openPaths(e.payload.paths);
       }
     });
-    return () => void un.then((f) => f());
+    return () => {
+      void un.then((f) => f());
+      void unClose.then((f) => f());
+    };
   });
 
   // rebuild the native menu when its labels or check states change
   $effect(() => {
-    void [i18n.locale, app.showRulers, app.showGrid, app.showGuides, app.showPixelGrid, app.active != null];
+    void [i18n.locale, app.showRulers, app.showGrid, app.showGuides, app.showPixelGrid, app.active != null, app.active?.info.history.current, app.active?.info.history.labels.length];
     buildMenu();
   });
 </script>
@@ -55,6 +80,8 @@
 
 {#if app.dialog === 'new'}<NewDocument />{/if}
 {#if app.dialog === 'export'}<ExportDialog />{/if}
+{#if app.dialog === 'unsaved'}<UnsavedDialog />{/if}
+{#if app.dialog === 'recovery'}<RecoveryDialog files={recovered} />{/if}
 {#if app.toast}
   <div class="toast" class:error={app.toast.kind === 'error'} role="status">{app.toast.text}</div>
 {/if}

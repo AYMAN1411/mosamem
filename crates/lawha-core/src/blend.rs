@@ -271,14 +271,15 @@ pub fn blend_rgb(mode: BlendMode, cb: [f32; 3], cs: [f32; 3]) -> [f32; 3] {
     }
 }
 
-/// Deterministic per-pixel threshold for Dissolve, in [0, 1).
+/// Deterministic per-pixel threshold for Dissolve, in [0, 1). A 32-bit hash so the GPU shader can
+/// compute exactly the same value (see `DISSOLVE_GLSL` in the webview compositor).
 #[inline]
 pub fn dissolve_threshold(x: i64, y: i64) -> f32 {
-    let mut h = (x as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ (y as u64).wrapping_mul(0xC2B2_AE3D_27D4_EB4F);
-    h ^= h >> 31;
-    h = h.wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    h ^= h >> 29;
-    (h >> 40) as f32 / (1u64 << 24) as f32
+    let mut h = (x as u32).wrapping_mul(0x8da6_b343) ^ (y as u32).wrapping_mul(0xd816_3841);
+    h ^= h >> 13;
+    h = h.wrapping_mul(0x5bd1_e995);
+    h ^= h >> 15;
+    (h >> 8) as f32 / 16_777_216.0
 }
 
 /// Composites one straight-alpha source pixel onto a premultiplied backdrop (W3C §6, source-over).
