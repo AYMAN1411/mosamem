@@ -45,7 +45,7 @@ fn set(doc: &mut Document, d: Dense, label: &str) {
     doc.commit(Label::new(label));
 }
 
-fn apply_combine(doc: &mut Document, shape: Dense, mode: Combine, label: &str) {
+pub(crate) fn apply_combine(doc: &mut Document, shape: Dense, mode: Combine, label: &str) {
     let mut d = current(doc);
     select::combine(&mut d, &shape, if doc.content.selection.is_none() && mode != Combine::Intersect { Combine::Replace } else { mode });
     set(doc, d, label);

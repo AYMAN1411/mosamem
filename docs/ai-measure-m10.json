@@ -1,0 +1,832 @@
+{
+  "devices": {
+    "fill": "webgpu",
+    "samDecoder": "webgpu",
+    "samEncoder": "webgpu",
+    "subject": "webgpu"
+  },
+  "installMs": {
+    "fill": 27.0,
+    "select": 110.4,
+    "subject": 175.3
+  },
+  "photos": [
+    {
+      "classicMs": 65.8,
+      "classicPsnr": 19.188667155657168,
+      "fillMs": 326.5,
+      "fillPsnr": 20.33469377670441,
+      "flatPsnr": 9.396908391607774,
+      "photo": "Animals_Eagle",
+      "samBoxMs": 17.8,
+      "samBoxVsSubjectIoU": 0.9639568028119159,
+      "samClickMs": 98.7,
+      "samClickVsSubjectIoU": 0.6237871460763439,
+      "samEncodeMs": 363.7,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": 0.9996025708696867,
+      "subjectMs": 2623.7
+    },
+    {
+      "classicMs": 69.1,
+      "classicPsnr": 10.763113157174985,
+      "fillMs": 271.6,
+      "fillPsnr": 13.555572193186702,
+      "flatPsnr": 8.882324698211683,
+      "photo": "Animals_Owl",
+      "samBoxMs": 26.9,
+      "samBoxVsSubjectIoU": 0.9972958966171541,
+      "samClickMs": 26.1,
+      "samClickVsSubjectIoU": 0.9968779908805571,
+      "samEncodeMs": 369.7,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": 0.9998787944646685,
+      "subjectMs": 4238.0
+    },
+    {
+      "classicMs": 63.1,
+      "classicPsnr": 12.812841858420468,
+      "fillMs": 294.8,
+      "fillPsnr": 22.171481397781292,
+      "flatPsnr": 12.783149708859058,
+      "photo": "Animals_Parrot",
+      "samBoxMs": 15.0,
+      "samBoxVsSubjectIoU": 0.9927497477908913,
+      "samClickMs": 17.6,
+      "samClickVsSubjectIoU": 0.9872347934020067,
+      "samEncodeMs": 351.5,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": 0.9994100797304611,
+      "subjectMs": 6001.0
+    },
+    {
+      "classicMs": 57.7,
+      "classicPsnr": 43.62934092707313,
+      "fillMs": 257.0,
+      "fillPsnr": 42.41325871523237,
+      "flatPsnr": 30.501506906194763,
+      "photo": "Animals_Penguin",
+      "samBoxMs": 14.4,
+      "samBoxVsSubjectIoU": 0.9950609446419503,
+      "samClickMs": 16.5,
+      "samClickVsSubjectIoU": 0.9925187349168043,
+      "samEncodeMs": 277.5,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": 0.9992633704611555,
+      "subjectMs": 4214.8
+    },
+    {
+      "classicMs": 61.8,
+      "classicPsnr": 18.225652223779388,
+      "fillMs": 267.3,
+      "fillPsnr": 14.460765497366637,
+      "flatPsnr": 16.709373528002356,
+      "photo": "Animals_Zebra",
+      "samBoxMs": 14.9,
+      "samBoxVsSubjectIoU": 0.9949050375544181,
+      "samClickMs": 17.5,
+      "samClickVsSubjectIoU": 0.9936586182966809,
+      "samEncodeMs": 335.8,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": 0.9990268105710708,
+      "subjectMs": 3393.1
+    },
+    {
+      "classicMs": 62.3,
+      "classicPsnr": 20.5069969987994,
+      "fillMs": 260.5,
+      "fillPsnr": 19.59123563515522,
+      "flatPsnr": 21.757750195105228,
+      "photo": "Flowers_Dahlia",
+      "samBoxMs": 15.0,
+      "samBoxVsSubjectIoU": 0.7547467628758809,
+      "samClickMs": 16.7,
+      "samClickVsSubjectIoU": 0.09165693958090156,
+      "samEncodeMs": 398.6,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": 0.9974585160506264,
+      "subjectMs": 3546.0
+    },
+    {
+      "classicMs": 63.0,
+      "classicPsnr": 17.78688101161052,
+      "fillMs": 157.0,
+      "fillPsnr": 13.040102086666828,
+      "flatPsnr": 14.559223600785732,
+      "photo": "Flowers_Dandelion",
+      "samBoxMs": 14.5,
+      "samBoxVsSubjectIoU": 0.0,
+      "samClickMs": 14.9,
+      "samClickVsSubjectIoU": 0.13648992461017373,
+      "samEncodeMs": 179.1,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 3236.5
+    },
+    {
+      "classicMs": 61.3,
+      "classicPsnr": 14.137153426008386,
+      "fillMs": 155.9,
+      "fillPsnr": 13.512561615410945,
+      "flatPsnr": 13.065604130633535,
+      "photo": "Flowers_Flower",
+      "samBoxMs": 14.7,
+      "samBoxVsSubjectIoU": 0.9660362000455126,
+      "samClickMs": 15.6,
+      "samClickVsSubjectIoU": 0.02181066338201654,
+      "samEncodeMs": 150.9,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2684.0
+    },
+    {
+      "classicMs": 66.6,
+      "classicPsnr": 22.0867377036633,
+      "fillMs": 156.7,
+      "fillPsnr": 32.376924323344475,
+      "flatPsnr": 22.62310156932434,
+      "photo": "Flowers_Lotus",
+      "samBoxMs": 14.5,
+      "samBoxVsSubjectIoU": 0.8584804862905904,
+      "samClickMs": 15.3,
+      "samClickVsSubjectIoU": 0.020619826566811196,
+      "samEncodeMs": 163.3,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2479.7
+    },
+    {
+      "classicMs": 69.9,
+      "classicPsnr": 23.23322897905043,
+      "fillMs": 173.8,
+      "fillPsnr": 29.234157803023834,
+      "flatPsnr": 23.615473583236447,
+      "photo": "Flowers_Poppy",
+      "samBoxMs": 15.9,
+      "samBoxVsSubjectIoU": 0.9728152415377085,
+      "samClickMs": 17.6,
+      "samClickVsSubjectIoU": 0.8957973920886935,
+      "samEncodeMs": 179.9,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2706.7
+    },
+    {
+      "classicMs": 67.1,
+      "classicPsnr": 16.57335793939161,
+      "fillMs": 169.0,
+      "fillPsnr": 15.293027620407775,
+      "flatPsnr": 17.370962064390774,
+      "photo": "Flowers_Red_Rose",
+      "samBoxMs": 14.7,
+      "samBoxVsSubjectIoU": 0.8874441126873869,
+      "samClickMs": 16.3,
+      "samClickVsSubjectIoU": 0.0165308880225535,
+      "samEncodeMs": 192.0,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 3199.0
+    },
+    {
+      "classicMs": 71.9,
+      "classicPsnr": 9.67308483242734,
+      "fillMs": 274.8,
+      "fillPsnr": 11.41403524051207,
+      "flatPsnr": 9.676176319847038,
+      "photo": "Flowers_Sunflower",
+      "samBoxMs": 14.5,
+      "samBoxVsSubjectIoU": 0.9931443385582948,
+      "samClickMs": 15.5,
+      "samClickVsSubjectIoU": 0.10038758571607183,
+      "samEncodeMs": 185.7,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2853.9
+    },
+    {
+      "classicMs": 69.9,
+      "classicPsnr": 16.487037083963145,
+      "fillMs": 162.1,
+      "fillPsnr": 21.454230797842694,
+      "flatPsnr": 14.619678121976541,
+      "photo": "Flowers_Whiterose",
+      "samBoxMs": 15.3,
+      "samBoxVsSubjectIoU": 0.9949779086892488,
+      "samClickMs": 16.0,
+      "samClickVsSubjectIoU": 0.004394816571650241,
+      "samEncodeMs": 187.1,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 3126.4
+    },
+    {
+      "classicMs": 62.9,
+      "classicPsnr": 9.76944935026708,
+      "fillMs": 129.7,
+      "fillPsnr": 12.02656157730644,
+      "flatPsnr": 11.94721210625329,
+      "photo": "Flowers_Yellow_Daisy",
+      "samBoxMs": 14.9,
+      "samBoxVsSubjectIoU": 0.9893046932645654,
+      "samClickMs": 16.9,
+      "samClickVsSubjectIoU": 0.08585136944064253,
+      "samEncodeMs": 179.4,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2722.6
+    },
+    {
+      "classicMs": 64.5,
+      "classicPsnr": 12.724161886650014,
+      "fillMs": 165.5,
+      "fillPsnr": 15.425509449603993,
+      "flatPsnr": 13.768749382477203,
+      "photo": "Fun_Chalk",
+      "samBoxMs": 14.8,
+      "samBoxVsSubjectIoU": 0.12152384608003071,
+      "samClickMs": 16.7,
+      "samClickVsSubjectIoU": 0.045008478621069666,
+      "samEncodeMs": 149.4,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2484.8
+    },
+    {
+      "classicMs": 75.4,
+      "classicPsnr": 138.13080360867912,
+      "fillMs": 162.8,
+      "fillPsnr": 48.35494456171847,
+      "flatPsnr": 138.13080360867912,
+      "photo": "Fun_Fortune_Cookie",
+      "samBoxMs": 14.7,
+      "samBoxVsSubjectIoU": 0.9949365146342399,
+      "samClickMs": 16.9,
+      "samClickVsSubjectIoU": 0.000019391570096647585,
+      "samEncodeMs": 166.7,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2509.7
+    },
+    {
+      "classicMs": 72.9,
+      "classicPsnr": 17.365727710913593,
+      "fillMs": 163.2,
+      "fillPsnr": 17.486648124616092,
+      "flatPsnr": 14.628999628095517,
+      "photo": "Fun_Gingerbread_Man",
+      "samBoxMs": 14.6,
+      "samBoxVsSubjectIoU": 0.9880674472893667,
+      "samClickMs": 16.2,
+      "samClickVsSubjectIoU": 0.006508505007621309,
+      "samEncodeMs": 173.5,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 3025.1
+    },
+    {
+      "classicMs": 61.6,
+      "classicPsnr": 15.284608233253428,
+      "fillMs": 164.6,
+      "fillPsnr": 13.847479762012558,
+      "flatPsnr": 14.118461117561935,
+      "photo": "Fun_Medal",
+      "samBoxMs": 15.1,
+      "samBoxVsSubjectIoU": 0.0008828847096196415,
+      "samClickMs": 16.6,
+      "samClickVsSubjectIoU": 0.1056013703131144,
+      "samEncodeMs": 166.5,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2573.8
+    },
+    {
+      "classicMs": 75.9,
+      "classicPsnr": 19.85378058119865,
+      "fillMs": 143.8,
+      "fillPsnr": 15.79610168551646,
+      "flatPsnr": 16.651913923592836,
+      "photo": "Fun_Smack",
+      "samBoxMs": 14.3,
+      "samBoxVsSubjectIoU": 0.7546289858482997,
+      "samClickMs": 14.6,
+      "samClickVsSubjectIoU": 0.7506934701352669,
+      "samEncodeMs": 176.8,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2640.5
+    },
+    {
+      "classicMs": 70.5,
+      "classicPsnr": 6.624497701370141,
+      "fillMs": 164.7,
+      "fillPsnr": 18.11758938315883,
+      "flatPsnr": 7.610018626231188,
+      "photo": "Fun_Yin-Yang",
+      "samBoxMs": 14.8,
+      "samBoxVsSubjectIoU": 0.21605756185629596,
+      "samClickMs": 23.1,
+      "samClickVsSubjectIoU": 0.5194095855277739,
+      "samEncodeMs": 211.1,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2951.2
+    },
+    {
+      "classicMs": 63.2,
+      "classicPsnr": 10.374639576101174,
+      "fillMs": 161.1,
+      "fillPsnr": 16.750506821384604,
+      "flatPsnr": 9.164281008988182,
+      "photo": "Instruments_Drum",
+      "samBoxMs": 14.6,
+      "samBoxVsSubjectIoU": 0.05584866871037287,
+      "samClickMs": 16.8,
+      "samClickVsSubjectIoU": 0.18285492629945693,
+      "samEncodeMs": 159.4,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2563.5
+    },
+    {
+      "classicMs": 68.7,
+      "classicPsnr": 11.485322660751393,
+      "fillMs": 160.0,
+      "fillPsnr": 10.44437687111462,
+      "flatPsnr": 12.725217247844993,
+      "photo": "Instruments_Guitar",
+      "samBoxMs": 14.4,
+      "samBoxVsSubjectIoU": 0.0016993715531614724,
+      "samClickMs": 15.3,
+      "samClickVsSubjectIoU": 0.7749177846812094,
+      "samEncodeMs": 183.6,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2756.8
+    },
+    {
+      "classicMs": 58.3,
+      "classicPsnr": 34.87144655968193,
+      "fillMs": 160.0,
+      "fillPsnr": 31.322570446904592,
+      "flatPsnr": 30.29749661264936,
+      "photo": "Instruments_Piano",
+      "samBoxMs": 14.8,
+      "samBoxVsSubjectIoU": 0.3009464110127827,
+      "samClickMs": 15.9,
+      "samClickVsSubjectIoU": 0.10098374842511168,
+      "samEncodeMs": 179.1,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2855.2
+    },
+    {
+      "classicMs": 66.8,
+      "classicPsnr": 14.7137019791408,
+      "fillMs": 161.0,
+      "fillPsnr": 14.09441765290155,
+      "flatPsnr": 10.82697962628637,
+      "photo": "Instruments_Turntable",
+      "samBoxMs": 14.6,
+      "samBoxVsSubjectIoU": 0.9888904128377451,
+      "samClickMs": 15.7,
+      "samClickVsSubjectIoU": 0.014180962921970117,
+      "samEncodeMs": 178.9,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 3078.6
+    },
+    {
+      "classicMs": 64.8,
+      "classicPsnr": 22.074558857092793,
+      "fillMs": 137.4,
+      "fillPsnr": 24.043624617877548,
+      "flatPsnr": 22.670709993841598,
+      "photo": "Instruments_Violin",
+      "samBoxMs": 14.4,
+      "samBoxVsSubjectIoU": 0.0767435306073032,
+      "samClickMs": 16.6,
+      "samClickVsSubjectIoU": 0.0,
+      "samEncodeMs": 189.3,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2242.8
+    },
+    {
+      "classicMs": 62.9,
+      "classicPsnr": 20.808570078754208,
+      "fillMs": 154.6,
+      "fillPsnr": 17.223672501257337,
+      "flatPsnr": 19.272339499481102,
+      "photo": "Nature_Cactus",
+      "samBoxMs": 14.5,
+      "samBoxVsSubjectIoU": 0.8571428571428571,
+      "samClickMs": 15.4,
+      "samClickVsSubjectIoU": 3.891020303343943e-6,
+      "samEncodeMs": 174.1,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2392.3
+    },
+    {
+      "classicMs": 63.5,
+      "classicPsnr": 11.675225170923715,
+      "fillMs": 159.4,
+      "fillPsnr": 17.203320344913568,
+      "flatPsnr": 11.714344549150404,
+      "photo": "Nature_Earth",
+      "samBoxMs": 14.8,
+      "samBoxVsSubjectIoU": 0.994259399444865,
+      "samClickMs": 16.7,
+      "samClickVsSubjectIoU": 0.9917849829682753,
+      "samEncodeMs": 164.6,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2490.3
+    },
+    {
+      "classicMs": 67.4,
+      "classicPsnr": 18.404780027074224,
+      "fillMs": 136.5,
+      "fillPsnr": 17.772516118639608,
+      "flatPsnr": 18.322378549617795,
+      "photo": "Nature_Leaf",
+      "samBoxMs": 14.8,
+      "samBoxVsSubjectIoU": 0.0,
+      "samClickMs": 15.5,
+      "samClickVsSubjectIoU": 0.0,
+      "samEncodeMs": 167.6,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2357.7
+    },
+    {
+      "classicMs": 61.9,
+      "classicPsnr": 19.25052745249509,
+      "fillMs": 157.6,
+      "fillPsnr": 18.705927425565324,
+      "flatPsnr": 19.443077562055272,
+      "photo": "Nature_Lightning",
+      "samBoxMs": 14.8,
+      "samBoxVsSubjectIoU": 0.2446312602095701,
+      "samClickMs": 16.5,
+      "samClickVsSubjectIoU": 0.003477816885198562,
+      "samEncodeMs": 178.2,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2425.0
+    },
+    {
+      "classicMs": 60.8,
+      "classicPsnr": 13.446784413868695,
+      "fillMs": 158.5,
+      "fillPsnr": 11.396893599595233,
+      "flatPsnr": 13.567674828098985,
+      "photo": "Nature_Nest",
+      "samBoxMs": 14.7,
+      "samBoxVsSubjectIoU": 0.9924266572870066,
+      "samClickMs": 15.2,
+      "samClickVsSubjectIoU": 0.00007694675284702985,
+      "samEncodeMs": 175.3,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2699.1
+    },
+    {
+      "classicMs": 63.3,
+      "classicPsnr": 9.793789538171838,
+      "fillMs": 170.1,
+      "fillPsnr": 10.41307347957958,
+      "flatPsnr": 11.18193615663529,
+      "photo": "Nature_Sandollar",
+      "samBoxMs": 15.4,
+      "samBoxVsSubjectIoU": 0.9792082405253004,
+      "samClickMs": 17.6,
+      "samClickVsSubjectIoU": 0.1757801630732649,
+      "samEncodeMs": 185.6,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2938.9
+    },
+    {
+      "classicMs": 67.2,
+      "classicPsnr": 14.741491179726044,
+      "fillMs": 155.8,
+      "fillPsnr": 13.788362121313467,
+      "flatPsnr": 13.384456168221812,
+      "photo": "Nature_Snowflake",
+      "samBoxMs": 15.3,
+      "samBoxVsSubjectIoU": 0.4858968801666366,
+      "samClickMs": 15.7,
+      "samClickVsSubjectIoU": 0.051685091810082934,
+      "samEncodeMs": 148.4,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2773.1
+    },
+    {
+      "classicMs": 63.8,
+      "classicPsnr": 6.3868983646058775,
+      "fillMs": 175.9,
+      "fillPsnr": 6.06908716422469,
+      "flatPsnr": 8.7205031598369,
+      "photo": "Nature_Zen",
+      "samBoxMs": 14.5,
+      "samBoxVsSubjectIoU": 0.14699836711170877,
+      "samClickMs": 15.9,
+      "samClickVsSubjectIoU": 0.08446253456300341,
+      "samEncodeMs": 180.4,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2928.2
+    },
+    {
+      "classicMs": 64.9,
+      "classicPsnr": 24.769901234077274,
+      "fillMs": 155.5,
+      "fillPsnr": 25.357554740373736,
+      "flatPsnr": 24.32383142841356,
+      "photo": "Sports_8ball",
+      "samBoxMs": 14.9,
+      "samBoxVsSubjectIoU": 0.9240585591270496,
+      "samClickMs": 15.7,
+      "samClickVsSubjectIoU": 0.9114740571761394,
+      "samEncodeMs": 163.1,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2606.8
+    },
+    {
+      "classicMs": 65.5,
+      "classicPsnr": 10.981815202356023,
+      "fillMs": 134.0,
+      "fillPsnr": 10.626176855671684,
+      "flatPsnr": 8.228316783933852,
+      "photo": "Sports_Baseball",
+      "samBoxMs": 14.9,
+      "samBoxVsSubjectIoU": 0.16006793126839194,
+      "samClickMs": 15.6,
+      "samClickVsSubjectIoU": 0.16020478881763253,
+      "samEncodeMs": 161.7,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2299.4
+    },
+    {
+      "classicMs": 65.4,
+      "classicPsnr": 15.324377471572777,
+      "fillMs": 157.2,
+      "fillPsnr": 18.57138251350602,
+      "flatPsnr": 10.884331318688115,
+      "photo": "Sports_Basketball",
+      "samBoxMs": 14.7,
+      "samBoxVsSubjectIoU": 0.9973585821801408,
+      "samClickMs": 15.6,
+      "samClickVsSubjectIoU": 0.9961206436138705,
+      "samEncodeMs": 170.2,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2277.2
+    },
+    {
+      "classicMs": 61.4,
+      "classicPsnr": 6.386765093651804,
+      "fillMs": 155.5,
+      "fillPsnr": 16.358690883087068,
+      "flatPsnr": 7.580502714031776,
+      "photo": "Sports_Bowling",
+      "samBoxMs": 15.1,
+      "samBoxVsSubjectIoU": 0.00010784704475652357,
+      "samClickMs": 16.6,
+      "samClickVsSubjectIoU": 0.0851320846806174,
+      "samEncodeMs": 173.6,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2386.8
+    },
+    {
+      "classicMs": 57.7,
+      "classicPsnr": 16.503478950920876,
+      "fillMs": 139.6,
+      "fillPsnr": 15.564974801452966,
+      "flatPsnr": 18.26668770070893,
+      "photo": "Sports_Football",
+      "samBoxMs": 14.3,
+      "samBoxVsSubjectIoU": 0.9909524130644908,
+      "samClickMs": 14.9,
+      "samClickVsSubjectIoU": 0.9911323405450969,
+      "samEncodeMs": 159.1,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2319.0
+    },
+    {
+      "classicMs": 61.1,
+      "classicPsnr": 11.039300362385836,
+      "fillMs": 136.8,
+      "fillPsnr": 19.560279035600473,
+      "flatPsnr": 8.45677485406512,
+      "photo": "Sports_Golf",
+      "samBoxMs": 14.8,
+      "samBoxVsSubjectIoU": 0.995762958648806,
+      "samClickMs": 15.5,
+      "samClickVsSubjectIoU": 0.009974711315836736,
+      "samEncodeMs": 167.6,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2188.1
+    },
+    {
+      "classicMs": 64.8,
+      "classicPsnr": 12.798335546647465,
+      "fillMs": 165.0,
+      "fillPsnr": 19.964763560446546,
+      "flatPsnr": 13.70131429618574,
+      "photo": "Sports_Hockey",
+      "samBoxMs": 14.4,
+      "samBoxVsSubjectIoU": 0.8002622556719619,
+      "samClickMs": 20.5,
+      "samClickVsSubjectIoU": 0.0,
+      "samEncodeMs": 184.4,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2662.1
+    },
+    {
+      "classicMs": 60.2,
+      "classicPsnr": 5.939608032322363,
+      "fillMs": 159.7,
+      "fillPsnr": 15.181307991091447,
+      "flatPsnr": 6.964233439643291,
+      "photo": "Sports_Soccer",
+      "samBoxMs": 15.1,
+      "samBoxVsSubjectIoU": 0.876803395312022,
+      "samClickMs": 16.9,
+      "samClickVsSubjectIoU": 0.17104270326425722,
+      "samEncodeMs": 179.1,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2884.2
+    },
+    {
+      "classicMs": 63.5,
+      "classicPsnr": 9.200451973685952,
+      "fillMs": 140.1,
+      "fillPsnr": 16.77878907749317,
+      "flatPsnr": 6.324216544014342,
+      "photo": "Sports_Target",
+      "samBoxMs": 14.8,
+      "samBoxVsSubjectIoU": 0.8684760674582795,
+      "samClickMs": 17.0,
+      "samClickVsSubjectIoU": 0.0084697793495251,
+      "samEncodeMs": 160.3,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 2364.7
+    },
+    {
+      "classicMs": 69.7,
+      "classicPsnr": 12.446095077497167,
+      "fillMs": 164.0,
+      "fillPsnr": 17.08821353720523,
+      "flatPsnr": 10.064010252350288,
+      "photo": "Sports_Tennis",
+      "samBoxMs": 15.2,
+      "samBoxVsSubjectIoU": 0.9972954994586144,
+      "samClickMs": 16.9,
+      "samClickVsSubjectIoU": 0.9960571231566322,
+      "samEncodeMs": 186.0,
+      "size": [
+        512,
+        512
+      ],
+      "subjectGpuVsCpuIoU": null,
+      "subjectMs": 3124.4
+    }
+  ]
+}

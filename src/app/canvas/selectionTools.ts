@@ -1,5 +1,6 @@
 // Pointer handling for the selection tools: rectangle/ellipse marquee, lasso, polygon lasso,
-// magic wand and quick selection, plus dragging the selection outline.
+// magic wand, quick selection and object selection (a click or a box; local AI), plus dragging
+// the selection outline.
 //
 // Modifiers at the start of a gesture pick how the new shape combines with the selection
 // (Shift = add, Alt = subtract, Shift+Alt = intersect). During a marquee drag, Shift keeps the
@@ -9,10 +10,11 @@ import { engine, type Combine, type DocInfo } from '../../engine/bridge';
 import { display } from '../../engine/display';
 import { message } from '../actions';
 import { t } from '../i18n/index.svelte';
+import { aiActions } from '../ai.svelte';
 
 type Pt = { x: number; y: number };
 
-export const SELECTION_TOOLS: ToolId[] = ['marqueeRect', 'marqueeEllipse', 'lasso', 'lassoPolygon', 'magicWand', 'quickSelect'];
+export const SELECTION_TOOLS: ToolId[] = ['marqueeRect', 'marqueeEllipse', 'lasso', 'lassoPolygon', 'magicWand', 'quickSelect', 'objectSelect'];
 
 function combineFrom(e: { shiftKey: boolean; altKey: boolean }): Combine {
   if (e.shiftKey && e.altKey) return 'intersect';
@@ -81,6 +83,14 @@ export class SelectionInteraction {
       this.redraw();
       return;
     }
+    if (tool === 'objectSelect') {
+      // a click selects the object under it; a drag draws a box around one
+      this.start = doc;
+      this.cur = doc;
+      this.startView = p;
+      this.redraw();
+      return;
+    }
     // marquee / lasso: dragging inside an existing selection moves its outline
     if (this.mode === 'replace' && !e.shiftKey && !e.altKey && d.info.hasSelection && (await engine.selectHit(d.info.id, doc.x, doc.y))) {
       this.moving = { from: doc };
@@ -113,6 +123,8 @@ export class SelectionInteraction {
       if (Math.hypot(last.x - doc.x, last.y - doc.y) * app.active.view.zoom > 1.5) this.lasso.push(doc);
     } else if (this.quick.length) {
       this.quick.push(doc);
+    } else if (this.start && app.tool === 'objectSelect') {
+      this.cur = doc;
     } else if (this.start) {
       this.square = e.shiftKey;
       this.center = e.altKey && this.mode !== 'subtract';
@@ -148,6 +160,17 @@ export class SelectionInteraction {
       this.redraw();
       const subtract = this.mode === 'subtract';
       await apply((id) => engine.selectQuick(id, pts, app.sel.brush / 2, app.sel.allLayers, subtract));
+      return;
+    }
+    if (this.start && this.startView && app.tool === 'objectSelect') {
+      const moved = Math.hypot(p.x - this.startView.x, p.y - this.startView.y) > 4;
+      const s = this.start;
+      const c = this.cur ?? s;
+      this.start = null;
+      this.startView = null;
+      this.redraw();
+      if (moved) await aiActions.objectSelect([], [Math.min(s.x, c.x), Math.min(s.y, c.y), Math.max(s.x, c.x), Math.max(s.y, c.y)], this.mode);
+      else await aiActions.objectSelect([{ x: s.x, y: s.y, add: true }], null, this.mode);
       return;
     }
     if (this.start && this.startView) {
@@ -218,6 +241,7 @@ export class SelectionInteraction {
   private box() {
     const s = this.start!;
     const c = this.cur!;
+    if (app.tool === 'objectSelect') return { x0: s.x, y0: s.y, x1: c.x, y1: c.y };
     let dx = c.x - s.x;
     let dy = c.y - s.y;
     const opts = app.sel;

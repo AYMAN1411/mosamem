@@ -6,6 +6,7 @@ export const icons = {
   lasso: '<path d="M8 15.5c-3.4-1.2-4.4-4.6-1.2-7.2 3.3-2.6 10.4-3 12.2.2 1.7 3-2 6.4-7.4 7.2-1.3.2-2.5.1-3.6-.2z" stroke-dasharray="2.6 2.2"/><path d="M8 15.5c-.8 1.8 0 3.8 2 4.5"/>',
   lassoPolygon: '<path d="M5 9l6.5-5 7.5 4.5-2 8.5-8.5 1.5z" stroke-dasharray="2.6 2.2"/><circle cx="5" cy="9" r="1.2" fill="currentColor"/>',
   magicWand: '<path d="M4.5 19.5l10-10"/><path d="M14.5 9.5l1.7-1.7"/><path d="M17.5 3v3.2M15.9 4.6h3.2M20.5 8.3v2M19.5 9.3h2M10.5 3.8v2M9.5 4.8h2"/>',
+  objectSelect: '<path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M4 15v3.5A1.5 1.5 0 0 0 5.5 20H9" stroke-dasharray="2.2 2"/><path d="M13 12.5l7.5 2.6-3.3 1.2 2.6 2.6-1.4 1.4-2.6-2.6-1.2 3.3z" fill="currentColor" stroke-linejoin="round"/>',
   quickSelect: '<circle cx="9.5" cy="14.5" r="5.6" stroke-dasharray="2.4 2"/><path d="M13.6 10.4L20 4"/><circle cx="9.5" cy="14.5" r="2" fill="currentColor"/>',
   crop: '<path d="M7 3v14h14"/><path d="M3 7h14v14"/>',
   eyedropper: '<path d="M15.2 4.2a2.2 2.2 0 013.1 3.1l-1.6 1.6-3.1-3.1z"/><path d="M13.6 5.8l4.6 4.6"/><path d="M15.4 8.6L7 17l-2.5.8L5.3 15.3l8.4-8.4"/>',

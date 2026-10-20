@@ -1,3 +1,4 @@
+mod ai;
 mod codecs;
 mod commands;
 mod doc;
@@ -21,11 +22,21 @@ pub fn run() {
             recovery.spawn(app.handle().clone());
             pressure::install(app.handle());
             app.manage(recovery);
+            app.manage(std::sync::Arc::new(ai::Ai::new(data.join("models"))));
             #[cfg(any(debug_assertions, feature = "harness"))]
             harness::start(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::ai_status,
+            commands::ai_download,
+            commands::ai_cancel,
+            commands::ai_delete,
+            commands::ai_select_subject,
+            commands::ai_remove_background,
+            commands::ai_object_prepare,
+            commands::ai_object_select,
+            commands::ai_smart_fill,
             commands::new_document,
             commands::open_file,
             commands::save_document,

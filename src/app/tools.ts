@@ -19,7 +19,7 @@ export interface ToolGroup {
 }
 
 /** Tools whose milestone is at or below this are working. */
-export const DONE_MILESTONE = 9;
+export const DONE_MILESTONE = 10;
 
 export const TOOL_GROUPS: ToolGroup[] = [
   { code: 'KeyV', letter: 'V', tools: [{ id: 'move', icon: 'move', title: 'tool.move', milestone: 2 }] },
@@ -32,6 +32,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
     { id: 'lassoPolygon', icon: 'lassoPolygon', title: 'tool.lassoPolygon', milestone: 3 },
   ] },
   { code: 'KeyW', letter: 'W', tools: [
+    { id: 'objectSelect', icon: 'objectSelect', title: 'tool.objectSelect', milestone: 10 },
     { id: 'quickSelect', icon: 'quickSelect', title: 'tool.quickSelect', milestone: 3 },
     { id: 'magicWand', icon: 'magicWand', title: 'tool.magicWand', milestone: 3 },
   ] },

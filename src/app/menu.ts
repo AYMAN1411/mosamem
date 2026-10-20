@@ -9,6 +9,7 @@ import { dock } from './dock/layout.svelte';
 import * as act from './actions';
 import { historyText } from './history';
 import { findLayer } from '../engine/bridge';
+import { aiActions } from './ai.svelte';
 
 const isMac = navigator.userAgent.includes('Mac');
 
@@ -72,6 +73,10 @@ export async function buildMenu() {
           await item(t('xf.rotCcw'), () => act.turnLayers('ccw90')),
         ],
       }),
+      await sep(),
+      await item(t('ai.smartFillMenu'), aiActions.openSmartFill, 'Shift+Backspace', hasDoc && !!app.active?.info.hasSelection),
+      await sep(),
+      await item(t('ai.modelsMenu'), aiActions.openModels),
     ],
   });
   const viewMenu = await Submenu.new({
@@ -116,6 +121,8 @@ export async function buildMenu() {
       await item(t('layer.ungroup'), act.layer.ungroup, 'CmdOrCtrl+Shift+G', hasDoc),
       await item(t('layer.clip'), act.layer.toggleClip, 'CmdOrCtrl+Alt+G', hasDoc),
       await sep(),
+      await item(t('ai.removeBackground'), aiActions.removeBackground, undefined, hasDoc),
+      await sep(),
       await item(t('style.menu'), () => act.layer.style(), undefined, hasDoc),
       await item(t('style.clear'), act.layer.clearStyle, undefined, hasDoc),
       await item(t('text.rasterize'), act.layer.rasterize, undefined, hasDoc && (app.active ? findLayer(app.active.info.layers, app.active.info.active)?.kind === 'text' : false)),
@@ -132,6 +139,8 @@ export async function buildMenu() {
       await item(t('select.deselect'), act.select.deselect, 'CmdOrCtrl+D', hasSel),
       await item(t('select.reselect'), act.select.reselect, 'CmdOrCtrl+Shift+D', !!app.active?.info.hasLastSelection),
       await item(t('select.inverse'), act.select.invert, 'CmdOrCtrl+Shift+I', hasDoc),
+      await sep(),
+      await item(t('ai.selectSubject'), () => aiActions.selectSubject('replace'), undefined, hasDoc),
       await sep(),
       await Submenu.new({
         text: t('select.modify'),

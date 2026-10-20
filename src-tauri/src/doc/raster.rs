@@ -75,6 +75,44 @@ pub fn read(map: &TileMap, x0: i64, y0: i64, w: usize, h: usize) -> Vec<u8> {
 }
 
 /// Tiles of a dense rectangle (fully transparent tiles are left out).
+/// `map` with a rectangle replaced by straight RGBA8 (pixels outside the rectangle are kept; tiles
+/// that end up fully transparent are dropped).
+pub fn paste(map: &TileMap, rgba: &[u8], x0: i64, y0: i64, w: usize, h: usize) -> TileMap {
+    let mut out = map.clone();
+    if w == 0 || h == 0 {
+        return out;
+    }
+    let (tx0, ty0, tx1, ty1) = (x0.div_euclid(T), y0.div_euclid(T), (x0 + w as i64 - 1).div_euclid(T), (y0 + h as i64 - 1).div_euclid(T));
+    let keys: Vec<(i64, i64)> = (ty0..=ty1).flat_map(|ty| (tx0..=tx1).map(move |tx| (tx, ty))).collect();
+    let tiles: Vec<((i32, i32), Option<Arc<Tile>>)> = keys
+        .into_par_iter()
+        .map(|(tx, ty)| {
+            let key = (tx as i32, ty as i32);
+            let mut t = map.get(&key).map(|t| (**t).clone()).unwrap_or_else(Tile::transparent);
+            let (ax, ay) = ((tx * T).max(x0), (ty * T).max(y0));
+            let (bx, by) = ((tx * T + T).min(x0 + w as i64), (ty * T + T).min(y0 + h as i64));
+            for y in ay..by {
+                let d = (((y - ty * T) * T + (ax - tx * T)) * 4) as usize;
+                let s = (((y - y0) as usize * w) + (ax - x0) as usize) * 4;
+                let n = ((bx - ax) * 4) as usize;
+                t.0[d..d + n].copy_from_slice(&rgba[s..s + n]);
+            }
+            (key, (!t.is_transparent()).then(|| Arc::new(t)))
+        })
+        .collect();
+    for (k, t) in tiles {
+        match t {
+            Some(t) => {
+                out.insert(k, t);
+            }
+            None => {
+                out.remove(&k);
+            }
+        }
+    }
+    out
+}
+
 pub fn write(rgba: &[u8], x0: i64, y0: i64, w: usize, h: usize) -> TileMap {
     if w == 0 || h == 0 {
         return TileMap::new();

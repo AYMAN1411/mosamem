@@ -902,3 +902,93 @@ pub async fn debug_flatten(engine: State<'_, Engine>, doc: u64) -> Res<tauri::ip
     .map_err(|e| e.to_string())?;
     Ok(tauri::ipc::Response::new(bytes))
 }
+
+// ---- local AI (M10) ----
+
+use crate::ai::{self, models, Ai, FillSpec, ObjectSpec};
+use std::sync::atomic::{AtomicBool, Ordering};
+
+/// Async, so it runs off the main thread: the GPU path needs the main thread while a model runs.
+#[tauri::command]
+pub async fn ai_status(ai: State<'_, Arc<Ai>>) -> Res<Vec<models::PackStatus>> {
+    let ai = ai.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || models::status(&ai.root, &ai.rt)).await.map_err(|e| e.to_string())
+}
+
+/// Downloads a model pack, reporting progress on `progress`. Errors: `cancelled`, `network: …`,
+/// `checksum: …`, `disk: …`.
+#[tauri::command]
+pub async fn ai_download(ai: State<'_, Arc<Ai>>, pack: String, progress: tauri::ipc::Channel<models::Progress>) -> Res<()> {
+    let p = models::pack(&pack).ok_or("unknown model")?;
+    let cancel = Arc::new(AtomicBool::new(false));
+    ai.downloads.lock().insert(pack.clone(), cancel.clone());
+    let ai = ai.inner().clone();
+    let r = tauri::async_runtime::spawn_blocking(move || {
+        let r = models::download(&ai.root, p, &cancel, &|pr| {
+            let _ = progress.send(pr);
+        });
+        ai.downloads.lock().remove(p.id);
+        r.map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    r
+}
+
+#[tauri::command]
+pub fn ai_cancel(ai: State<'_, Arc<Ai>>, pack: String) {
+    if let Some(c) = ai.downloads.lock().get(&pack) {
+        c.store(true, Ordering::Relaxed);
+    }
+}
+
+#[tauri::command]
+pub async fn ai_delete(ai: State<'_, Arc<Ai>>, pack: String) -> Res<()> {
+    let p = models::pack(&pack).ok_or("unknown model")?;
+    let ai = ai.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        ai.forget(&pack);
+        models::remove(&ai.root, p).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+async fn ai_edit(engine: &Engine, ai: &Arc<Ai>, doc: u64, f: impl FnOnce(&Ai, &DocHandle) -> Res<()> + Send + 'static) -> Res<DocInfo> {
+    let h = handle(engine, doc)?;
+    let ai = ai.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        f(&ai, &h)?;
+        let info = h.doc.read().info();
+        Ok(info)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn ai_select_subject(engine: State<'_, Engine>, ai: State<'_, Arc<Ai>>, doc: u64, mode: Combine) -> Res<DocInfo> {
+    ai_edit(&engine, &ai, doc, move |ai, h| ai::select_subject(ai, h, mode)).await
+}
+
+#[tauri::command]
+pub async fn ai_remove_background(engine: State<'_, Engine>, ai: State<'_, Arc<Ai>>, doc: u64, id: u64) -> Res<DocInfo> {
+    ai_edit(&engine, &ai, doc, move |ai, h| ai::remove_background(ai, h, id)).await
+}
+
+#[tauri::command]
+pub async fn ai_object_prepare(engine: State<'_, Engine>, ai: State<'_, Arc<Ai>>, doc: u64, all_layers: bool) -> Res<()> {
+    let h = handle(&engine, doc)?;
+    let ai = ai.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || ai::object_prepare(&ai, &h, all_layers)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn ai_object_select(engine: State<'_, Engine>, ai: State<'_, Arc<Ai>>, doc: u64, spec: ObjectSpec) -> Res<DocInfo> {
+    ai_edit(&engine, &ai, doc, move |ai, h| ai::object_select(ai, h, &spec)).await
+}
+
+#[tauri::command]
+pub async fn ai_smart_fill(engine: State<'_, Engine>, ai: State<'_, Arc<Ai>>, doc: u64, spec: FillSpec) -> Res<DocInfo> {
+    ai_edit(&engine, &ai, doc, move |ai, h| ai::smart_fill(ai, h, &spec)).await
+}

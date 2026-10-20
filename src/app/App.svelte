@@ -18,6 +18,10 @@
   import ImageSizeDialog from './dialogs/ImageSizeDialog.svelte';
   import CanvasSizeDialog from './dialogs/CanvasSizeDialog.svelte';
   import LayerStylePanel from './dialogs/LayerStylePanel.svelte';
+  import AiModelDialog from './dialogs/AiModelDialog.svelte';
+  import AiModelsDialog from './dialogs/AiModelsDialog.svelte';
+  import SmartFillDialog from './dialogs/SmartFillDialog.svelte';
+  import { ai, prepareObjectSelect } from './ai.svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { engine, type RecoveredFile } from '../engine/bridge';
   import { app } from './state.svelte';
@@ -28,6 +32,14 @@
   import { installPressureBridge } from './canvas/pressure';
 
   let dropping = $state(false);
+
+  // the Object Selection tool reads the picture ahead of the first click
+  $effect(() => {
+    void [app.tool, app.active?.info.version, app.sel.allLayers, ai.packs];
+    const id = setTimeout(prepareObjectSelect, 400);
+    return () => clearTimeout(id);
+  });
+  onMount(() => void ai.refresh());
   let recovered = $state<RecoveredFile[]>([]);
 
   onMount(() => {
@@ -97,6 +109,12 @@
 {#if app.dialog === 'imageSize' && app.active}<ImageSizeDialog />{/if}
 {#if app.dialog === 'canvasSize' && app.active}<CanvasSizeDialog />{/if}
 {#if app.dialog === 'layerStyle' && app.active}<LayerStylePanel />{/if}
+{#if app.dialog === 'aiModel' && ai.asking}<AiModelDialog />{/if}
+{#if app.dialog === 'aiModels'}<AiModelsDialog />{/if}
+{#if app.dialog === 'smartFill' && app.active}<SmartFillDialog />{/if}
+{#if ai.working}
+  <div class="working" role="status"><span class="spin"></span>{ai.working}</div>
+{/if}
 {#if app.toast}
   <div class="toast" class:error={app.toast.kind === 'error'} role="status">{app.toast.text}</div>
 {/if}
@@ -112,4 +130,7 @@
   .drop { position: fixed; inset: 8px; border: 2px dashed var(--accent); border-radius: 12px; background: var(--accent-soft); pointer-events: none; z-index: 90; }
   .toast { position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 95; padding: 8px 16px; border-radius: 8px; background: var(--bg-4); border: 1px solid var(--line-strong); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
   .toast.error { border-color: var(--danger); }
+  .working { position: fixed; top: calc(var(--optionsbar-h) + 44px); left: 50%; transform: translateX(-50%); z-index: 94; display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-radius: 999px; background: var(--bg-4); border: 1px solid var(--line-strong); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); color: var(--fg-1); }
+  .spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-strong); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>

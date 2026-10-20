@@ -2,6 +2,8 @@
   import { app } from '../state.svelte';
   import { t } from '../i18n/index.svelte';
   import { select } from '../actions';
+  import { ai, aiActions } from '../ai.svelte';
+  import Icon from '../icons/Icon.svelte';
 
   const tool = $derived(app.tool);
   const s = $derived(app.sel);
@@ -23,7 +25,7 @@
 {#if tool === 'marqueeRect' || tool === 'marqueeEllipse' || tool === 'lasso' || tool === 'lassoPolygon'}
   <label class="inline">{t('opt.feather')}<input class="field num small" type="number" min="0" max="1000" step="0.5" bind:value={app.sel.feather} />px</label>
 {/if}
-{#if tool !== 'marqueeRect' && tool !== 'quickSelect'}
+{#if tool !== 'marqueeRect' && tool !== 'quickSelect' && tool !== 'objectSelect'}
   <label class="check"><input type="checkbox" bind:checked={app.sel.antialias} />{t('opt.antialias')}</label>
 {/if}
 {#if tool === 'marqueeRect' || tool === 'marqueeEllipse'}
@@ -49,8 +51,14 @@
 {#if tool === 'quickSelect'}
   <label class="inline">{t('opt.brushSize')}<input class="field num small" type="number" min="1" max="2500" bind:value={app.sel.brush} />px</label>
 {/if}
-{#if tool === 'magicWand' || tool === 'quickSelect'}
+{#if tool === 'magicWand' || tool === 'quickSelect' || tool === 'objectSelect'}
   <label class="check"><input type="checkbox" bind:checked={app.sel.allLayers} />{t('opt.allLayers')}</label>
+  <div class="sep"></div>
+  <button class="btn ai" disabled={!app.active || !!ai.working} onclick={() => aiActions.selectSubject()} title={t('ai.subjectHint')}><Icon name="objectSelect" size={14} />{t('ai.selectSubject')}</button>
+  <button class="btn ai" disabled={!app.active || !!ai.working} onclick={() => aiActions.removeBackground()} title={t('ai.backgroundHint')}>{t('ai.removeBackground')}</button>
+{/if}
+{#if tool === 'objectSelect'}
+  <span class="hint">{t('ai.objectHint')}</span>
 {/if}
 <div class="sep"></div>
 <button class="btn" disabled={!app.active?.info.hasSelection} onclick={select.refine}>{t('opt.refine')}</button>
@@ -62,4 +70,6 @@
   .small { width: 62px; height: 24px; }
   select.field { height: 24px; }
   .check { color: var(--fg-1); }
+  .ai { display: inline-flex; align-items: center; gap: 6px; }
+  .hint { color: var(--fg-3); font-size: var(--fs-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>

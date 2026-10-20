@@ -3,7 +3,7 @@ import type { Adjustment, Histogram } from './adjust';
 import type { Filter } from './filter';
 import type { TextData, TextStyle } from './text';
 import type { LayerStyle } from './style';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, Channel } from '@tauri-apps/api/core';
 import type { BlendMode } from './blend';
 
 export interface Locks {
@@ -143,6 +143,27 @@ export function thumbUrl(doc: number, layer: number, key: number, size: number):
   return `${base}/thumb/${doc}/${layer}/${key}/${size}`;
 }
 
+/** A downloadable AI model pack (src-tauri/src/ai/models.rs). */
+export type AiPack = 'subject' | 'select' | 'fill';
+export interface AiPackStatus {
+  id: AiPack;
+  model: string;
+  license: string;
+  source: string;
+  /** Download size, bytes. */
+  size: number;
+  installed: boolean;
+  /** Size on disk, bytes. */
+  disk: number;
+  /** Whether it last ran on the GPU (null until it has run). */
+  gpu: boolean | null;
+}
+export interface AiClick {
+  x: number;
+  y: number;
+  add: boolean;
+}
+
 export const engine = {
   newDocument: (spec: { name: string; width: number; height: number; ppi: number; background: Background; backgroundLayerName: string }) =>
     invoke<DocInfo>('new_document', { spec }),
@@ -164,6 +185,21 @@ export const engine = {
   layerMergeVisible: (doc: number, name: string) => invoke<DocInfo>('layer_merge_visible', { doc, name }),
   layerFlatten: (doc: number, name: string) => invoke<DocInfo>('layer_flatten', { doc, name }),
   setActive: (doc: number, id: number) => invoke<DocInfo>('set_active', { doc, id }),
+
+  aiStatus: () => invoke<AiPackStatus[]>('ai_status'),
+  aiDownload: (pack: AiPack, onProgress: (done: number, total: number) => void) => {
+    const progress = new Channel<{ done: number; total: number }>();
+    progress.onmessage = (m) => onProgress(m.done, m.total);
+    return invoke<void>('ai_download', { pack, progress });
+  },
+  aiCancel: (pack: AiPack) => invoke<void>('ai_cancel', { pack }),
+  aiDelete: (pack: AiPack) => invoke<void>('ai_delete', { pack }),
+  aiSelectSubject: (doc: number, mode: Combine) => invoke<DocInfo>('ai_select_subject', { doc, mode }),
+  aiRemoveBackground: (doc: number, id: number) => invoke<DocInfo>('ai_remove_background', { doc, id }),
+  aiObjectPrepare: (doc: number, allLayers: boolean) => invoke<void>('ai_object_prepare', { doc, allLayers }),
+  aiObjectSelect: (doc: number, spec: { clicks: AiClick[]; bbox: [number, number, number, number] | null; mode: Combine; allLayers: boolean }) =>
+    invoke<DocInfo>('ai_object_select', { doc, spec }),
+  aiSmartFill: (doc: number, spec: { method: 'ai' | 'classic'; newLayer: string | null }) => invoke<DocInfo>('ai_smart_fill', { doc, spec }),
 
   selectShape: (doc: number, shape: Shape, mode: Combine, feather: number) => invoke<DocInfo>('select_shape', { doc, shape, mode, feather }),
   selectWand: (doc: number, spec: { x: number; y: number; tolerance: number; contiguous: boolean; allLayers: boolean; antialias: boolean; mode: Combine }) =>

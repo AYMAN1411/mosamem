@@ -651,6 +651,17 @@ commercial-safe weights are used.
 - DirectML is in maintenance mode, but it works. Windows ML is the future path.
 - CPU fallback always works.
 - Source: https://ort.pyke.io/perf/execution-providers ✔︎
+- **Measured in M10 (M4 Pro, macOS 27, under load):** Core ML was rejected. As ML Program it can't
+  convert BiRefNet's or MI-GAN's convolutions ("Required param 'pad' is missing"). As
+  NeuralNetwork, BiRefNet ran no faster than the CPU and SAM's encoder failed on a shape. Compiling
+  for the Neural Engine took over an hour in the background. ONNX Runtime's **WebGPU** provider
+  (Dawn on Metal) runs all three models:
+  - SAM encoder: ~0.1 s, vs 0.4 s on CPU.
+  - MI-GAN: ~0.1 s.
+  - BiRefNet: 2.4–4 s, vs 5.5 s on CPU at fp16.
+  BiRefNet first needs its 10–32-way Split and Concat nodes split up, to stay under Metal's 10
+  storage buffers per shader (src-tauri/src/ai/onnx_wide.rs). ONNX Runtime's automatic device
+  policy registers Core ML on macOS by default, so Lawha turns it off.
 
 **Pipeline**
 1. Downscale to the model input size, run inference, upsample the mask.

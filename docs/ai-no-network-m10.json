@@ -1,0 +1,57 @@
+{
+  "engineInSandbox": {
+    "passed": true,
+    "log": "/tmp/lawha-nonet-engine.log"
+  },
+  "controlDownloadBlocked": true,
+  "app": {
+    "steps": [
+      [
+        "select subject",
+        "ok"
+      ],
+      [
+        "object selection: click",
+        "ok"
+      ],
+      [
+        "object selection: box",
+        "ok"
+      ],
+      [
+        "select a box",
+        "ok"
+      ],
+      [
+        "smart fill (AI)",
+        "ok"
+      ],
+      [
+        "smart fill (classic)",
+        "ok"
+      ],
+      [
+        "remove background",
+        "ok"
+      ]
+    ],
+    "devices": [
+      [
+        "subject",
+        "webgpu"
+      ],
+      [
+        "select",
+        "webgpu"
+      ],
+      [
+        "fill",
+        "webgpu"
+      ]
+    ],
+    "socketSamples": 76,
+    "localSocketLines": 212,
+    "connectionsToOtherHosts": []
+  },
+  "passed": true
+}

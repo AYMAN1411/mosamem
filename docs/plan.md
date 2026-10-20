@@ -34,7 +34,7 @@ Status: draft for review. No code is written until this plan is approved.
 │ Painting, selections, filters, transforms, text layout · history (tile before-images)         │
 │ Codecs: PNG, JPEG, WebP, TIFF; HEIC through macOS ImageIO; ICC → sRGB (moxcms)                 │
 │ .lawha format + autosave journal (SQLite) · crash detection                                    │
-│ Local AI: ONNX Runtime (CoreML on Mac, DirectML on Windows)                                    │
+│ Local AI: ONNX Runtime (WebGPU provider, CPU fallback; Core ML measured and dropped in M10)    │
 └───────────────────────────────────────────────────────────────────────────────────────────────┘
 lawha-core (Rust crate) = the pixel math in one place: used by the engine and by the tests, and the
 reference the GPU shaders are checked against.
@@ -63,7 +63,7 @@ Key decisions, with reasons:
 | PSD via **ag-psd** (MIT, TypeScript) behind our own `PsdCodec` interface | The most complete open read/write library: layers, groups, masks, blend modes, adjustments, text and effects. It runs in a worker and hands layer pixels to the engine, and it can be replaced behind our interface. |
 | Text: harfrust (the HarfBuzz project's official Rust port) + skrifa + unicode-bidi + ICU4X line breaking in lawha-core; glyph outlines rasterized by us. Parley is evaluated in M0 as a ready-made layout layer. | Identical shaping and layout on Mac and Windows, so the same file looks the same everywhere and the layout can be tested headless. It also supports kashida justification. (rustybuzz and ttf-parser were archived and flagged unmaintained by RustSec in 2026.) |
 | Native project format `.lawha` = SQLite | Transactional, incremental saves of dirty tiles only, survives crashes. The autosave journal is the same format. PSD stays the interchange format. |
-| Local AI through ONNX Runtime (`ort`) on the native side, with license-checked models: BiRefNet-lite (MIT, about 115 MB fp16) for background removal and subject selection, SAM 2.1 tiny (Apache-2.0, about 70 MB) for click-to-select, MI-GAN (MIT code and weights, 28 MB) for Smart Fill | Uses the hardware accelerators (CoreML / DirectML). No cloud and no account. Models with non-commercial terms (BRIA RMBG, EdgeSAM) or unclear weight licenses (ISNet, LaMa's training data) are excluded. |
+| Local AI through ONNX Runtime (`ort`) on the native side, with license-checked models: BiRefNet-lite (MIT, about 115 MB fp16) for background removal and subject selection, SAM 2.1 tiny (Apache-2.0, about 70 MB) for click-to-select, MI-GAN (MIT code and weights, 28 MB) for Smart Fill | Uses the GPU through ONNX Runtime's WebGPU provider (M10 measured Core ML as failing or slower for these models), with the CPU as fallback. No cloud and no account. Models with non-commercial terms (BRIA RMBG, EdgeSAM) or unclear weight licenses (ISNet, LaMa's training data) are excluded. |
 | Classic algorithms where a public paper already solves the problem | Healing = Poisson blending (Pérez 2003 / Georgiev 2004). Smart Fill = PatchMatch (Barnes 2009), plus an optional LaMa model. |
 | Svelte 5 UI with our own docking system | Small and fast. None of the docking libraries supports RTL (dockview, golden-layout and FlexLayout all have open or closed-as-won't-fix RTL issues), so we build a small one: panels mirror, the canvas never does. |
 | GPL-3.0 license | Matches Adawat and keeps forks open. Every dependency (MIT, Apache-2.0, OFL fonts) is compatible. |
