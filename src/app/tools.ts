@@ -50,6 +50,8 @@ export const TOOL_GROUPS: ToolGroup[] = [
     { id: 'bucket', icon: 'bucket', title: 'tool.bucket', milestone: 4 },
   ] },
   { code: 'KeyT', letter: 'T', tools: [{ id: 'text', icon: 'text', title: 'tool.text', milestone: 7 }] },
+  { code: 'KeyP', letter: 'P', tools: [{ id: 'pen', icon: 'pen', title: 'tool.pen', milestone: 12 }] },
+  { code: 'KeyA', letter: 'A', tools: [{ id: 'directSelect', icon: 'directSelect', title: 'tool.directSelect', milestone: 12 }] },
   { code: 'KeyU', letter: 'U', tools: [
     { id: 'shapeRect', icon: 'shapeRect', title: 'tool.shapeRect', milestone: 12 },
     { id: 'shapeEllipse', icon: 'shapeEllipse', title: 'tool.shapeEllipse', milestone: 12 },

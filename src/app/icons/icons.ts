@@ -17,6 +17,8 @@ export const icons = {
   gradient: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9l5-5M4 14.5L14.5 4M6.5 20L20 6.5M12 20l8-8" opacity=".65"/>',
   bucket: '<path d="M4.5 11.5l7-7 7 7-7 7z"/><path d="M4.5 11.5h14"/><path d="M20 14.6s1.5 1.9 1.5 3a1.5 1.5 0 01-3 0c0-1.1 1.5-3 1.5-3z"/>',
   text: '<path d="M5 6.5V4.5h14v2M12 4.5v15M9 19.5h6"/>',
+  pen: '<path d="M12 3.5l5.5 8.5-2.2 6.5H8.7L6.5 12z" stroke-linejoin="round"/><path d="M12 3.5v7"/><circle cx="12" cy="12" r="1.4"/><path d="M8.7 18.5h6.6v2H8.7z"/>',
+  directSelect: '<path d="M6 3.5l12 8.2-5.4 1.1 3.2 6.2-2.3 1.2-3.2-6.2L6 17.7z" stroke-linejoin="round"/>',
   shapeRect: '<rect x="4" y="5.5" width="16" height="13" rx="1.2"/>',
   shapeEllipse: '<ellipse cx="12" cy="12" rx="8.5" ry="6.8"/>',
   shapePolygon: '<path d="M12 3.8l7.8 5.7-3 9.2H7.2l-3-9.2z"/>',

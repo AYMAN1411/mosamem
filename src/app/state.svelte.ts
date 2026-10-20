@@ -2,6 +2,7 @@
 // UI shows and how the user is viewing it.
 import type { FilterKind } from '../engine/filter';
 import type { DocInfo } from '../engine/bridge';
+import type { Path } from '../engine/vector';
 
 export type ToolId =
   | 'move'
@@ -27,6 +28,8 @@ export type ToolId =
   | 'shapePolygon'
   | 'shapeStar'
   | 'shapeLine'
+  | 'pen'
+  | 'directSelect'
   | 'hand'
   | 'zoom'
   | 'rotateView';
@@ -54,6 +57,8 @@ export interface DocState {
   fitted: boolean;
   /** Layers selected in the Layers panel (the active layer is always one of them). */
   selection: number[];
+  /** The Pen's work path in Path mode (not saved with the document yet). */
+  workPath: Path | null;
 }
 
 export const ZOOM_STEPS = [0.01, 0.02, 0.03, 0.05, 0.0667, 0.0833, 0.125, 0.1667, 0.25, 0.3333, 0.5, 0.6667, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 32, 64];
@@ -148,7 +153,7 @@ class AppState {
   }
 
   addDocument(info: DocInfo) {
-    const d: DocState = { info, view: { zoom: 1, cx: info.width / 2, cy: info.height / 2, rotation: 0 }, guides: [], fitted: true, selection: [info.active] };
+    const d: DocState = { info, view: { zoom: 1, cx: info.width / 2, cy: info.height / 2, rotation: 0 }, guides: [], fitted: true, selection: [info.active], workPath: null };
     this.docs.push(d);
     this.activeId = info.id;
     this.fit();

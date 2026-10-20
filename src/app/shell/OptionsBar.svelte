@@ -11,6 +11,7 @@
   import TextOptions from './TextOptions.svelte';
   import ShapeOptions from './ShapeOptions.svelte';
   import { SHAPE_TOOLS } from '../canvas/shapes.svelte';
+  import { pen } from '../canvas/pen.svelte';
   import { transform } from '../canvas/transform.svelte';
   import { PAINT_TOOLS } from '../canvas/paintTools';
   import { SELECTION_TOOLS } from '../canvas/selectionTools';
@@ -31,6 +32,15 @@
     <TextOptions />
   {:else if SHAPE_TOOLS.includes(app.tool)}
     <ShapeOptions />
+  {:else if app.tool === 'pen'}
+    <select class="field mode" value={pen.mode} title={t('pen.mode')} onchange={(e) => (pen.mode = e.currentTarget.value as 'shape' | 'path')}>
+      <option value="shape" selected={pen.mode === 'shape'}>{t('pen.mode.shape')}</option>
+      <option value="path" selected={pen.mode === 'path'}>{t('pen.mode.path')}</option>
+    </select>
+    {#if pen.mode === 'shape'}<div class="sep"></div><ShapeOptions />{/if}
+    <span class="note">{t('pen.hint')}</span>
+  {:else if app.tool === 'directSelect'}
+    <span class="note">{t('direct.hint')}</span>
   {:else if app.tool === 'zoom'}
     <button class="icon-btn" title={t('opt.zoomIn')} onclick={act.view.zoomIn}><Icon name="zoom" /></button>
     <button class="icon-btn" title={t('opt.zoomOut')} onclick={act.view.zoomOut}><Icon name="zoomOut" /></button>
@@ -72,4 +82,5 @@
   .inline { display: flex; align-items: center; gap: 6px; color: var(--fg-2); }
   .angle { width: 64px; }
   .lang { height: 26px; }
+  .mode { height: 26px; }
 </style>

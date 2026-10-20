@@ -738,4 +738,11 @@ export const ar = {
   'shape.y2': 'النهاية ص',
   'shape.appearance': 'المظهر',
   'shape.gradientFill': 'تعبئة متدرجة',
+  'tool.pen': 'القلم',
+  'tool.directSelect': 'تحديد النقاط',
+  'pen.mode': 'ما يرسمه القلم',
+  'pen.mode.shape': 'شكل',
+  'pen.mode.path': 'مسار',
+  'pen.hint': 'انقر لنقطة، واسحب لمنحنى، وانقر النقطة الأولى للإغلاق أو Enter للإنهاء',
+  'direct.hint': 'اسحب النقاط أو مقابضها؛ Shift لتحديد أكثر من نقطة، وAlt لكسر المنحنى، وDelete للحذف',
 } as const;

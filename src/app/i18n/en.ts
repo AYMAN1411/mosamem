@@ -739,4 +739,11 @@ export const en: Record<keyof typeof ar, string> = {
   'shape.y2': 'End Y',
   'shape.appearance': 'Appearance',
   'shape.gradientFill': 'Gradient fill',
+  'tool.pen': 'Pen',
+  'tool.directSelect': 'Direct Selection',
+  'pen.mode': 'What the Pen draws',
+  'pen.mode.shape': 'Shape',
+  'pen.mode.path': 'Path',
+  'pen.hint': 'Click for a point, drag for a curve; click the first point to close, or Enter to finish',
+  'direct.hint': 'Drag points or their handles; Shift selects more, Alt breaks a curve, Delete removes',
 };

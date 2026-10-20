@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dragShape, segments, shapePath, type Pt } from '../engine/vector';
+import { dragShape, insertKnot, nearestSegment, pointAt, segments, shapePath, type Pt } from '../engine/vector';
 
 const opts = { square: false, center: false, radius: 0, sides: 6, inner: 0.5, points: 5, arrowStart: false, arrowEnd: true };
 
@@ -46,5 +46,26 @@ describe('shapePath', () => {
   it('clamps the radius to half the short side', () => {
     const k = shapePath({ kind: 'rect', x: 0, y: 0, w: 100, h: 20, radius: 50 }).subs[0].knots;
     expect(k[0].p).toEqual([10, 0]);
+  });
+});
+
+describe('path editing', () => {
+  it('inserts a knot without changing the curve', () => {
+    const p = shapePath({ kind: 'ellipse', x: 0, y: 0, w: 200, h: 100 });
+    const before = pointAt(segments(p.subs[0])[0], 0.75);
+    const k = insertKnot(p, 0, 0, 0.5);
+    expect(k).toBe(1);
+    expect(p.subs[0].knots).toHaveLength(5);
+    const after = pointAt(segments(p.subs[0])[1], 0.5);
+    expect(after[0]).toBeCloseTo(before[0], 6);
+    expect(after[1]).toBeCloseTo(before[1], 6);
+  });
+  it('finds the nearest segment', () => {
+    const p = shapePath({ kind: 'rect', x: 0, y: 0, w: 100, h: 50, radius: 0 });
+    const n = nearestSegment(p, [50, 3], 5)!;
+    expect(n.seg).toBe(0);
+    expect(n.t).toBeCloseTo(0.5, 3);
+    expect(n.dist).toBeCloseTo(3, 3);
+    expect(nearestSegment(p, [50, 25], 5)).toBeNull();
   });
 });

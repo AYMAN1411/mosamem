@@ -184,3 +184,58 @@ export function dragShape(kind: Exclude<ShapeKind, 'free'>, a: Pt, b: Pt, opts: 
   const box = { x: Math.min(x, x + w), y: Math.min(y, y + h), w: Math.abs(w), h: Math.abs(h) };
   return kind === 'rect' ? { kind, ...box, radius: opts.radius } : { kind: 'ellipse', ...box };
 }
+
+const lerp = (a: Pt, b: Pt, t: number): Pt => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+
+/** A point on a cubic segment. */
+export function pointAt(c: [Pt, Pt, Pt, Pt], t: number): Pt {
+  const u = 1 - t;
+  const [a, b, d, e] = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+  return [a * c[0][0] + b * c[1][0] + d * c[2][0] + e * c[3][0], a * c[0][1] + b * c[1][1] + d * c[2][1] + e * c[3][1]];
+}
+
+/** The segment nearest to `p` within `tol`: subpath, segment, t and distance (as vector.rs). */
+export function nearestSegment(path: Path, p: Pt, tol: number): { sub: number; seg: number; t: number; dist: number } | null {
+  let best: { sub: number; seg: number; t: number; dist: number } | null = null;
+  const dist = (q: Pt) => Math.hypot(q[0] - p[0], q[1] - p[1]);
+  path.subs.forEach((s, si) =>
+    segments(s).forEach((c, k) => {
+      // coarse sampling, then refine around the best sample
+      let [bt, bd] = [0, Infinity];
+      for (let i = 0; i <= 64; i++) {
+        const d = dist(pointAt(c, i / 64));
+        if (d < bd) [bd, bt] = [d, i / 64];
+      }
+      let step = 1 / 64;
+      for (let r = 0; r < 20; r++) {
+        step /= 2;
+        for (const t of [bt - step, bt + step]) {
+          if (t < 0 || t > 1) continue;
+          const d = dist(pointAt(c, t));
+          if (d < bd) [bd, bt] = [d, t];
+        }
+      }
+      if (bd <= tol && (!best || bd < best.dist)) best = { sub: si, seg: k, t: bt, dist: bd };
+    }),
+  );
+  return best;
+}
+
+/** Splits a segment at t with a new knot (the curve keeps its shape); returns the knot's index. */
+export function insertKnot(path: Path, sub: number, seg: number, t: number): number {
+  const s = path.subs[sub];
+  const n = s.knots.length;
+  const c = segments(s)[seg];
+  const [a, b, d] = [lerp(c[0], c[1], t), lerp(c[1], c[2], t), lerp(c[2], c[3], t)];
+  const [e, f] = [lerp(a, b, t), lerp(b, d, t)];
+  const straight = eq(c[0], c[1]) && eq(c[2], c[3]);
+  s.knots[seg].o = a;
+  s.knots[(seg + 1) % n].i = d;
+  s.knots.splice(seg + 1, 0, { p: lerp(e, f, t), i: e, o: f, smooth: !straight });
+  return seg + 1;
+}
+
+const eq = (a: Pt, b: Pt) => a[0] === b[0] && a[1] === b[1];
+
+/** A deep copy (paths are edited in place by the Pen and Direct Selection tools). */
+export const clonePath = (p: Path): Path => JSON.parse(JSON.stringify(p));

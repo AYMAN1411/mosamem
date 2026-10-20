@@ -13,6 +13,7 @@
   import { textTool } from './text.svelte';
   import TextEditor from './TextEditor.svelte';
   import { shapeTool, SHAPE_TOOLS } from './shapes.svelte';
+  import { pen } from './pen.svelte';
   import { nudge } from '../actions';
 
   let stage = $state<HTMLDivElement>();
@@ -33,6 +34,14 @@
   crop.setRedraw(() => overlayTick++);
   textTool.setRedraw(() => overlayTick++);
   shapeTool.setRedraw(() => overlayTick++);
+  pen.setRedraw(() => overlayTick++);
+
+  // leaving the Pen (or the document) finishes the path being drawn
+  $effect(() => {
+    const tool = app.tool;
+    const id = app.activeId;
+    if (pen.drawing && (tool !== 'pen' || pen.drawing.doc !== id)) void pen.finish();
+  });
 
   // leaving the Text tool (or the document) commits what was typed
   $effect(() => {
@@ -109,6 +118,7 @@
     transform.draw(ctx);
     textTool.draw(ctx);
     shapeTool.draw(ctx);
+    pen.draw(ctx);
     if (app.tool === 'crop') {
       void crop.rect;
       crop.draw(ctx);
@@ -205,6 +215,14 @@
       shapeTool.down(e, p);
       return;
     }
+    if (effectiveTool === 'pen') {
+      pen.penDown(e, p);
+      return;
+    }
+    if (effectiveTool === 'directSelect') {
+      pen.selectDown(e, p);
+      return;
+    }
     if (SELECTION_TOOLS.includes(effectiveTool)) {
       void selTool.down(e, p);
       return;
@@ -238,6 +256,14 @@
     }
     if (!drag && SHAPE_TOOLS.includes(effectiveTool)) {
       shapeTool.move(e, p);
+      return;
+    }
+    if (!drag && effectiveTool === 'pen') {
+      pen.penMove(e, p);
+      return;
+    }
+    if (!drag && effectiveTool === 'directSelect') {
+      pen.selectMove(e, p);
       return;
     }
     if (SELECTION_TOOLS.includes(effectiveTool) && !drag) {
@@ -286,6 +312,14 @@
     }
     if (!drag && SHAPE_TOOLS.includes(effectiveTool)) {
       void shapeTool.up(e, local(e));
+      return;
+    }
+    if (!drag && effectiveTool === 'pen') {
+      void pen.penUp();
+      return;
+    }
+    if (!drag && effectiveTool === 'directSelect') {
+      void pen.selectUp();
       return;
     }
     if (SELECTION_TOOLS.includes(effectiveTool) && !drag) {
@@ -358,6 +392,11 @@
         return;
       }
     }
+    if (down && !editable(e.target) && pen.key(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (down && !editable(e.target) && selTool.key(e)) {
       e.preventDefault();
       e.stopPropagation();
@@ -392,7 +431,10 @@
       case 'shapePolygon':
       case 'shapeStar':
       case 'shapeLine':
+      case 'pen':
         return 'crosshair';
+      case 'directSelect':
+        return 'default';
       case 'quickSelect':
         return 'none';
       case 'gradient':
@@ -426,6 +468,7 @@
       drag = null;
       selTool.cancel();
       shapeTool.cancel();
+      pen.cancel();
     }}
     onpointerleave={() => {
       selTool.hover = null;
