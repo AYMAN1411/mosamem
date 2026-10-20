@@ -85,8 +85,8 @@ report to you.
 
 | # | Milestone | Done means |
 |---|---|---|
-| **0** | Research and spikes | `docs/research.md` lists a public source for every feature. Toolchain installed (Rust, wasm target, Tauri CLI). Spike numbers recorded for: 6000×4000×30-layer compositing fps, webview memory ceiling, tile transfer throughput on Mac and on Windows, pen pressure (WKWebView reports Wacom pens as a mouse, so we test a native NSEvent pressure bridge), cross-origin isolation for wasm threads, ag-psd on a large PSD. Architecture go/no-go decided and written down. |
-| **1** | App shell and canvas | Tauri app opens on Mac and on the Windows VM. Dark theme, ar/en switch with full RTL/LTR mirroring, tools bar, options bar, dockable/collapsible/rearrangeable panels, rulers, guides, grid. Tile store and WebGL2 compositor with pan/zoom/rotate view. New document presets (Instagram post/story, YouTube thumbnail, A4 at 300 dpi, custom). Open/save PNG, JPEG, WebP, TIFF, and HEIC on Mac. **Perf gate:** pan/zoom ≥ 60 fps (p95 frame < 16.7 ms) on 6000×4000×30 layers on the M4 Pro. |
+| **0** | Research and spikes | `docs/research.md` lists a public source for every feature. Toolchain installed (Rust, wasm target, Tauri CLI). Spike numbers recorded for: 6000×4000×30-layer compositing fps, webview memory ceiling, tile transfer throughput on Mac (Windows measured later in the VM), pen pressure (WKWebView reports Wacom pens as a mouse, so we test a native NSEvent pressure bridge), cross-origin isolation for wasm threads, ag-psd on a large PSD. Architecture go/no-go decided and written down. |
+| **1** | App shell and canvas | Tauri app opens on Mac (core code stays cross-platform; Windows builds come later, see M11). Dark theme, ar/en switch with full RTL/LTR mirroring, tools bar, options bar, dockable/collapsible/rearrangeable panels, rulers, guides, grid. Tile store and WebGL2 compositor with pan/zoom/rotate view. New document presets (Instagram post/story, YouTube thumbnail, A4 at 300 dpi, custom). Open/save PNG, JPEG, WebP, TIFF, and HEIC on Mac. **Perf gate:** pan/zoom ≥ 60 fps (p95 frame < 16.7 ms) on 6000×4000×30 layers on the M4 Pro. |
 | **2** | Layers, blend modes, history, autosave | Unlimited layers, groups (incl. Pass Through), opacity, fill, lock, hide, drag reorder, merge, duplicate. All requested blend modes plus the rest of the PSD set (Linear Burn/Dodge, Vivid/Linear/Pin Light, Hard Mix, Darker/Lighter Color, Subtract, Divide). Tests compare every mode to the published formula on CPU and on GPU. History panel with a memory-budgeted undo stack. `.lawha` save and open. Autosave plus crash recovery, tested by `kill -9` mid-edit and checking that nothing is lost after the last autosave. |
 | **3** | Selections and masks | Rectangle, ellipse (fixed ratio/size), lasso, polygonal lasso, magic wand, quick selection (classic), select all/inverse/deselect, feather, expand, contract, refine edge (guided-filter edge refinement), marching ants. Layer masks (paint, feather, density, invert, disable) and clipping masks. Tests check selection masks against known shapes. |
 | **4** | Painting | Brush engine: size, hardness, opacity versus flow (stroke buffer model), spacing, smoothing, pen pressure (Mac and Windows). Eraser, clone stamp (aligned or not), healing brush and spot healing, gradient (linear, radial, angle, reflected, diamond), paint bucket, eyedropper (sample sizes). Brushes and Color panels. **Perf gate:** paint latency p95 < 16 ms with a 500 px brush on the 6000×4000×30 test document. |
@@ -117,6 +117,16 @@ report to you.
 - **Windows**: built by CI and smoke-tested on the Windows 11 ARM VM. VM GPU performance is not
   representative, so Windows performance numbers need a real Windows PC.
 
-## 5. Things I need from you
+## 5. Decisions (2026-10-20)
 
-See the questions in chat. Defaults apply if you don't mind either way.
+- Plan approved.
+- **Mac first.** Build and test on Mac until the core milestones are solid. The code stays
+  cross-platform from day one: nothing Mac-only in the core, and platform code sits behind interfaces.
+  The Windows build is produced and tested only after the main features work well on Mac, in the
+  Windows 11 ARM VM (UTM), with a report of what works.
+- **AI models** download on first use from our GitHub Releases, checksum-verified. After that
+  everything runs offline.
+- **Test PSDs:** public MIT-licensed fixtures, plus PSDs the user makes in their own Photoshop from a
+  checklist we provide.
+- **Not available:** a pen tablet, a real Windows PC and an Apple Developer ID. Checks that need them
+  are reported as "not verified", and the Mac build ships unsigned.
