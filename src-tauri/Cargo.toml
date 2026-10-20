@@ -35,9 +35,9 @@ tiny_http = "0.12"
 rusqlite = { version = "0.40", features = ["bundled"] }
 blake3 = "1.8"
 lz4_flex = "0.14"
-# Local AI: ONNX Runtime (prebuilt, fetched at build time) with its WebGPU provider; models are
+# Local AI: ONNX Runtime (prebuilt, fetched at build time) with a GPU provider (below); models are
 # downloaded on first use (ureq) and checked by SHA-256.
-ort = { version = "=2.0.0-rc.15", features = ["webgpu"] }
+ort = "=2.0.0-rc.15"
 ureq = "3.4"
 sha2 = "0.11"
 
@@ -48,3 +48,15 @@ objc2-core-graphics = "0.3.2"
 objc2-image-io = "0.3.2"
 objc2-app-kit = { version = "0.3.2", features = ["NSEvent", "block2"] }
 block2 = "0.6"
+
+# Windows builds are cross-compiled from the Mac (cargo-xwin); BLAKE3's hand-written NEON C doesn't
+# compile with that toolchain's headers, so Windows uses its pure-Rust code.
+[target.'cfg(windows)'.dependencies]
+blake3 = { version = "1.8.2", features = ["pure"] }
+# the GPU path: DirectML on Windows (ONNX Runtime's prebuilt has no WebGPU for arm64 there),
+# WebGPU on the Mac
+ort = { version = "=2.0.0-rc.15", features = ["directml"] }
+
+[target.'cfg(target_os = "macos")'.dependencies.ort]
+version = "=2.0.0-rc.15"
+features = ["webgpu"]

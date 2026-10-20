@@ -11,3 +11,7 @@ target-release/
 src-tauri/target-release/
 tests/psd-fixtures/
 /tests/psd-mine/
+
+/release/
+/src-tauri/windows/DirectML.dll
+/src-tauri/frameworks/

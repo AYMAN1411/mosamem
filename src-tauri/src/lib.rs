@@ -44,6 +44,8 @@ pub fn run() {
             commands::recovery_open,
             commands::recovery_discard,
             commands::export_image,
+            commands::export_estimate,
+            commands::export_natural,
             commands::close_document,
             commands::document_info,
             commands::layer_new,

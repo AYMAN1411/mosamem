@@ -164,12 +164,19 @@ export interface AiClick {
   add: boolean;
 }
 
+/** What File › Export writes. */
+export type ExportSource = { kind: 'document' } | { kind: 'layer'; id: number } | { kind: 'selection' };
+
 export const engine = {
   newDocument: (spec: { name: string; width: number; height: number; ppi: number; background: Background; backgroundLayerName: string }) =>
     invoke<DocInfo>('new_document', { spec }),
   openFile: (path: string, layerName: string) => invoke<DocInfo>('open_file', { path, layerName }),
   saveDocument: (doc: number, path: string) => invoke<DocInfo>('save_document', { doc, path }),
-  exportImage: (spec: { doc: number; path: string; format?: ExportFormat; quality: number; lossless: boolean }) => invoke<void>('export_image', { spec }),
+  exportImage: (spec: { doc: number; path: string; format?: ExportFormat; quality: number; lossless: boolean; source?: ExportSource; size?: [number, number] | null }) =>
+    invoke<void>('export_image', { spec }),
+  exportNatural: (doc: number, source: ExportSource) => invoke<[number, number]>('export_natural', { doc, source }),
+  exportEstimate: (spec: { doc: number; format: ExportFormat; quality: number; lossless: boolean; source: ExportSource; size: [number, number] | null }) =>
+    invoke<{ natural: [number, number]; size: [number, number]; bytes: number }>('export_estimate', { spec }),
   closeDocument: (doc: number) => invoke<void>('close_document', { doc }),
   documentInfo: (doc: number) => invoke<DocInfo>('document_info', { doc }),
 

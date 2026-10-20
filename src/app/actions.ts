@@ -1,6 +1,6 @@
 // User-level actions, shared by menus, buttons and shortcuts.
 import { open, save } from '@tauri-apps/plugin-dialog';
-import { engine, findLayer, type DocInfo, type ExportFormat, type LayerProps, type Modify, type NewMask } from '../engine/bridge';
+import { engine, findLayer, type DocInfo, type ExportFormat, type ExportSource, type LayerProps, type Modify, type NewMask } from '../engine/bridge';
 import { app, type DocState } from './state.svelte';
 import { t, type Key } from './i18n/index.svelte';
 import { defaultAdjustment, type Adjustment, type AdjustmentKind } from '../engine/adjust';
@@ -77,15 +77,15 @@ export async function saveDocument(d: DocState | null = app.active, saveAs = fal
   }
 }
 
-export async function exportAs(format: ExportFormat, quality: number, lossless: boolean) {
+export async function exportAs(format: ExportFormat, quality: number, lossless: boolean, source: ExportSource = { kind: 'document' }, size: [number, number] | null = null, suffix = '') {
   const d = app.active;
   if (!d) return;
   const ext = format === 'jpeg' ? 'jpg' : format;
-  const base = d.info.name.replace(/\.[^.]+$/, '') || 'image';
+  const base = (d.info.name.replace(/\.[^.]+$/, '') || 'image') + suffix;
   const path = await save({ defaultPath: `${base}.${ext}`, filters: [{ name: format.toUpperCase(), extensions: [ext] }] });
   if (!path) return false;
   try {
-    await engine.exportImage({ doc: d.info.id, path, format, quality, lossless });
+    await engine.exportImage({ doc: d.info.id, path, format, quality, lossless, source, size });
     app.notify(t('export.done', { name: path.split(/[\\/]/).pop()! }));
     return true;
   } catch (e) {

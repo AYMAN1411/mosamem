@@ -125,7 +125,7 @@ class AppState {
   });
   sel = $state<SelectionOptions>({ mode: 'replace', feather: 0, antialias: true, style: 'normal', ratioW: 1, ratioH: 1, sizeW: 1080, sizeH: 1080, tolerance: 32, contiguous: true, allLayers: false, brush: 30 });
   gridSubdivisions = $state(4);
-  dialog = $state<null | 'new' | 'export' | 'recovery' | 'unsaved' | 'modify' | 'refine' | 'filter' | 'imageSize' | 'canvasSize' | 'layerStyle' | 'aiModel' | 'aiModels' | 'smartFill'>(null);
+  dialog = $state<null | 'new' | 'export' | 'recovery' | 'unsaved' | 'modify' | 'refine' | 'filter' | 'imageSize' | 'canvasSize' | 'layerStyle' | 'aiModel' | 'aiModels' | 'smartFill' | 'shortcuts'>(null);
   /** The effect the Layer Style panel opens on. */
   styleEffect = $state<import('../engine/style').EffectKind | null>(null);
   /** The filter the filter panel is showing. */

@@ -41,6 +41,17 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "category": "public.app-category.graphics-design",
+    "shortDescription": "An Arabic-first image editor — محرر صور عربي أولًا",
+    "longDescription": "Mosamem (مصمم) is a free, open-source, Arabic-first image editor: layers, masks, adjustment layers, filters, Arabic text, layer styles, PSD, and local AI that runs on your computer.",
+    "copyright": "© 2026 Mosamem contributors. GPL-3.0-or-later.",
+    "license": "GPL-3.0-or-later",
+    "macOS": {
+      "frameworks": [
+        "frameworks/libwebgpu_dawn.dylib"
+      ],
+      "minimumSystemVersion": "13.4"
+    }
   }
 }

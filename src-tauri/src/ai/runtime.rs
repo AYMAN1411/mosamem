@@ -1,4 +1,4 @@
-//! Running the models: ONNX Runtime with its WebGPU provider (Metal on the Mac, Direct3D 12 on
+//! Running the models: ONNX Runtime with a GPU provider (WebGPU on Metal on the Mac, DirectML on
 //! Windows), falling back to the CPU when the GPU path can't load or run a model. Sessions stay
 //! loaded after first use. ONNX Runtime's automatic device choice is turned off: on the Mac it
 //! would pick Core ML, which failed or was slower for these models (docs/status.md, M10).
@@ -36,7 +36,19 @@ fn load(path: &Path, gpu: bool) -> AiResult<Session> {
         .with_inter_op_spinning(false)
         .map_err(|e| e.to_string())?;
     if gpu {
-        b = b.with_execution_providers([ep::WebGPU::default().build().error_on_failure()]).map_err(|e| e.to_string())?;
+        #[cfg(target_os = "macos")]
+        let provider = ep::WebGPU::default().build();
+        // DirectML needs one stream and no memory-pattern planning
+        #[cfg(windows)]
+        let provider = ep::DirectML::default().build();
+        #[cfg(windows)]
+        {
+            b = b.with_memory_pattern(false).map_err(|e| e.to_string())?.with_parallel_execution(false).map_err(|e| e.to_string())?;
+        }
+        #[cfg(any(target_os = "macos", windows))]
+        {
+            b = b.with_execution_providers([provider.error_on_failure()]).map_err(|e| e.to_string())?;
+        }
     }
     b.commit_from_file(path).map_err(|e| e.to_string())
 }

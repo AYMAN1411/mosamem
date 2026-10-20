@@ -1,0 +1,53 @@
+# Builds the installers when a version tag (v*) is pushed, and attaches them to a draft release:
+# Mosamem.dmg (Apple silicon), Mosamem-Setup-x64.exe and Mosamem-Setup-arm64.exe.
+# Not run yet: the repository isn't on GitHub. The same builds were made by hand (docs/status.md, M11).
+name: release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: cargo test --workspace
+      - run: npx vitest run
+      - run: npx svelte-check --threshold error
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, target: aarch64-apple-darwin, out: Mosamem.dmg }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, out: Mosamem-Setup-x64.exe }
+          - { os: windows-11-arm, target: aarch64-pc-windows-msvc, out: Mosamem-Setup-arm64.exe }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: '${{ matrix.target }}' }
+      - run: npm ci
+      - run: npx tauri build --target ${{ matrix.target }}
+      - name: Name the installer
+        shell: bash
+        run: |
+          dir=target/${{ matrix.target }}/release/bundle
+          f=$(ls $dir/dmg/*.dmg $dir/nsis/*-setup.exe 2>/dev/null | head -1)
+          cp "$f" "${{ matrix.out }}"
+          shasum -a 256 "${{ matrix.out }}" > "${{ matrix.out }}.sha256"
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            ${{ matrix.out }}
+            ${{ matrix.out }}.sha256

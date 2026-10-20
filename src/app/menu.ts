@@ -207,7 +207,14 @@ export async function buildMenu() {
       ),
     ),
   });
-  const items = [file, edit, imageMenu, layerMenu, selectMenu, filterMenu, viewMenu, windowMenu];
+  const helpMenu = await Submenu.new({
+    text: t('menu.help'),
+    items: [
+      await item(t('help.shortcuts'), () => (app.dialog = 'shortcuts'), 'CmdOrCtrl+/'),
+      await item(t('ai.modelsMenu'), aiActions.openModels),
+    ],
+  });
+  const items = [file, edit, imageMenu, layerMenu, selectMenu, filterMenu, viewMenu, windowMenu, helpMenu];
   const menu = await Menu.new({ items: isMac ? [appMenu, ...items] : items });
   await menu.setAsAppMenu();
 }

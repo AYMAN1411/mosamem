@@ -9,6 +9,7 @@ use tauri::State;
 use crate::codecs::{self, EncodeOptions, Format};
 use crate::persist;
 use crate::recovery::{RecoveredFile, Recovery};
+use crate::doc::export::{self, ExportSource};
 use crate::doc::ops::{self, LayerProps};
 use crate::doc::{composite, filled_tiles, tiles_from_rgba, Content, DocHandle, DocInfo, Document, Engine, Label, Node, TileMap};
 
@@ -158,6 +159,12 @@ pub struct ExportSpec {
     pub format: Option<Format>,
     pub quality: u8,
     pub lossless: bool,
+    /// The whole picture (default), one layer, or the selection.
+    #[serde(default)]
+    pub source: ExportSource,
+    /// Resize to this (width, height).
+    #[serde(default)]
+    pub size: Option<(u32, u32)>,
 }
 
 #[tauri::command]
@@ -165,10 +172,53 @@ pub async fn export_image(engine: State<'_, Engine>, spec: ExportSpec) -> Res<()
     let h = handle(&engine, spec.doc)?;
     let format = spec.format.or_else(|| Format::from_path(&spec.path)).ok_or("unknown file type")?;
     tauri::async_runtime::spawn_blocking(move || {
-        let ppi = h.doc.read().content.ppi;
-        let (w, hgt, rgba) = composite::flatten(&h);
-        let bytes = codecs::encode(format, w, hgt, &rgba, &EncodeOptions { quality: spec.quality, lossless: spec.lossless, ppi }).map_err(|e| e.to_string())?;
+        let p = export::pixels(&h, spec.source, spec.size)?;
+        let bytes = codecs::encode(format, p.w, p.h, &p.rgba, &EncodeOptions { quality: spec.quality, lossless: spec.lossless, ppi: p.ppi }).map_err(|e| e.to_string())?;
         crate::fsx::write_atomic(&spec.path, &bytes).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EstimateSpec {
+    pub doc: u64,
+    pub format: Format,
+    pub quality: u8,
+    pub lossless: bool,
+    #[serde(default)]
+    pub source: ExportSource,
+    #[serde(default)]
+    pub size: Option<(u32, u32)>,
+}
+
+#[derive(serde::Serialize)]
+pub struct Estimate {
+    /// The source's own size, before any resize.
+    pub natural: (u32, u32),
+    pub size: (u32, u32),
+    pub bytes: u64,
+}
+
+/// The size of what Export would write before any resize.
+#[tauri::command]
+pub async fn export_natural(engine: State<'_, Engine>, doc: u64, source: ExportSource) -> Res<(u32, u32)> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || export::source(&h, source).map(|p| (p.w, p.h))).await.map_err(|e| e.to_string())?
+}
+
+/// The file Export would write, encoded in memory: its size in bytes (for the dialog's preview).
+#[tauri::command]
+pub async fn export_estimate(engine: State<'_, Engine>, spec: EstimateSpec) -> Res<Estimate> {
+    let h = handle(&engine, spec.doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let natural = export::source(&h, spec.source)?;
+        let natural_size = (natural.w, natural.h);
+        drop(natural);
+        let p = export::pixels(&h, spec.source, spec.size)?;
+        let bytes = codecs::encode(spec.format, p.w, p.h, &p.rgba, &EncodeOptions { quality: spec.quality, lossless: spec.lossless, ppi: p.ppi }).map_err(|e| e.to_string())?;
+        Ok(Estimate { natural: natural_size, size: (p.w, p.h), bytes: bytes.len() as u64 })
     })
     .await
     .map_err(|e| e.to_string())?

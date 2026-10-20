@@ -21,6 +21,7 @@
   import AiModelDialog from './dialogs/AiModelDialog.svelte';
   import AiModelsDialog from './dialogs/AiModelsDialog.svelte';
   import SmartFillDialog from './dialogs/SmartFillDialog.svelte';
+  import ShortcutsDialog from './dialogs/ShortcutsDialog.svelte';
   import { ai, prepareObjectSelect } from './ai.svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { engine, type RecoveredFile } from '../engine/bridge';
@@ -112,6 +113,7 @@
 {#if app.dialog === 'aiModel' && ai.asking}<AiModelDialog />{/if}
 {#if app.dialog === 'aiModels'}<AiModelsDialog />{/if}
 {#if app.dialog === 'smartFill' && app.active}<SmartFillDialog />{/if}
+{#if app.dialog === 'shortcuts'}<ShortcutsDialog />{/if}
 {#if ai.working}
   <div class="working" role="status"><span class="spin"></span>{ai.working}</div>
 {/if}

@@ -2,6 +2,7 @@
 
 pub mod adjustments;
 pub mod composite;
+pub mod export;
 pub mod filters;
 pub mod history;
 pub mod live;
