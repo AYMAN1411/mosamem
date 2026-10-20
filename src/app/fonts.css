@@ -1,0 +1,6 @@
+/* Bundled fonts (SIL OFL 1.1; each family folder under assets/fonts has its OFL.txt). */
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 300; src: url('../../assets/fonts/ibm-plex-sans-arabic/IBMPlexSansArabic-Light.ttf') format('truetype'); }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 400; src: url('../../assets/fonts/ibm-plex-sans-arabic/IBMPlexSansArabic-Regular.ttf') format('truetype'); }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 500; src: url('../../assets/fonts/ibm-plex-sans-arabic/IBMPlexSansArabic-Medium.ttf') format('truetype'); }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 600; src: url('../../assets/fonts/ibm-plex-sans-arabic/IBMPlexSansArabic-SemiBold.ttf') format('truetype'); }
+@font-face { font-family: 'IBM Plex Sans Arabic'; font-weight: 700; src: url('../../assets/fonts/ibm-plex-sans-arabic/IBMPlexSansArabic-Bold.ttf') format('truetype'); }

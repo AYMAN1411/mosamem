@@ -1,0 +1,191 @@
+// App-wide UI state. Pixels and the document model live in the native engine; this holds what the
+// UI shows and how the user is viewing it.
+import type { DocInfo } from '../engine/bridge';
+
+export type ToolId =
+  | 'move'
+  | 'marqueeRect'
+  | 'marqueeEllipse'
+  | 'lasso'
+  | 'lassoPolygon'
+  | 'magicWand'
+  | 'quickSelect'
+  | 'crop'
+  | 'eyedropper'
+  | 'heal'
+  | 'brush'
+  | 'clone'
+  | 'eraser'
+  | 'gradient'
+  | 'bucket'
+  | 'text'
+  | 'hand'
+  | 'zoom'
+  | 'rotateView';
+
+export interface Guide {
+  id: number;
+  axis: 'h' | 'v'; // h = horizontal line at y = pos; v = vertical line at x = pos
+  pos: number; // document px
+}
+
+export interface ViewState {
+  /** CSS px per document px. */
+  zoom: number;
+  cx: number;
+  cy: number;
+  /** Degrees, clockwise. */
+  rotation: number;
+}
+
+export interface DocState {
+  info: DocInfo;
+  view: ViewState;
+  guides: Guide[];
+  /** True until the user pans or zooms; while true, resizing the window refits the document. */
+  fitted: boolean;
+}
+
+export const ZOOM_STEPS = [0.01, 0.02, 0.03, 0.05, 0.0667, 0.0833, 0.125, 0.1667, 0.25, 0.3333, 0.5, 0.6667, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 32, 64];
+export const MIN_ZOOM = 0.01;
+export const MAX_ZOOM = 64;
+
+let guideId = 1;
+export const nextGuideId = () => guideId++;
+
+class AppState {
+  docs = $state<DocState[]>([]);
+  activeId = $state<number | null>(null);
+  tool = $state<ToolId>('move');
+  fg = $state('#000000');
+  bg = $state('#ffffff');
+  showRulers = $state(true);
+  showGrid = $state(false);
+  showGuides = $state(true);
+  showPixelGrid = $state(true);
+  gridSpacing = $state(100);
+  gridSubdivisions = $state(4);
+  dialog = $state<null | 'new' | 'export'>(null);
+  toast = $state<{ text: string; kind: 'info' | 'error' } | null>(null);
+  /** Size of the canvas area in CSS px, kept current by the canvas view. */
+  viewport = $state({ w: 800, h: 600 });
+  untitledCount = 0;
+
+  get active(): DocState | null {
+    return this.docs.find((d) => d.info.id === this.activeId) ?? null;
+  }
+
+  addDocument(info: DocInfo) {
+    const d: DocState = { info, view: { zoom: 1, cx: info.width / 2, cy: info.height / 2, rotation: 0 }, guides: [], fitted: true };
+    this.docs.push(d);
+    this.activeId = info.id;
+    this.fit();
+  }
+
+  removeDocument(id: number) {
+    const i = this.docs.findIndex((d) => d.info.id === id);
+    if (i < 0) return;
+    this.docs.splice(i, 1);
+    if (this.activeId === id) this.activeId = this.docs[Math.min(i, this.docs.length - 1)]?.info.id ?? null;
+  }
+
+  fitZoom(d: DocState): number {
+    const pad = 48;
+    const z = Math.min((this.viewport.w - pad) / d.info.width, (this.viewport.h - pad) / d.info.height);
+    return Math.max(MIN_ZOOM, Math.min(z, 64));
+  }
+
+  fit() {
+    const d = this.active;
+    if (!d) return;
+    d.view = { zoom: this.fitZoom(d), cx: d.info.width / 2, cy: d.info.height / 2, rotation: d.view.rotation };
+    d.fitted = true;
+  }
+
+  actualPixels() {
+    const d = this.active;
+    if (!d) return;
+    d.view = { ...d.view, zoom: 1 };
+    d.fitted = false;
+  }
+
+  /** Zoom keeping the document point under the given viewport point (CSS px) fixed. */
+  zoomTo(zoom: number, at?: { x: number; y: number }) {
+    const d = this.active;
+    if (!d) return;
+    const z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+    const v = d.view;
+    if (at) {
+      const p = viewportToDoc(v, this.viewport, at.x, at.y);
+      // after zoom, p must stay at `at`: solve for the new center
+      const r = (v.rotation * Math.PI) / 180;
+      const dx = (at.x - this.viewport.w / 2) / z;
+      const dy = (at.y - this.viewport.h / 2) / z;
+      const cos = Math.cos(-r);
+      const sin = Math.sin(-r);
+      d.view = { ...v, zoom: z, cx: p.x - (cos * dx - sin * dy), cy: p.y - (sin * dx + cos * dy) };
+    } else {
+      d.view = { ...v, zoom: z };
+    }
+    d.fitted = false;
+  }
+
+  zoomStep(dir: 1 | -1, at?: { x: number; y: number }) {
+    const d = this.active;
+    if (!d) return;
+    const z = d.view.zoom;
+    const next = dir > 0 ? ZOOM_STEPS.find((s) => s > z * 1.001) ?? MAX_ZOOM : [...ZOOM_STEPS].reverse().find((s) => s < z / 1.001) ?? MIN_ZOOM;
+    this.zoomTo(next, at);
+  }
+
+  panBy(dxCss: number, dyCss: number) {
+    const d = this.active;
+    if (!d) return;
+    const r = (d.view.rotation * Math.PI) / 180;
+    const cos = Math.cos(-r);
+    const sin = Math.sin(-r);
+    const dx = dxCss / d.view.zoom;
+    const dy = dyCss / d.view.zoom;
+    d.view = { ...d.view, cx: d.view.cx - (cos * dx - sin * dy), cy: d.view.cy - (sin * dx + cos * dy) };
+    d.fitted = false;
+  }
+
+  rotateTo(deg: number) {
+    const d = this.active;
+    if (!d) return;
+    let r = deg % 360;
+    if (r > 180) r -= 360;
+    if (r <= -180) r += 360;
+    d.view = { ...d.view, rotation: r };
+  }
+
+  notify(text: string, kind: 'info' | 'error' = 'info') {
+    this.toast = { text, kind };
+    const current = this.toast;
+    setTimeout(() => {
+      if (this.toast === current) this.toast = null;
+    }, kind === 'error' ? 6000 : 3000);
+  }
+}
+
+/** Viewport CSS px → document px for a view. */
+export function viewportToDoc(v: ViewState, vp: { w: number; h: number }, x: number, y: number) {
+  const r = (v.rotation * Math.PI) / 180;
+  const dx = (x - vp.w / 2) / v.zoom;
+  const dy = (y - vp.h / 2) / v.zoom;
+  const cos = Math.cos(-r);
+  const sin = Math.sin(-r);
+  return { x: v.cx + cos * dx - sin * dy, y: v.cy + sin * dx + cos * dy };
+}
+
+/** Document px → viewport CSS px. */
+export function docToViewport(v: ViewState, vp: { w: number; h: number }, x: number, y: number) {
+  const r = (v.rotation * Math.PI) / 180;
+  const dx = (x - v.cx) * v.zoom;
+  const dy = (y - v.cy) * v.zoom;
+  const cos = Math.cos(r);
+  const sin = Math.sin(r);
+  return { x: vp.w / 2 + cos * dx - sin * dy, y: vp.h / 2 + sin * dx + cos * dy };
+}
+
+export const app = new AppState();

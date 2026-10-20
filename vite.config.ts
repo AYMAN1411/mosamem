@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 // Cross-origin isolation (COOP/COEP) enables SharedArrayBuffer and wasm threads.
@@ -13,4 +13,5 @@ export default defineConfig({
   server: { port: 1420, strictPort: true, headers: isolation, watch: { ignored: ['**/src-tauri/**', '**/target/**'] } },
   preview: { headers: isolation },
   build: { target: 'safari16', sourcemap: true },
+  test: { environment: 'happy-dom', include: ['src/**/*.test.ts'] },
 });

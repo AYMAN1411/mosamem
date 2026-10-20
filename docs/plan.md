@@ -23,39 +23,44 @@ Status: draft for review. No code is written until this plan is approved.
 ```
 ┌──────────────────────────── Tauri 2 window (WKWebView / WebView2) ────────────────────────────┐
 │ UI (Svelte 5 + TypeScript)                                                                     │
-│   panels · docking · tools · options bar · i18n (ar/en, RTL/LTR) · shortcuts · history UI     │
-│ ─────────────────────────────────────────────────────────────────────────────────────────────  │
-│ Engine (TypeScript orchestration + lawha-core compiled to WASM, in Web Workers)                │
-│   Document model (layers, groups, masks, adjustments, styles, text)                            │
-│   Tile store: 256×256 tiles, sparse, copy-on-write, hot / LZ4-compressed / spilled tiers       │
-│   Painting, selections, filters, transforms, text layout (CPU, SIMD, threads)                 │
-│   Undo: per-tile before-images with a memory budget and disk spill                             │
-│ ─────────────────────────────────────────────────────────────────────────────────────────────  │
-│ Renderer (WebGL2, half-float targets)                                                           │
-│   GPU tile atlas for visible tiles · mip levels for zoomed-out views                           │
-│   blend modes, adjustments, masks, clipping and layer styles as shaders                        │
-│   cached "below active" and "above active" composites so painting redraws only the hot layer   │
-└──────────────────────────────────────────── raw-bytes IPC ───────────────────────────────────┘
-┌────────────────────────────────── Rust native (Tauri backend) ────────────────────────────────┐
-│ Codecs: PNG, JPEG, WebP, TIFF; HEIC through macOS ImageIO; ICC → sRGB via lcms2                │
-│ .lawha native format and autosave journal (SQLite: atomic, incremental, crash safe)           │
-│ Tile spill store (disk) · crash detection · file associations                                  │
-│ Local AI: ONNX Runtime (CoreML on Mac, DirectML on Windows): matting, segmentation, inpaint    │
-│ Heavy full-resolution jobs that benefit from native threads                                   │
+│   panels · our own docking · tools · options bar · i18n (ar/en, RTL/LTR) · shortcuts          │
+│ Display compositor (WebGL2)                                                                    │
+│   GPU tile atlas + per-mip page tables · coarse-level fallback while tiles load               │
+│   live layers for interaction: below-cache · active layer · above-cache, with blend shaders   │
+└──────────── tiles over the lawha:// scheme (~1 GB/s) · commands over raw-bytes IPC ───────────┘
+┌──────────────────────────────── Rust engine (Tauri backend) ──────────────────────────────────┐
+│ Documents: layers, groups, masks, adjustments, styles, text · sparse 256² tiles, Arc + CoW     │
+│ Compositing on the CPU (rayon), cached per tile and per mip level                              │
+│ Painting, selections, filters, transforms, text layout · history (tile before-images)         │
+│ Codecs: PNG, JPEG, WebP, TIFF; HEIC through macOS ImageIO; ICC → sRGB (moxcms)                 │
+│ .lawha format + autosave journal (SQLite) · crash detection                                    │
+│ Local AI: ONNX Runtime (CoreML on Mac, DirectML on Windows)                                    │
 └───────────────────────────────────────────────────────────────────────────────────────────────┘
-lawha-core (Rust crate) = one implementation of the pixel math, built both to WASM (app) and native
-(tests, CLI). It is the reference the GPU shaders are tested against.
+lawha-core (Rust crate) = the pixel math in one place: used by the engine and by the tests, and the
+reference the GPU shaders are checked against.
 ```
+
+**Changed after milestone 0 (measured, see docs/spikes.md):** the plan first kept pixels in the
+webview. The spikes showed three things:
+- Moving data between the webview and Rust is fast on Mac: about 4 GB/s through `invoke` and about
+  1 GB/s for tiles over the custom scheme.
+- WebKit throttles and can kill hidden pages.
+- The GPU atlas can't hold 30 full layers' visible tiles.
+
+So **the Rust engine owns all pixels and does the CPU work**, and the webview is the UI plus a display
+compositor. This removes WASM threads, the 4 GB wasm32 limit and the page-kill risk. Windows transfer
+speed gets measured in the VM. If it is too slow there, WebView2's shared-memory buffers are the planned
+fix.
 
 Key decisions, with reasons:
 
 | Decision | Why |
 |---|---|
-| Pixel data lives in the webview (tiles plus a GPU cache), not in the Rust process | A brush stroke must not cross IPC every frame. This is the design that lets browser editors such as Photopea run a full layered editor smoothly on WebGL. |
-| One Rust crate for pixel math, built to WASM and to native | A single source of truth. `cargo test` checks the formulas against the specs, then a GPU-vs-CPU test checks each shader against the crate (±1/255). |
+| Pixel data lives in the Rust engine; the webview displays tiles | Measured in M0: fast enough transfer, no webview memory limits, works when the window is hidden. Live interaction (opacity, moving, painting) is drawn by the GPU from the active layer plus cached composites, so it never waits on a full recomposite. |
+| One Rust crate for pixel math | A single source of truth. `cargo test` checks the formulas against the specs, then a GPU-vs-CPU test checks each shader against the crate (±1/255). |
 | WebGL2 first, WebGPU later behind the same renderer interface | WebGL2 is solid in both WKWebView and WebView2 today. WebGPU depends on the OS version, so it becomes an optional faster path after v1. |
 | 8-bit RGBA tiles, compositing in half-float | Same default as mainstream editors. It avoids banding when many adjustments stack. 16-bit documents come after v1. |
-| PSD via **ag-psd** (MIT, TypeScript) behind our own `PsdCodec` interface | The most complete open read/write library: layers, groups, masks, blend modes, adjustments, text and effects. It runs where the document lives. Replaceable behind our interface. |
+| PSD via **ag-psd** (MIT, TypeScript) behind our own `PsdCodec` interface | The most complete open read/write library: layers, groups, masks, blend modes, adjustments, text and effects. It runs in a worker and hands layer pixels to the engine, and it can be replaced behind our interface. |
 | Text: harfrust (the HarfBuzz project's official Rust port) + skrifa + unicode-bidi + ICU4X line breaking in lawha-core; glyph outlines rasterized by us. Parley is evaluated in M0 as a ready-made layout layer. | Identical shaping and layout on Mac and Windows, so the same file looks the same everywhere and the layout can be tested headless. It also supports kashida justification. (rustybuzz and ttf-parser were archived and flagged unmaintained by RustSec in 2026.) |
 | Native project format `.lawha` = SQLite | Transactional, incremental saves of dirty tiles only, survives crashes. The autosave journal is the same format. PSD stays the interchange format. |
 | Local AI through ONNX Runtime (`ort`) on the native side, with license-checked models: BiRefNet-lite (MIT, about 115 MB fp16) for background removal and subject selection, SAM 2.1 tiny (Apache-2.0, about 70 MB) for click-to-select, MI-GAN (MIT code and weights, 28 MB) for Smart Fill | Uses the hardware accelerators (CoreML / DirectML). No cloud and no account. Models with non-commercial terms (BRIA RMBG, EdgeSAM) or unclear weight licenses (ISNet, LaMa's training data) are excluded. |

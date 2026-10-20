@@ -5,14 +5,14 @@ Machine: MacBook Pro, Apple M4 Pro, 24 GB, macOS 27.0.1.
 Window: 1440×868 pt at 2× (canvas 2880×1736 px).
 App: Tauri 2.12.4 debug build with the WKWebView dev server.
 
-Raw results are in `spikes/out/*.json` (not committed). The code is in `src/spike/` and
+Raw results are in `spikes/out/*.json` (not committed). The spike code is in commit 4e826fe (`src/spike/`) and
 `spikes/agpsd.mjs`.
 
 ## Environment (WKWebView)
 
 | Check | Result |
 |---|---|
-| `crossOriginIsolated` / `SharedArrayBuffer` | **true / true** with COOP/COEP headers (dev server). Still to confirm on the production `tauri://` origin in M1. |
+| `crossOriginIsolated` / `SharedArrayBuffer` | Dev server: **true / true**. Release build on `tauri://` (checked in M1): `crossOriginIsolated` is **true** but `SharedArrayBuffer` is **undefined**. This doesn't affect the chosen architecture, which needs no wasm threads. |
 | WebGL2 renderer | Apple GPU, max texture 16384, **2048** array layers |
 | Float targets | `EXT_color_buffer_float`, `EXT_color_buffer_half_float`, `EXT_float_blend` and `OES_texture_float_linear` all present. `EXT_texture_norm16` is also there, useful for 16-bit later. |
 | WebGPU | `navigator.gpu` present |

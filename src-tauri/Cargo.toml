@@ -9,6 +9,10 @@ description = "Lawha — an Arabic-first image editor"
 name = "lawha_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+# Compiles the test harness into release builds (never in shipped installers).
+harness = []
+
 [build-dependencies]
 tauri-build = { version = "2.5", features = [] }
 
@@ -17,3 +21,20 @@ tauri = { version = "2.12", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 lawha-core = { path = "../crates/lawha-core" }
+tauri-plugin-dialog = "2.8"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "tiff", "webp", "rayon"] }
+webp = "0.3.1"
+jpeg-encoder = "0.7.1"
+png = "0.18.1"
+tiff = "0.11.3"
+moxcms = "0.9.1"
+rayon = "1.12"
+parking_lot = "0.12"
+thiserror = "2"
+tiny_http = "0.12"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.5"
+objc2-core-foundation = "0.3.2"
+objc2-core-graphics = "0.3.2"
+objc2-image-io = "0.3.2"

@@ -1,0 +1,57 @@
+/* Lawha dark theme. One accent (teal ink), neutral graphite surfaces, no pure black. */
+:root {
+  --bg-0: #16171b;      /* pasteboard behind the canvas */
+  --bg-1: #1d1f24;      /* app chrome */
+  --bg-2: #24262c;      /* panels */
+  --bg-3: #2c2f36;      /* inputs, hovers */
+  --bg-4: #363a42;      /* pressed, selected rows */
+  --line: #33363d;
+  --line-strong: #444851;
+  --fg-0: #eceef2;
+  --fg-1: #c4c8d0;
+  --fg-2: #8f949e;
+  --fg-3: #686d77;
+  --accent: #3fc4aa;
+  --accent-ink: #0f2a25;
+  --accent-soft: rgba(63, 196, 170, 0.16);
+  --danger: #ef6b6b;
+  --guide: #3fd2ff;
+  --focus: 0 0 0 2px rgba(63, 196, 170, 0.55);
+  --radius: 6px;
+  --radius-sm: 4px;
+  --font-ui: 'IBM Plex Sans Arabic', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-num: 'IBM Plex Sans Arabic', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --fs-0: 11px;
+  --fs-1: 12px;
+  --fs-2: 13px;
+  --fs-3: 15px;
+  --toolbar-w: 44px;
+  --optionsbar-h: 38px;
+  --tabs-h: 30px;
+  --statusbar-h: 24px;
+  --ruler: 20px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg-1); color: var(--fg-0); font-family: var(--font-ui); font-size: var(--fs-1); -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; }
+#app { height: 100%; }
+button { font: inherit; color: inherit; }
+input, select { font: inherit; color: var(--fg-0); }
+:focus-visible { outline: none; box-shadow: var(--focus); }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+
+/* shared controls */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: var(--radius-sm); border: 1px solid var(--line-strong); background: var(--bg-3); cursor: default; white-space: nowrap; }
+.btn:hover { background: var(--bg-4); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.icon-btn { display: inline-grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--fg-1); cursor: default; }
+.icon-btn:hover { background: var(--bg-3); color: var(--fg-0); }
+.icon-btn[aria-pressed='true'] { background: var(--bg-4); color: var(--accent); }
+.field { height: 26px; padding: 0 8px; border-radius: var(--radius-sm); border: 1px solid var(--line-strong); background: var(--bg-0); min-width: 0; }
+.field:focus { border-color: var(--accent); }
+select.field { padding-inline-end: 4px; }
+label.check { display: inline-flex; align-items: center; gap: 6px; }
+input[type='checkbox'] { accent-color: var(--accent); }
+.sep { width: 1px; align-self: stretch; margin: 6px 4px; background: var(--line); }

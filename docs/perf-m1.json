@@ -1,0 +1,91 @@
+{
+  "createMs": 765,
+  "firstFullDetailMs": 639,
+  "refresh": {
+    "n": 60,
+    "p50": 16.7,
+    "p95": 17.58,
+    "p99": 19.06,
+    "max": 19.06
+  },
+  "pan_fit": {
+    "frameIntervalMs": {
+      "n": 240,
+      "p50": 16.68,
+      "p95": 18.1,
+      "p99": 18.38,
+      "max": 18.48
+    },
+    "fps": 60,
+    "droppedFrames": 0,
+    "gpuDrawMs": {
+      "n": 119,
+      "p50": 0.16,
+      "p95": 0.28,
+      "p99": 0.34,
+      "max": 0.36
+    },
+    "framesWhileTilesLoading": 0,
+    "sharpAfterMs": 19
+  },
+  "pan_100pct": {
+    "frameIntervalMs": {
+      "n": 300,
+      "p50": 16.68,
+      "p95": 17.68,
+      "p99": 18.1,
+      "max": 19.14
+    },
+    "fps": 60,
+    "droppedFrames": 0,
+    "gpuDrawMs": {
+      "n": 168,
+      "p50": 0.14,
+      "p95": 0.74,
+      "p99": 0.9,
+      "max": 0.92
+    },
+    "framesWhileTilesLoading": 3,
+    "sharpAfterMs": 17
+  },
+  "zoom_sweep_fit_to_400pct": {
+    "frameIntervalMs": {
+      "n": 301,
+      "p50": 16.66,
+      "p95": 18,
+      "p99": 18.44,
+      "max": 21.14
+    },
+    "fps": 60,
+    "droppedFrames": 0,
+    "gpuDrawMs": {
+      "n": 154,
+      "p50": 0.12,
+      "p95": 0.4,
+      "p99": 0.76,
+      "max": 0.78
+    },
+    "framesWhileTilesLoading": 6,
+    "sharpAfterMs": 17
+  },
+  "rotate_360_at_fit": {
+    "frameIntervalMs": {
+      "n": 240,
+      "p50": 16.68,
+      "p95": 18,
+      "p99": 18.4,
+      "max": 18.82
+    },
+    "fps": 60,
+    "droppedFrames": 0,
+    "gpuDrawMs": {
+      "n": 119,
+      "p50": 0.14,
+      "p95": 0.28,
+      "p99": 0.3,
+      "max": 0.32
+    },
+    "framesWhileTilesLoading": 0,
+    "sharpAfterMs": 17
+  }
+}

@@ -10,6 +10,13 @@ license = "GPL-3.0-or-later"
 [profile.dev.package."*"]
 opt-level = 2
 
+# Pixel code is unusably slow without optimization, even while debugging the UI.
+[profile.dev.package.lawha-core]
+opt-level = 3
+
+[profile.dev.package.lawha]
+opt-level = 2
+
 [profile.release]
 lto = "thin"
 codegen-units = 1

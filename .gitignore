@@ -5,3 +5,7 @@ src-tauri/gen/
 *.log
 .DS_Store
 spikes/out/
+tools/winid
+shots/
+target-release/
+src-tauri/target-release/
