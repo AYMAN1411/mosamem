@@ -53,6 +53,10 @@ fn associative(n: &Node) -> bool {
     if !n.visible {
         return true;
     }
+    // effects blend with what is below (and draw beyond the layer's pixels)
+    if n.active_style().is_some() {
+        return false;
+    }
     match &n.kind {
         NodeKind::Group { children, pass_through: true, .. } => n.opacity >= 1.0 && children.iter().all(associative),
         // an adjustment changes everything below it, so it can't be laid over a flattened part
@@ -71,6 +75,7 @@ fn fingerprint(below: &[Node], above: &[Node], layer: &Node) -> u64 {
             n.id.hash(h);
             (n.visible, n.clipped, n.blend.index()).hash(h);
             (n.opacity.to_bits(), n.fill.to_bits()).hash(h);
+            n.style.as_ref().map(|s| s.key()).hash(h);
             if let Some(m) = &n.mask {
                 (Arc::as_ptr(&m.mask.tiles) as usize, m.mask.outside, m.enabled, m.density.to_bits(), m.feather.to_bits()).hash(h);
             }
@@ -135,8 +140,8 @@ fn split_with(content: &Content, layer: u64, extra: Option<Node>) -> Option<(Vec
                 _ => return None,
             }
         } else {
-            // the layer itself: a pixel layer, not part of a clipping unit
-            if n.is_group() || n.clipped || nodes.get(i + 1).is_some_and(|x| x.clipped) {
+            // the layer itself: a pixel layer without effects, not part of a clipping unit
+            if n.is_group() || n.clipped || nodes.get(i + 1).is_some_and(|x| x.clipped) || n.active_style().is_some() {
                 return None;
             }
         }

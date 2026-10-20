@@ -13,6 +13,7 @@
   import { adjustmentIcon } from './adjust/icons';
   import { dock } from '../dock/layout.svelte';
   import { textTool } from '../canvas/text.svelte';
+  import { hasEffects } from '../../engine/style';
 
   let adjMenu = $state(false);
 
@@ -247,6 +248,7 @@
           {:else}
             <span class="name" class:clipped-name={l.clipped}>{l.name}</span>
           {/if}
+          {#if hasEffects(l.style)}<button class="fx" title={t('style.title')} ondblclick={(e) => { e.stopPropagation(); select(e, l.id); act.style(); }} onclick={(e) => e.stopPropagation()}>fx</button>{/if}
           {#if l.locks.transparent || l.locks.pixels || l.locks.position}<span class="lock"><Icon name="lock" size={12} /></span>{/if}
           {#if l.kind === 'group' && !l.passThrough}<span class="mode">{t(`blend.${l.blend}` as Key)}</span>{/if}
           {#if l.opacity < 1}<span class="op num">{fmt(l.opacity * 100)}%</span>{/if}
@@ -265,6 +267,7 @@
           </ul>
         {/if}
       </span>
+      <button class="icon-btn fx-btn" title={t('style.title')} disabled={active.kind !== 'pixel' && active.kind !== 'text'} onclick={() => act.style()}>fx</button>
       <button class="icon-btn" title={`${t('mask.add')} — ${t('mask.addHint')}`} disabled={!!active.mask} onclick={(e) => maskAct.addAuto(e.altKey)}><Icon name="mask" size={16} /></button>
       <button class="icon-btn" title={t('layer.newGroup')} onclick={act.newGroup}><Icon name="folder" size={16} /></button>
       <button class="icon-btn" title={t('layer.new')} onclick={act.new}><Icon name="plus" size={16} /></button>
@@ -310,6 +313,8 @@
   .mode, .op { color: var(--fg-3); font-size: var(--fs-0); }
   .bar { display: flex; justify-content: flex-end; gap: 2px; padding: 4px 6px; border-top: 1px solid var(--line); }
   .empty { padding: 16px; color: var(--fg-3); }
+  .fx { padding: 0 4px; border: 0; border-radius: 3px; background: var(--bg-3); color: var(--fg-1); font-size: 10px; font-style: italic; font-weight: 700; }
+  .fx-btn { font-style: italic; font-weight: 700; font-size: 12px; }
   .adj-thumb { width: 36px; height: 36px; place-items: center; color: var(--fg-1); background: var(--bg-1); box-shadow: 0 0 0 1px var(--line-strong); }
   .adj-wrap { position: relative; }
   .adj-menu { position: absolute; bottom: 32px; inset-inline-end: 0; z-index: 40; min-width: 190px; margin: 0; padding: 4px; list-style: none; background: var(--bg-2); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }

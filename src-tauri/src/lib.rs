@@ -58,6 +58,7 @@ pub fn run() {
             commands::text_set,
             commands::layer_rasterize,
             commands::text_metrics,
+            commands::layer_style_set,
             commands::layer_solo,
             commands::layer_move,
             commands::layer_merge_down,

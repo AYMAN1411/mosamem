@@ -807,3 +807,10 @@ pub fn layer_rasterize(engine: State<'_, Engine>, doc: u64, id: u64) -> Res<DocI
 pub fn text_metrics(style: lawha_core::text::TextStyle) -> (f32, f32) {
     lawha_core::text::render::vertical_metrics(&style.face(), style.size)
 }
+
+// ---- layer styles ----
+
+#[tauri::command]
+pub fn layer_style_set(engine: State<'_, Engine>, doc: u64, id: u64, style: Option<lawha_core::style::LayerStyle>, transient: bool) -> Res<DocInfo> {
+    edit(&engine, doc, |d| crate::doc::styles::set_style(d, id, style, transient))
+}

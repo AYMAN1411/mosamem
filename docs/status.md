@@ -270,3 +270,20 @@ Screenshot: `docs/shots/m7-textsheet-ar.jpg` (each font, mixed text, digits, vow
 - Box text doesn't clip what overflows the box.
 - Kashida placement follows a simplified version of ALREQ's priorities; it is not checked against Photoshop.
 - Engine error messages (for example "rasterize the text layer to paint on it") are in English only.
+
+## Milestone 8: layer styles ✔︎ (2026-10-20)
+
+| Feature | How it was checked |
+|---|---|
+| **Effects**: drop shadow (angle, distance, spread, size, knockout), inner shadow (choke), outer glow (softer or precise), stroke (outside, inside, center), color overlay, gradient overlay (linear, radial, reflected; angle, scale, reverse). Each has a blend mode and opacity and can be switched off without losing its settings. | Rust tests on the mattes: the shadow falls opposite the light, size blurs and spread hardens, knockout, the three stroke positions, glow and inner shadow on their side, gradient positions |
+| **Compositing**: shadows and glow on what is below; the layer's pixels at the fill opacity, then inner shadow, overlays, clipped layers and stroke, blended with the layer's mode; the layer's opacity fades everything. Fill doesn't affect effects, and the layer mask shapes them. Works on pixel and text layers (text stays editable). Saved in `.lawha`. | Rust tests (shadow beside the layer, fill 0 still shows overlay and shadow, opacity halves the shadow, stroke follows the mask, undo, save/load) |
+| **Layer Style panel** with a live preview; the fx button and badge in the Layers panel; Layer › Layer Style… and Clear Layer Style. | Screenshots `m8-style-ar` (panel), `m8-styled-ar` (an Arabic title with gradient, stroke and shadow) |
+| Effect mattes are computed per tile from a margin around it, at the zoom level shown, and cached by the layer's pixels, mask and style, so edits to other layers don't recompute them. | `docs/perf-style-m8.json`: on 6000×4000 with 30 layers, adding a size-40 shadow and a stroke redraws the view in about 0.18 s at fit and under 0.1 s at 100% |
+
+### Not done or not verified in M8
+
+- Groups can't have effects yet; layers clipped to a base don't get their own effects.
+- Inner glow, satin, bevel and emboss, pattern overlay, contours, noise, and a global light angle aren't there.
+- Effects blend inside the layer (interior effects) or onto the backdrop (shadow, glow) with our own simplified order; not compared with Photoshop yet (M9's test files will show the differences).
+- Effects are drawn by the engine, not the GPU: dragging an effect slider updates about 4–5 times a second at fit on very large documents.
+- A layer with effects can't use the GPU paint preview, so painting on it recomposites in the engine.

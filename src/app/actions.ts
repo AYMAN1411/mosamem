@@ -141,6 +141,13 @@ export const layer = {
   solo: (id: number) => run((d) => engine.layerSolo(d.info.id, id)),
   move: (ids: number[], parent: number | null, index: number) => run((d) => engine.layerMove(d.info.id, ids, parent, index)),
   activate: (id: number) => run((d) => engine.setActive(d.info.id, id)),
+  /** Opens Layer Style for the active layer (on one effect, if given). */
+  style: (effect: import('../engine/style').EffectKind | null = null) => {
+    app.styleEffect = effect;
+    app.dialog = null;
+    queueMicrotask(() => (app.dialog = 'layerStyle'));
+  },
+  clearStyle: () => run((d) => engine.layerStyleSet(d.info.id, activeId(), null, false)),
   /** Turns the active text layer into pixels. */
   rasterize: () => run((d) => engine.layerRasterize(d.info.id, activeId())),
 };

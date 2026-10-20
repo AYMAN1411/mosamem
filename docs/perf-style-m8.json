@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-20",
+  "machine": "Apple Silicon Mac, dev build with optimized code",
+  "document": "6000×4000, 30 full layers; drop shadow (size 40) and an 8 px stroke on the top layer",
+  "what": "ms until the view is drawn again, including a 60 ms wait for the view to notice the change",
+  "results": {
+    "fit": {
+      "styleChangeMs": 240,
+      "otherLayerEditMs": 232
+    },
+    "100pct": {
+      "styleChangeMs": 66,
+      "otherLayerEditMs": 67
+    }
+  }
+}

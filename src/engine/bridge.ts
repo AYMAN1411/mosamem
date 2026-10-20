@@ -2,6 +2,7 @@
 import type { Adjustment, Histogram } from './adjust';
 import type { Filter } from './filter';
 import type { TextData, TextStyle } from './text';
+import type { LayerStyle } from './style';
 import { invoke } from '@tauri-apps/api/core';
 import type { BlendMode } from './blend';
 
@@ -30,6 +31,8 @@ export interface LayerInfo {
   adjustment?: Adjustment;
   /** Text, style and placement of a text layer. */
   text?: TextData;
+  /** Layer effects. */
+  style?: LayerStyle;
   /** Top to bottom. */
   children?: LayerInfo[];
 }
@@ -204,6 +207,7 @@ export const engine = {
   histogram: (doc: number, below: number | null) => invoke<Histogram>('histogram', { doc, below }),
 
   liveBegin: (doc: number, layer: number) => invoke<number | null>('live_begin', { doc, layer }),
+  layerStyleSet: (doc: number, id: number, style: LayerStyle | null, transient: boolean) => invoke<DocInfo>('layer_style_set', { doc, id, style, transient }),
   textNew: (doc: number, data: TextData) => invoke<DocInfo>('text_new', { doc, data }),
   textSet: (doc: number, id: number, data: TextData, transient: boolean) => invoke<DocInfo>('text_set', { doc, id, data, transient }),
   layerRasterize: (doc: number, id: number) => invoke<DocInfo>('layer_rasterize', { doc, id }),

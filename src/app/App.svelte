@@ -17,6 +17,7 @@
   import FilterPanel from './dialogs/FilterPanel.svelte';
   import ImageSizeDialog from './dialogs/ImageSizeDialog.svelte';
   import CanvasSizeDialog from './dialogs/CanvasSizeDialog.svelte';
+  import LayerStylePanel from './dialogs/LayerStylePanel.svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { engine, type RecoveredFile } from '../engine/bridge';
   import { app } from './state.svelte';
@@ -95,6 +96,7 @@
 {#if app.dialog === 'filter'}<FilterPanel />{/if}
 {#if app.dialog === 'imageSize' && app.active}<ImageSizeDialog />{/if}
 {#if app.dialog === 'canvasSize' && app.active}<CanvasSizeDialog />{/if}
+{#if app.dialog === 'layerStyle' && app.active}<LayerStylePanel />{/if}
 {#if app.toast}
   <div class="toast" class:error={app.toast.kind === 'error'} role="status">{app.toast.text}</div>
 {/if}

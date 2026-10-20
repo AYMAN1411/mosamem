@@ -115,6 +115,8 @@ export async function buildMenu() {
       await item(t('layer.ungroup'), act.layer.ungroup, 'CmdOrCtrl+Shift+G', hasDoc),
       await item(t('layer.clip'), act.layer.toggleClip, 'CmdOrCtrl+Alt+G', hasDoc),
       await sep(),
+      await item(t('style.menu'), () => act.layer.style(), undefined, hasDoc),
+      await item(t('style.clear'), act.layer.clearStyle, undefined, hasDoc),
       await item(t('text.rasterize'), act.layer.rasterize, undefined, hasDoc && (app.active ? findLayer(app.active.info.layers, app.active.info.active)?.kind === 'text' : false)),
       await item(t('layer.mergeDown'), act.layer.mergeDown, 'CmdOrCtrl+E', hasDoc),
       await item(t('layer.mergeVisible'), act.layer.mergeVisible, 'CmdOrCtrl+Shift+E', hasDoc),

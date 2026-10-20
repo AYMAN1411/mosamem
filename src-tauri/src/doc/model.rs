@@ -63,6 +63,8 @@ pub struct Node {
     /// Clipped to the nearest unclipped sibling below.
     pub clipped: bool,
     pub mask: Option<LayerMask>,
+    /// Layer effects (shadows, glow, stroke, overlays).
+    pub style: Option<lawha_core::style::LayerStyle>,
     pub kind: NodeKind,
 }
 
@@ -78,6 +80,7 @@ impl Node {
             locks: Locks::default(),
             clipped: false,
             mask: None,
+            style: None,
             kind: NodeKind::Pixel { tiles: Arc::new(tiles) },
         }
     }
@@ -93,6 +96,7 @@ impl Node {
             locks: Locks::default(),
             clipped: false,
             mask: None,
+            style: None,
             kind: NodeKind::Group { children, pass_through: true, expanded: true },
         }
     }
@@ -114,6 +118,14 @@ impl Node {
 
     pub fn set_adjustment(&mut self, a: Adjustment) {
         self.kind = NodeKind::Adjustment { op: Arc::new(adjust::compile(&a)), adj: a };
+    }
+
+    /// The layer's effects, when any of them draws (on pixel and text layers).
+    pub fn active_style(&self) -> Option<&lawha_core::style::LayerStyle> {
+        match self.kind {
+            NodeKind::Pixel { .. } | NodeKind::Text { .. } => self.style.as_ref().filter(|s| s.active()),
+            _ => None,
+        }
     }
 
     pub fn text_data(&self) -> Option<&super::text::TextData> {

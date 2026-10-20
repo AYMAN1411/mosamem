@@ -75,6 +75,9 @@ struct Props {
     /// A text layer's text, style and placement (its last drawing is in the tiles table).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     text: Option<crate::doc::text::TextData>,
+    /// Layer effects.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    style: Option<lawha_core::style::LayerStyle>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -151,7 +154,7 @@ pub fn save(path: &Path, content: &Content, name: &str, extra: &Extra, hashes: &
                 }
                 MaskProps { enabled: m.enabled, density: m.density, feather: m.feather, outside: m.mask.outside }
             });
-            let props = Props { name: n.name.clone(), visible: n.visible, opacity: n.opacity, fill: n.fill, blend: n.blend, locks: n.locks, clipped: n.clipped, pass_through, expanded, mask, adjustment: n.adjustment_settings().cloned(), text: n.text_data().cloned() };
+            let props = Props { name: n.name.clone(), visible: n.visible, opacity: n.opacity, fill: n.fill, blend: n.blend, locks: n.locks, clipped: n.clipped, pass_through, expanded, mask, adjustment: n.adjustment_settings().cloned(), text: n.text_data().cloned(), style: n.style.clone() };
             nodes.push((n.id, parent, i, kind, serde_json::to_string(&props).unwrap()));
             if let Some(c) = n.children() {
                 walk(c, Some(n.id), rows, mask_rows, nodes);
@@ -321,7 +324,7 @@ pub fn load(path: &Path) -> Result<Loaded, PersistError> {
                 density: m.density,
                 feather: m.feather,
             });
-            out.push(Node { id: *id, name: p.name, visible: p.visible, opacity: p.opacity, fill: p.fill, blend: p.blend, locks: p.locks, clipped: p.clipped, mask, kind });
+            out.push(Node { id: *id, name: p.name, visible: p.visible, opacity: p.opacity, fill: p.fill, blend: p.blend, locks: p.locks, clipped: p.clipped, mask, style: p.style, kind });
         }
         Ok(out)
     }
@@ -383,6 +386,10 @@ mod tests {
             matrix: [1.0, 0.0, 50.0, 0.0, 1.0, 60.0],
         };
         let mut text = Node::pixel("نص", Default::default());
+        text.style = Some(lawha_core::style::LayerStyle {
+            stroke: Some(lawha_core::style::Stroke { enabled: true, blend: lawha_core::BlendMode::Normal, color: [255, 200, 0], opacity: 0.9, size: 3.0, position: lawha_core::style::StrokePosition::Outside }),
+            ..Default::default()
+        });
         text.kind = NodeKind::Text { tiles: Arc::new(crate::doc::text::render(&data, 700, 500)), data };
         Content::new(700, 500, 300.0, active, vec![a, g, adj, text])
     }
@@ -392,6 +399,7 @@ mod tests {
         for (x, y) in a.iter().zip(b) {
             assert_eq!((x.id, &x.name, x.visible, x.opacity, x.fill, x.blend, x.locks, x.clipped), (y.id, &y.name, y.visible, y.opacity, y.fill, y.blend, y.locks, y.clipped));
             assert_eq!(x.mask.is_some(), y.mask.is_some());
+            assert_eq!(x.style, y.style);
             if let (Some(a), Some(b)) = (&x.mask, &y.mask) {
                 assert_eq!((a.enabled, a.density, a.feather, a.mask.outside), (b.enabled, b.density, b.feather, b.mask.outside));
                 assert_eq!(a.mask.to_dense(700, 500), b.mask.to_dense(700, 500));

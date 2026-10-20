@@ -32,7 +32,7 @@ pub enum FilterTarget {
 
 /// Straight RGBA8 of a rectangle at a mip level, read from the layer's tiles (transparent where
 /// there are none).
-fn read_rect(tiles: &Arc<TileMap>, lod: u8, x0: i64, y0: i64, w: usize, h: usize) -> Vec<u8> {
+pub(crate) fn read_rect(tiles: &Arc<TileMap>, lod: u8, x0: i64, y0: i64, w: usize, h: usize) -> Vec<u8> {
     let mut out = vec![0u8; w * h * 4];
     let t = TILE as i64;
     let (tx0, ty0, tx1, ty1) = (x0.div_euclid(t), y0.div_euclid(t), (x0 + w as i64 - 1).div_euclid(t), (y0 + h as i64 - 1).div_euclid(t));

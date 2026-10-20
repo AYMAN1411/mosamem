@@ -256,7 +256,7 @@ pub struct Substitute<'a> {
     pub layer: u64,
     pub tile: &'a (dyn Fn(u8, (i32, i32)) -> Option<Arc<Tile>> + Sync),
 }
-type Sub<'a> = Option<&'a Substitute<'a>>;
+pub(crate) type Sub<'a> = Option<&'a Substitute<'a>>;
 
 fn stack(nodes: &[Node], acc: &mut Accum, lod: u8, key: (i32, i32), origin: (i64, i64), sub: Sub) {
     let mut i = 0;
@@ -291,6 +291,11 @@ fn composite_unit(base: &Node, clipped: &[Node], acc: &mut Accum, lod: u8, key: 
         adjust(base, op, acc, lod, key, origin);
         return;
     }
+    // a layer with effects
+    if let Some(style) = base.active_style() {
+        super::styles::composite_styled(base, style, clipped, acc, lod, key, origin, sub);
+        return;
+    }
     let has_clips = clipped.iter().any(|c| c.visible && c.opacity > 0.0);
     // pass-through group without clipped layers: children go straight onto the backdrop
     if let NodeKind::Group { children, pass_through: true, .. } = &base.kind {
@@ -323,10 +328,16 @@ fn composite_unit(base: &Node, clipped: &[Node], acc: &mut Accum, lod: u8, key: 
         Source::Tile(t, fill) => Accum::from_tile(&t, fill),
         Source::Accum(a) => a,
     };
+    clip_onto(&mut unit, clipped, lod, key, origin, sub);
+    acc.composite_accum(&unit, base.blend, base.opacity, origin);
+}
+
+/// Layers clipped to a base, drawn onto the base's content (source-atop).
+pub(crate) fn clip_onto(unit: &mut Accum, clipped: &[Node], lod: u8, key: (i32, i32), origin: (i64, i64), sub: Sub) {
     for c in clipped.iter().filter(|c| c.visible && c.opacity > 0.0) {
         // a clipped adjustment changes only its base
         if let NodeKind::Adjustment { op, .. } = &c.kind {
-            adjust(c, op, &mut unit, lod, key, origin);
+            adjust(c, op, unit, lod, key, origin);
             continue;
         }
         match isolated(c, lod, key, origin, sub) {
@@ -335,7 +346,6 @@ fn composite_unit(base: &Node, clipped: &[Node], acc: &mut Accum, lod: u8, key: 
             None => {}
         }
     }
-    acc.composite_accum(&unit, base.blend, base.opacity, origin);
 }
 
 /// Composite of a list of nodes at lod 0 for one tile, onto transparency; `None` when empty.

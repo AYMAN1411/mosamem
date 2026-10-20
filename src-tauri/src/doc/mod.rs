@@ -10,6 +10,7 @@ pub mod ops;
 pub mod paint;
 pub mod raster;
 pub mod selection;
+pub mod styles;
 pub mod text;
 pub mod thumbs;
 pub mod transform;
@@ -185,6 +186,7 @@ impl Document {
                 thumb,
                 adjustment: n.adjustment_settings().cloned(),
                 text: n.text_data().cloned(),
+                style: n.style.clone(),
                 children,
             }
         }
@@ -237,6 +239,9 @@ pub struct LayerInfo {
     /// The text, style and placement of a text layer.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<text::TextData>,
+    /// Layer effects.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub style: Option<lawha_core::style::LayerStyle>,
     /// Top to bottom.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub children: Option<Vec<LayerInfo>>,
