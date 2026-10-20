@@ -4,6 +4,9 @@
   import { t, i18n, fmt } from '../i18n/index.svelte';
   import Icon from '../icons/Icon.svelte';
   import * as act from '../actions';
+  import SelectionOptions from './SelectionOptions.svelte';
+  import { SELECTION_TOOLS } from '../canvas/selectionTools';
+  import { DONE_MILESTONE } from '../tools';
 
   const tool = $derived(TOOLS[app.tool]);
 </script>
@@ -31,7 +34,9 @@
       />°
     </label>
     <button class="btn" onclick={act.view.resetRotation}>{t('opt.reset')}</button>
-  {:else if tool.milestone > 1}
+  {:else if SELECTION_TOOLS.includes(app.tool)}
+    <SelectionOptions />
+  {:else if tool.milestone > DONE_MILESTONE}
     <span class="note">{t('tool.notYet')}</span>
   {/if}
 

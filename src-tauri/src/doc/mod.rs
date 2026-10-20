@@ -5,6 +5,7 @@ pub mod history;
 pub mod live;
 pub mod model;
 pub mod ops;
+pub mod selection;
 pub mod thumbs;
 
 use std::collections::HashMap;
@@ -94,11 +95,15 @@ pub struct Document {
     pub saved_at: Option<usize>,
     /// Bumped when content changes; autosave compares it.
     pub change_counter: u64,
+    /// The selection before the last deselect, for Reselect.
+    pub last_selection: Option<lawha_core::mask::Mask>,
+    /// A refine-edge preview shown instead of the selection (not in history).
+    pub preview: Option<lawha_core::mask::Mask>,
 }
 
 impl Document {
     pub fn new(name: String, path: Option<PathBuf>, content: Content, label: Label) -> Self {
-        Document { id: next_id(), name, path, history: History::new(content.clone(), label), content, version: 1, saved_at: None, change_counter: 0 }
+        Document { id: next_id(), name, path, history: History::new(content.clone(), label), content, version: 1, saved_at: None, change_counter: 0, last_selection: None, preview: None }
     }
 
     pub fn touch(&mut self) {
@@ -152,6 +157,12 @@ impl Document {
                 }
             };
             LayerInfo {
+                mask: n.mask.as_ref().map(|m| MaskInfo {
+                    enabled: m.enabled,
+                    density: m.density,
+                    feather: m.feather,
+                    thumb: Arc::as_ptr(&m.mask.tiles) as usize as u64 ^ m.mask.outside as u64,
+                }),
                 id: n.id,
                 name: n.name.clone(),
                 kind,
@@ -178,6 +189,13 @@ impl Document {
             active: self.content.active,
             version: self.version,
             dirty: self.dirty(),
+            has_selection: self.content.selection.is_some() || self.preview.is_some(),
+            has_last_selection: self.last_selection.is_some(),
+            refining: self.preview.is_some(),
+            selection_key: match self.preview.as_ref().or(self.content.selection.as_ref()) {
+                Some(m) => (Arc::as_ptr(&m.tiles) as usize as u64) ^ ((m.outside as u64) << 1) | 1,
+                None => 0,
+            },
             history: HistoryInfo {
                 labels: self.history.states.iter().map(|s| s.label.clone()).collect(),
                 current: self.history.current,
@@ -200,11 +218,22 @@ pub struct LayerInfo {
     pub expanded: bool,
     pub locks: Locks,
     pub clipped: bool,
+    pub mask: Option<MaskInfo>,
     /// Changes whenever the layer's pixels change (thumbnail cache key).
     pub thumb: u64,
     /// Top to bottom.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub children: Option<Vec<LayerInfo>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MaskInfo {
+    pub enabled: bool,
+    pub density: f32,
+    pub feather: f32,
+    /// Changes whenever the mask pixels change (thumbnail cache key).
+    pub thumb: u64,
 }
 
 #[derive(Serialize)]
@@ -229,12 +258,19 @@ pub struct DocInfo {
     pub version: u64,
     pub dirty: bool,
     pub history: HistoryInfo,
+    /// True when something is selected (or a refine preview is showing).
+    pub has_selection: bool,
+    pub has_last_selection: bool,
+    pub refining: bool,
+    /// Changes only when the selection or the refine preview changes; 0 when nothing is selected.
+    pub selection_key: u64,
 }
 
 /// A document plus its caches.
 pub struct DocHandle {
     pub doc: RwLock<Document>,
     pub composite: composite::Cache,
+    pub selection: composite::SelCache,
     pub thumbs: thumbs::Cache,
 }
 
@@ -247,7 +283,7 @@ pub struct Engine {
 impl Engine {
     pub fn insert(&self, doc: Document) -> Arc<DocHandle> {
         let id = doc.id;
-        let h = Arc::new(DocHandle { doc: RwLock::new(doc), composite: composite::Cache::default(), thumbs: thumbs::Cache::default() });
+        let h = Arc::new(DocHandle { doc: RwLock::new(doc), composite: composite::Cache::default(), selection: composite::SelCache::default(), thumbs: thumbs::Cache::default() });
         self.docs.write().insert(id, h.clone());
         h
     }

@@ -364,7 +364,7 @@ mod tests {
     fn doc_with(names: &[&str]) -> Document {
         let root: Vec<Node> = names.iter().map(|n| Node::pixel(*n, filled_tiles(256, 256, [10, 20, 30, 255]))).collect();
         let active = root.last().unwrap().id;
-        Document::new("t".into(), None, Content { width: 256, height: 256, ppi: 72.0, root, active }, Label::new("history.new"))
+        Document::new("t".into(), None, Content::new(256, 256, 72.0, active, root), Label::new("history.new"))
     }
 
     fn names(nodes: &[Node]) -> Vec<String> {

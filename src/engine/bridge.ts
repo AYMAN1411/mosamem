@@ -20,6 +20,7 @@ export interface LayerInfo {
   expanded: boolean;
   locks: Locks;
   clipped: boolean;
+  mask: { enabled: boolean; density: number; feather: number; thumb: number } | null;
   /** Changes when the layer's pixels change (thumbnail cache key). */
   thumb: number;
   /** Top to bottom. */
@@ -44,7 +45,28 @@ export interface DocInfo {
   version: number;
   dirty: boolean;
   history: { labels: HistoryLabel[]; current: number };
+  hasSelection: boolean;
+  hasLastSelection: boolean;
+  refining: boolean;
+  /** Changes only when the selection changes; 0 when nothing is selected. */
+  selectionKey: number;
 }
+
+export type Combine = 'replace' | 'add' | 'subtract' | 'intersect';
+export type Shape =
+  | { kind: 'rect'; x0: number; y0: number; x1: number; y1: number }
+  | { kind: 'ellipse'; x0: number; y0: number; x1: number; y1: number; antialias: boolean }
+  | { kind: 'polygon'; points: [number, number][]; antialias: boolean };
+export type Modify = { op: 'feather' | 'expand' | 'contract' | 'border'; amount: number } | { op: 'smooth'; amount: number };
+export interface RefineParams {
+  radius: number;
+  smooth: number;
+  feather: number;
+  contrast: number;
+  shift: number;
+}
+export type RefineOutput = 'selection' | 'layerMask' | 'newLayer' | 'newLayerWithMask';
+export type NewMask = 'revealAll' | 'hideAll' | 'revealSelection' | 'hideSelection';
 
 export interface LayerProps {
   name?: string;
@@ -84,6 +106,16 @@ export function liveUrl(session: number, part: 'below' | 'layer' | 'above', lod:
   return `${base}/live/${session}/${part}/${lod}/${tx}/${ty}`;
 }
 
+/** URL of one selection tile (coverage in all four channels). */
+export function selUrl(doc: number, key: number, lod: number, tx: number, ty: number): string {
+  return `${base}/sel/${doc}/${key}/${lod}/${tx}/${ty}`;
+}
+
+/** URL of a layer-mask thumbnail. */
+export function maskThumbUrl(doc: number, layer: number, key: number, size: number): string {
+  return `${base}/mthumb/${doc}/${layer}/${key}/${size}`;
+}
+
 /** URL of a layer thumbnail: `[w u16][h u16][RGBA…]`. */
 export function thumbUrl(doc: number, layer: number, key: number, size: number): string {
   return `${base}/thumb/${doc}/${layer}/${key}/${size}`;
@@ -110,6 +142,26 @@ export const engine = {
   layerMergeVisible: (doc: number, name: string) => invoke<DocInfo>('layer_merge_visible', { doc, name }),
   layerFlatten: (doc: number, name: string) => invoke<DocInfo>('layer_flatten', { doc, name }),
   setActive: (doc: number, id: number) => invoke<DocInfo>('set_active', { doc, id }),
+
+  selectShape: (doc: number, shape: Shape, mode: Combine, feather: number) => invoke<DocInfo>('select_shape', { doc, shape, mode, feather }),
+  selectWand: (doc: number, spec: { x: number; y: number; tolerance: number; contiguous: boolean; allLayers: boolean; antialias: boolean; mode: Combine }) =>
+    invoke<DocInfo>('select_wand', { doc, spec }),
+  selectQuick: (doc: number, points: [number, number][], radius: number, allLayers: boolean, subtract: boolean) =>
+    invoke<DocInfo>('select_quick', { doc, points, radius, allLayers, subtract }),
+  selectSimple: (doc: number, op: 'all' | 'deselect' | 'reselect' | 'invert') => invoke<DocInfo>('select_simple', { doc, op }),
+  selectModify: (doc: number, op: Modify) => invoke<DocInfo>('select_modify', { doc, op }),
+  selectTranslate: (doc: number, dx: number, dy: number) => invoke<DocInfo>('select_translate', { doc, dx, dy }),
+  selectHit: (doc: number, x: number, y: number) => invoke<boolean>('select_hit', { doc, x, y }),
+  refinePreview: (doc: number, params: RefineParams) => invoke<DocInfo>('refine_preview', { doc, params }),
+  refineCancel: (doc: number) => invoke<DocInfo>('refine_cancel', { doc }),
+  refineApply: (doc: number, params: RefineParams, output: RefineOutput, decontaminate: boolean, layerName: string) =>
+    invoke<DocInfo>('refine_apply', { doc, params, output, decontaminate, layerName }),
+  maskAdd: (doc: number, id: number, kind: NewMask) => invoke<DocInfo>('mask_add', { doc, id, kind }),
+  maskDelete: (doc: number, id: number) => invoke<DocInfo>('mask_delete', { doc, id }),
+  maskApply: (doc: number, id: number) => invoke<DocInfo>('mask_apply', { doc, id }),
+  maskSet: (doc: number, id: number, props: { enabled?: boolean; density?: number; feather?: number; invert?: boolean }, transient = false) =>
+    invoke<DocInfo>('mask_set', { doc, id, props, transient }),
+  maskToSelection: (doc: number, id: number) => invoke<DocInfo>('mask_to_selection', { doc, id }),
 
   liveBegin: (doc: number, layer: number) => invoke<number | null>('live_begin', { doc, layer }),
   liveEnd: (session: number) => invoke<void>('live_end', { session }),

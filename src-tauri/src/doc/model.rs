@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use lawha_core::mask::Mask;
 use lawha_core::tile::{Tile, TILE};
 use lawha_core::BlendMode;
 use serde::{Deserialize, Serialize};
@@ -25,6 +26,23 @@ pub enum NodeKind {
     Group { children: Vec<Node>, pass_through: bool, expanded: bool },
 }
 
+/// A layer mask: white shows, black hides.
+#[derive(Clone)]
+pub struct LayerMask {
+    pub mask: Mask,
+    pub enabled: bool,
+    /// 0–1: 1 = the mask's full effect, 0 = no effect.
+    pub density: f32,
+    /// Render-time blur of the mask edge, px.
+    pub feather: f32,
+}
+
+impl LayerMask {
+    pub fn new(mask: Mask) -> Self {
+        LayerMask { mask, enabled: true, density: 1.0, feather: 0.0 }
+    }
+}
+
 #[derive(Clone)]
 pub struct Node {
     pub id: u64,
@@ -38,6 +56,7 @@ pub struct Node {
     pub locks: Locks,
     /// Clipped to the nearest unclipped sibling below.
     pub clipped: bool,
+    pub mask: Option<LayerMask>,
     pub kind: NodeKind,
 }
 
@@ -52,6 +71,7 @@ impl Node {
             blend: BlendMode::Normal,
             locks: Locks::default(),
             clipped: false,
+            mask: None,
             kind: NodeKind::Pixel { tiles: Arc::new(tiles) },
         }
     }
@@ -66,6 +86,7 @@ impl Node {
             blend: BlendMode::Normal,
             locks: Locks::default(),
             clipped: false,
+            mask: None,
             kind: NodeKind::Group { children, pass_through: true, expanded: true },
         }
     }
@@ -115,6 +136,8 @@ pub struct Content {
     /// Bottom to top.
     pub root: Vec<Node>,
     pub active: u64,
+    /// The current selection; None when nothing is selected.
+    pub selection: Option<Mask>,
 }
 
 /// Position of a node: the id of its parent group (None = root) and its index there.
@@ -125,6 +148,10 @@ pub struct Slot {
 }
 
 impl Content {
+    pub fn new(width: u32, height: u32, ppi: f64, active: u64, root: Vec<Node>) -> Content {
+        Content { width, height, ppi, root, active, selection: None }
+    }
+
     pub fn find(&self, id: u64) -> Option<&Node> {
         fn walk(nodes: &[Node], id: u64) -> Option<&Node> {
             for n in nodes {

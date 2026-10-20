@@ -7,14 +7,14 @@
 // - live: three sources (below / layer / above, see src-tauri/src/doc/live.rs) blended on the GPU,
 //   so opacity drags and blend-mode changes show instantly.
 
-import { tileUrl, liveUrl } from './bridge';
+import { tileUrl, liveUrl, selUrl } from './bridge';
 import { BLEND_GLSL } from './glsl';
 import { BLEND_MODES, type BlendMode } from './blend';
 
 export const TILE = 256;
 const MAX_LOD = 6;
 const LODS = MAX_LOD + 1;
-const SOURCES = 4; // 0 composite, 1 below, 2 layer, 3 above
+const SOURCES = 5; // 0 composite, 1 below, 2 layer, 3 above, 4 selection
 const PARTS = ['', 'below', 'layer', 'above'] as const;
 const CAPACITY = 1024; // atlas slots (256×256 RGBA8 each, 256 MB)
 const EMPTY = 0xffff; // page entry: tile known to be fully transparent
@@ -35,7 +35,13 @@ export interface DisplayDoc {
   width: number;
   height: number;
   version: number;
+  /** Changes only when the selection (or refine preview) changes; 0 = nothing selected. */
+  selection: number;
 }
+
+/** How the refine-edge workspace shows the refined selection. */
+export type RefineView = 'ants' | 'overlay' | 'black' | 'white' | 'mask' | 'layers';
+const REFINE_VIEWS: RefineView[] = ['ants', 'overlay', 'black', 'white', 'mask', 'layers'];
 
 export interface LiveState {
   session: number;
@@ -68,6 +74,12 @@ uniform float uCanvasH;
 uniform bool uLive;
 uniform int uLiveMode;
 uniform float uLiveAlpha;
+uniform bool uSel;
+uniform vec2 uSelOffset;
+uniform vec2 uDx;
+uniform vec2 uDy;
+uniform float uTime;
+uniform int uRefineView;
 out vec4 outColor;
 ${BLEND_GLSL}
 
@@ -130,13 +142,34 @@ void main() {
   } else {
     c = sampleSource(0, doc);
   }
+  float sel = 1.0;
+  if (uSel) sel = sampleSource(4, doc - uSelOffset).a;
+  if (uSel && uRefineView == 5) c *= sel; // on layers: unselected becomes transparent
   // transparency checkerboard, fixed in screen space like most editors
   ivec2 q = ivec2(screen) / 8;
   float k = ((q.x + q.y) & 1) == 0 ? 0.80 : 0.66;
   vec3 rgb = c.rgb + vec3(k) * (1.0 - c.a);
+  if (uSel) {
+    if (uRefineView == 1) rgb = mix(rgb, vec3(1.0, 0.13, 0.13), 0.55 * (1.0 - sel));
+    else if (uRefineView == 2) rgb = rgb * sel;
+    else if (uRefineView == 3) rgb = rgb * sel + vec3(1.0 - sel);
+    else if (uRefineView == 4) rgb = vec3(sel);
+  }
   if (uPixelGrid && uZoom >= 8.0) {
     vec2 g = fract(doc) * uZoom;
     if (g.x < 1.0 || g.y < 1.0) rgb = mix(rgb, vec3(0.5), 0.35);
+  }
+  // marching ants on the 50% edge of the selection, in screen space
+  if (uSel && uRefineView == 0) {
+    bool inside = sel >= 0.5;
+    float sx = sampleSource(4, doc - uSelOffset + uDx).a;
+    float sy = sampleSource(4, doc - uSelOffset + uDy).a;
+    float sx2 = sampleSource(4, doc - uSelOffset - uDx).a;
+    float sy2 = sampleSource(4, doc - uSelOffset - uDy).a;
+    if (inside != (sx >= 0.5) || inside != (sy >= 0.5) || inside != (sx2 >= 0.5) || inside != (sy2 >= 0.5)) {
+      float dash = mod(floor((screen.x + screen.y) / 4.0 + uTime * 6.0), 2.0);
+      rgb = vec3(dash);
+    }
   }
   outColor = vec4(rgb, 1.0);
 }`;
@@ -195,6 +228,10 @@ export class Compositor {
   /** After a live edit is committed: keep drawing live until the new composite is ready. */
   private ending: { session: number; onDone: () => void } | null = null;
   pixelGrid = true;
+  /** Preview offset of the selection outline while it is being dragged (document px). */
+  selectionOffset: [number, number] = [0, 0];
+  refineView: RefineView = 'ants';
+  private antsTimer = 0;
   pasteboard: [number, number, number] = [0.086, 0.09, 0.106];
   /** Called after each drawn frame (for overlays, perf). */
   onFrame: ((ms: number) => void) | null = null;
@@ -204,7 +241,7 @@ export class Compositor {
     if (!gl) throw new Error('WebGL2 is not available');
     this.gl = gl;
     this.prog = program(gl, VS, FS);
-    for (const n of ['uAtlas', 'uPages', 'uScreenToDoc', 'uDoc', 'uZoom', 'uLod', 'uPasteboard', 'uPixelGrid', 'uCanvasH', 'uLive', 'uLiveMode', 'uLiveAlpha']) {
+    for (const n of ['uAtlas', 'uPages', 'uScreenToDoc', 'uDoc', 'uZoom', 'uLod', 'uPasteboard', 'uPixelGrid', 'uCanvasH', 'uLive', 'uLiveMode', 'uLiveAlpha', 'uSel', 'uSelOffset', 'uDx', 'uDy', 'uTime', 'uRefineView']) {
       this.u[n] = gl.getUniformLocation(this.prog, n);
     }
     this.atlas = gl.createTexture()!;
@@ -233,8 +270,10 @@ export class Compositor {
     const gl = this.gl;
     const same = this.doc && doc && this.doc.id === doc.id && this.doc.width === doc.width && this.doc.height === doc.height;
     if (same) {
-      if (doc!.version !== this.doc!.version) {
+      if (doc!.version !== this.doc!.version || doc!.selection !== this.doc!.selection) {
+        if (doc!.selection !== this.doc!.selection && !doc!.selection) this.dropSources([4]);
         this.doc = { ...doc! };
+        this.animateAnts();
         this.requestFrame(); // stale tiles stay visible until their replacements arrive
       }
       return;
@@ -251,7 +290,18 @@ export class Compositor {
     gl.texStorage3D(gl.TEXTURE_2D_ARRAY, 1, gl.R16UI, this.pageW, this.pageH, LODS * SOURCES);
     nearest(gl, gl.TEXTURE_2D_ARRAY);
     for (let l = 0; l < LODS * SOURCES; l++) this.pagesDirty.add(l);
+    this.animateAnts();
     this.requestFrame();
+  }
+
+  /** Marching ants move while there is a selection. */
+  private animateAnts() {
+    const want = !!this.doc?.selection;
+    if (want && !this.antsTimer) this.antsTimer = window.setInterval(() => this.requestFrame(), 120);
+    if (!want && this.antsTimer) {
+      clearInterval(this.antsTimer);
+      this.antsTimer = 0;
+    }
   }
 
   setView(view: ViewTransform) {
@@ -360,7 +410,9 @@ export class Compositor {
   }
 
   private versionOf(src: number): number {
-    return src === 0 ? this.doc!.version : this.live!.session;
+    if (src === 0) return this.doc!.version;
+    if (src === 4) return this.doc!.selection;
+    return this.live!.session;
   }
 
   /** Requests a tile; returns true if the current version is already loaded. */
@@ -387,12 +439,18 @@ export class Compositor {
       this.inflight.add(job.key);
       this.active++;
       const version = this.versionOf(job.src);
-      const url = job.src === 0 ? tileUrl(this.doc!.id, version, job.lod, job.tx, job.ty) : liveUrl(version, PARTS[job.src] as 'below', job.lod, job.tx, job.ty);
+      const url =
+        job.src === 0
+          ? tileUrl(this.doc!.id, version, job.lod, job.tx, job.ty)
+          : job.src === 4
+            ? selUrl(this.doc!.id, version, job.lod, job.tx, job.ty)
+            : liveUrl(version, PARTS[job.src] as 'below', job.lod, job.tx, job.ty);
       const gen = this.generation;
       fetch(url)
         .then(async (r) => (r.status === 200 ? new Uint8Array(await r.arrayBuffer()) : r.status === 204 ? null : Promise.reject(r.status)))
         .then((data) => {
-          if (gen === this.generation && (job.src === 0 || this.live?.session === version)) this.store(job.key, job.src, job.lod, job.tx, job.ty, version, data);
+          const current = job.src === 0 || (job.src === 4 ? this.doc?.selection === version : this.live?.session === version);
+          if (gen === this.generation && current) this.store(job.key, job.src, job.lod, job.tx, job.ty, version, data);
         })
         .catch(() => {})
         .finally(() => {
@@ -406,7 +464,7 @@ export class Compositor {
   private store(key: string, src: number, lod: number, tx: number, ty: number, version: number, data: Uint8Array | null) {
     const gl = this.gl;
     const prev = this.entries.get(key);
-    if (prev && src === 0 && prev.version > version) return;
+    if (prev && (src === 0) && prev.version > version) return;
     let slot: number;
     if (data === null) {
       if (prev && prev.slot !== EMPTY) this.release(prev.slot);
@@ -483,6 +541,7 @@ export class Compositor {
     } else {
       this.request(0, lod, base);
     }
+    if (this.doc.selection) this.request(4, lod, base);
     this.pump();
 
     if (this.pagesDirty.size) {
@@ -505,6 +564,12 @@ export class Compositor {
     gl.uniform1i(this.u.uLive, this.live ? 1 : 0);
     gl.uniform1i(this.u.uLiveMode, this.live ? BLEND_MODES.indexOf(this.live.blend) : 0);
     gl.uniform1f(this.u.uLiveAlpha, this.live && this.live.visible ? this.live.alpha : 0);
+    gl.uniform1i(this.u.uSel, this.doc.selection ? 1 : 0);
+    gl.uniform2f(this.u.uSelOffset, ...this.selectionOffset);
+    gl.uniform2f(this.u.uDx, m[0] * 1.5, m[1] * 1.5);
+    gl.uniform2f(this.u.uDy, m[2] * 1.5, m[3] * 1.5);
+    gl.uniform1f(this.u.uTime, (performance.now() / 1000) % 1000);
+    gl.uniform1i(this.u.uRefineView, REFINE_VIEWS.indexOf(this.refineView));
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.atlas);
     gl.uniform1i(this.u.uAtlas, 0);
@@ -571,6 +636,7 @@ export class Compositor {
 
   destroy() {
     cancelAnimationFrame(this.frame);
+    clearInterval(this.antsTimer);
     this.generation++;
     this.gl.getExtension('WEBGL_lose_context')?.loseContext();
   }

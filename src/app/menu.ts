@@ -5,6 +5,7 @@ import { app } from './state.svelte';
 import { dock } from './dock/layout.svelte';
 import * as act from './actions';
 import { historyText } from './history';
+import { findLayer } from '../engine/bridge';
 
 const isMac = navigator.userAgent.includes('Mac');
 
@@ -97,12 +98,54 @@ export async function buildMenu() {
       await item(t('layer.flatten'), act.layer.flatten, undefined, hasDoc),
     ],
   });
+  const hasSel = !!app.active?.info.hasSelection;
+  const selectMenu = await Submenu.new({
+    text: t('menu.select'),
+    items: [
+      await item(t('select.all'), act.select.all, 'CmdOrCtrl+A', hasDoc),
+      await item(t('select.deselect'), act.select.deselect, 'CmdOrCtrl+D', hasSel),
+      await item(t('select.reselect'), act.select.reselect, 'CmdOrCtrl+Shift+D', !!app.active?.info.hasLastSelection),
+      await item(t('select.inverse'), act.select.invert, 'CmdOrCtrl+Shift+I', hasDoc),
+      await sep(),
+      await Submenu.new({
+        text: t('select.modify'),
+        enabled: hasSel,
+        items: [
+          await item(t('select.feather'), () => act.select.ask('feather'), 'Shift+F6', hasSel),
+          await item(t('select.expand'), () => act.select.ask('expand'), undefined, hasSel),
+          await item(t('select.contract'), () => act.select.ask('contract'), undefined, hasSel),
+          await item(t('select.border'), () => act.select.ask('border'), undefined, hasSel),
+          await item(t('select.smooth'), () => act.select.ask('smooth'), undefined, hasSel),
+        ],
+      }),
+      await item(t('select.refine'), act.select.refine, 'CmdOrCtrl+Alt+R', hasSel),
+    ],
+  });
+  const layerMask = app.active ? findLayer(app.active.info.layers, app.active.info.active)?.mask : null;
+  const maskMenu = await Submenu.new({
+    text: t('mask.menu'),
+    enabled: hasDoc,
+    items: layerMask
+      ? [
+          await item(layerMask.enabled ? t('mask.disable') : t('mask.enable'), () => act.mask.toggle()),
+          await item(t('mask.invert'), act.mask.invert, 'CmdOrCtrl+I'),
+          await item(t('mask.apply'), act.mask.apply),
+          await item(t('mask.delete'), act.mask.delete),
+        ]
+      : [
+          await item(t('mask.revealAll'), () => act.mask.add('revealAll')),
+          await item(t('mask.hideAll'), () => act.mask.add('hideAll')),
+          await item(t('mask.revealSelection'), () => act.mask.add('revealSelection'), undefined, hasSel),
+          await item(t('mask.hideSelection'), () => act.mask.add('hideSelection'), undefined, hasSel),
+        ],
+  });
+  await layerMenu.append([await sep(), maskMenu]);
   const placeholders = await Promise.all(
-    (['menu.image', 'menu.select', 'menu.filter'] as const).map(async (k) =>
+    (['menu.image', 'menu.filter'] as const).map(async (k) =>
       Submenu.new({ text: t(k), items: [await item(t('tool.notYet'), () => {}, undefined, false)] }),
     ),
   );
-  const items = [file, edit, placeholders[0], layerMenu, placeholders[1], placeholders[2], viewMenu, windowMenu];
+  const items = [file, edit, placeholders[0], layerMenu, selectMenu, placeholders[1], viewMenu, windowMenu];
   const menu = await Menu.new({ items: isMac ? [appMenu, ...items] : items });
   await menu.setAsAppMenu();
 }

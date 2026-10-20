@@ -12,6 +12,8 @@
   import ExportDialog from './dialogs/ExportDialog.svelte';
   import UnsavedDialog from './dialogs/UnsavedDialog.svelte';
   import RecoveryDialog from './dialogs/RecoveryDialog.svelte';
+  import ModifyDialog from './dialogs/ModifyDialog.svelte';
+  import RefinePanel from './dialogs/RefinePanel.svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';
   import { engine, type RecoveredFile } from '../engine/bridge';
   import { app } from './state.svelte';
@@ -58,7 +60,8 @@
 
   // rebuild the native menu when its labels or check states change
   $effect(() => {
-    void [i18n.locale, app.showRulers, app.showGrid, app.showGuides, app.showPixelGrid, app.active != null, app.active?.info.history.current, app.active?.info.history.labels.length];
+    const a = app.active;
+    void [i18n.locale, app.showRulers, app.showGrid, app.showGuides, app.showPixelGrid, a != null, a?.info.history.current, a?.info.history.labels.length, a?.info.hasSelection, a?.info.hasLastSelection, a?.info.active, a?.info.version];
     buildMenu();
   });
 </script>
@@ -82,6 +85,8 @@
 {#if app.dialog === 'export'}<ExportDialog />{/if}
 {#if app.dialog === 'unsaved'}<UnsavedDialog />{/if}
 {#if app.dialog === 'recovery'}<RecoveryDialog files={recovered} />{/if}
+{#if app.dialog === 'modify'}<ModifyDialog />{/if}
+{#if app.dialog === 'refine'}<RefinePanel />{/if}
 {#if app.toast}
   <div class="toast" class:error={app.toast.kind === 'error'} role="status">{app.toast.text}</div>
 {/if}

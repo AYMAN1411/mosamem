@@ -62,7 +62,7 @@ pub fn new_document(engine: State<'_, Engine>, spec: NewDocument) -> Res<DocInfo
         Background::Transparent => TileMap::new(),
     };
     let layer = Node::pixel(spec.background_layer_name, tiles);
-    let content = Content { width: w, height: h, ppi: spec.ppi, active: layer.id, root: vec![layer] };
+    let content = Content::new(w, h, spec.ppi, layer.id, vec![layer]);
     let doc = Document::new(spec.name, None, content, Label::new("history.new"));
     Ok(engine.insert(doc).doc.read().info())
 }
@@ -83,7 +83,7 @@ pub async fn open_file(engine: State<'_, Engine>, path: PathBuf, layer_name: Str
     let decoded = tauri::async_runtime::spawn_blocking(move || codecs::decode(&p)).await.map_err(|e| e.to_string())?.map_err(|e| e.to_string())?;
     let layer = Node::pixel(layer_name, tiles_from_rgba(decoded.width, decoded.height, &decoded.rgba));
     let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    let content = Content { width: decoded.width, height: decoded.height, ppi: decoded.ppi.unwrap_or(72.0), active: layer.id, root: vec![layer] };
+    let content = Content::new(decoded.width, decoded.height, decoded.ppi.unwrap_or(72.0), layer.id, vec![layer]);
     // an imported image has no Lawha file yet: it stays "unsaved" until saved as .lawha
     let doc = Document::new(name, Some(path), content, Label::new("history.open"));
     Ok(engine.insert(doc).doc.read().info())
@@ -253,6 +253,169 @@ pub fn set_active(engine: State<'_, Engine>, doc: u64, id: u64) -> Res<DocInfo> 
     })
 }
 
+// ---- selections ----
+
+use crate::doc::selection::{self, MaskProps, Modify, NewMask, RefineOutput, Shape};
+use lawha_core::select::{Combine, Refine};
+
+#[tauri::command]
+pub async fn select_shape(engine: State<'_, Engine>, doc: u64, shape: Shape, mode: Combine, feather: f32) -> Res<DocInfo> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = h.doc.write();
+        selection::shape(&mut d, shape, mode, feather)?;
+        Ok(d.info())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WandSpec {
+    pub x: f64,
+    pub y: f64,
+    pub tolerance: u8,
+    pub contiguous: bool,
+    pub all_layers: bool,
+    pub antialias: bool,
+    pub mode: Combine,
+}
+
+#[tauri::command]
+pub async fn select_wand(engine: State<'_, Engine>, doc: u64, spec: WandSpec) -> Res<DocInfo> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = h.doc.write();
+        selection::wand(&mut d, spec.x, spec.y, spec.tolerance, spec.contiguous, spec.all_layers, spec.antialias, spec.mode)?;
+        Ok(d.info())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn select_quick(engine: State<'_, Engine>, doc: u64, points: Vec<(f64, f64)>, radius: f64, all_layers: bool, subtract: bool) -> Res<DocInfo> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = h.doc.write();
+        selection::quick(&mut d, &points, radius, all_layers, subtract)?;
+        Ok(d.info())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SelectSimple {
+    All,
+    Deselect,
+    Reselect,
+    Invert,
+}
+
+#[tauri::command]
+pub fn select_simple(engine: State<'_, Engine>, doc: u64, op: SelectSimple) -> Res<DocInfo> {
+    edit(&engine, doc, |d| match op {
+        SelectSimple::All => selection::all(d),
+        SelectSimple::Deselect => selection::deselect(d),
+        SelectSimple::Reselect => selection::reselect(d),
+        SelectSimple::Invert => selection::invert(d),
+    })
+}
+
+#[tauri::command]
+pub async fn select_modify(engine: State<'_, Engine>, doc: u64, op: Modify) -> Res<DocInfo> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = h.doc.write();
+        selection::modify(&mut d, op)?;
+        Ok(d.info())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Is the document point inside the selection (≥ 50%)?
+#[tauri::command]
+pub fn select_hit(engine: State<'_, Engine>, doc: u64, x: f64, y: f64) -> Res<bool> {
+    let h = handle(&engine, doc)?;
+    let d = h.doc.read();
+    let (w, ht) = (d.content.width as f64, d.content.height as f64);
+    let Some(m) = d.content.selection.as_ref() else { return Ok(false) };
+    if x < 0.0 || y < 0.0 || x >= w || y >= ht {
+        return Ok(false);
+    }
+    let (xi, yi) = (x as i32, y as i32);
+    let t = lawha_core::tile::TILE as i32;
+    Ok(m.tile((xi / t, yi / t)).map_or(m.outside, |tile| tile.get((xi % t) as usize, (yi % t) as usize)) >= 128)
+}
+
+#[tauri::command]
+pub fn select_translate(engine: State<'_, Engine>, doc: u64, dx: i32, dy: i32) -> Res<DocInfo> {
+    edit(&engine, doc, |d| selection::translate(d, dx, dy))
+}
+
+#[tauri::command]
+pub async fn refine_preview(engine: State<'_, Engine>, doc: u64, params: Refine) -> Res<DocInfo> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = h.doc.write();
+        selection::refine_preview(&mut d, &params)?;
+        Ok(d.info())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn refine_cancel(engine: State<'_, Engine>, doc: u64) -> Res<DocInfo> {
+    edit(&engine, doc, |d| {
+        selection::refine_cancel(d);
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub async fn refine_apply(engine: State<'_, Engine>, doc: u64, params: Refine, output: RefineOutput, decontaminate: bool, layer_name: String) -> Res<DocInfo> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = h.doc.write();
+        selection::refine_apply(&mut d, &params, output, decontaminate, &layer_name)?;
+        Ok(d.info())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+// ---- layer masks ----
+
+#[tauri::command]
+pub fn mask_add(engine: State<'_, Engine>, doc: u64, id: u64, kind: NewMask) -> Res<DocInfo> {
+    edit(&engine, doc, |d| selection::mask_add(d, id, kind))
+}
+
+#[tauri::command]
+pub fn mask_delete(engine: State<'_, Engine>, doc: u64, id: u64) -> Res<DocInfo> {
+    edit(&engine, doc, |d| selection::mask_delete(d, id))
+}
+
+#[tauri::command]
+pub fn mask_apply(engine: State<'_, Engine>, doc: u64, id: u64) -> Res<DocInfo> {
+    edit(&engine, doc, |d| selection::mask_apply(d, id))
+}
+
+#[tauri::command]
+pub fn mask_set(engine: State<'_, Engine>, doc: u64, id: u64, props: MaskProps, transient: bool) -> Res<DocInfo> {
+    edit(&engine, doc, |d| selection::mask_set(d, id, props, transient))
+}
+
+#[tauri::command]
+pub fn mask_to_selection(engine: State<'_, Engine>, doc: u64, id: u64) -> Res<DocInfo> {
+    edit(&engine, doc, |d| selection::mask_to_selection(d, id))
+}
+
 // ---- live sessions (GPU previews) ----
 
 #[tauri::command]
@@ -349,7 +512,7 @@ pub fn debug_test_document(engine: State<'_, Engine>, width: u32, height: u32, l
             })
             .collect::<Vec<_>>(),
     );
-    let content = Content { width, height, ppi: 72.0, active: stack.last().unwrap().id, root: stack };
+    let content = Content::new(width, height, 72.0, stack.last().unwrap().id, stack);
     let doc = Document::new(format!("perf {width}×{height}×{layers}"), None, content, Label::new("history.new"));
     engine.insert(doc).doc.read().info()
 }

@@ -5,6 +5,7 @@
   import { app, viewportToDoc, nextGuideId, type Guide } from '../state.svelte';
   import { i18n } from '../i18n/index.svelte';
   import Rulers from './Rulers.svelte';
+  import { SelectionInteraction, SELECTION_TOOLS } from './selectionTools';
   import { drawOverlay } from './overlay';
 
   let stage = $state<HTMLDivElement>();
@@ -17,6 +18,9 @@
   /** Guide being dragged (new from a ruler, or an existing one). */
   let draggingGuide = $state<Guide | null>(null);
   let hoverGuide = $state<Guide | null>(null);
+  /** Bumped whenever the overlay must be redrawn for an interaction in progress. */
+  let overlayTick = $state(0);
+  const selTool = new SelectionInteraction(() => overlayTick++);
 
   const doc = $derived(app.active);
 
@@ -54,7 +58,7 @@
   $effect(() => {
     if (!compositor) return;
     const d = doc;
-    compositor.setDocument(d ? { id: d.info.id, width: d.info.width, height: d.info.height, version: d.info.version } : null);
+    compositor.setDocument(d ? { id: d.info.id, width: d.info.width, height: d.info.height, version: d.info.version, selection: d.info.selectionKey } : null);
     if (d) compositor.setView({ zoom: d.view.zoom * dpr, cx: d.view.cx, cy: d.view.cy, rotation: (d.view.rotation * Math.PI) / 180 });
     compositor.pixelGrid = app.showPixelGrid;
     compositor.requestFrame();
@@ -70,11 +74,13 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, vp.w, vp.h);
     if (!doc) return;
+    void overlayTick;
     drawOverlay(ctx, doc, vp, {
       grid: app.showGrid ? { spacing: app.gridSpacing, subdivisions: app.gridSubdivisions } : null,
       guides: app.showGuides ? [...doc.guides, ...(draggingGuide && !doc.guides.includes(draggingGuide) ? [draggingGuide] : [])] : [],
       hot: hoverGuide ?? draggingGuide,
     });
+    selTool.draw(ctx);
   });
 
   function local(e: { clientX: number; clientY: number }) {
@@ -143,6 +149,10 @@
         return;
       }
     }
+    if (SELECTION_TOOLS.includes(effectiveTool)) {
+      void selTool.down(e, p);
+      return;
+    }
     if (effectiveTool === 'zoom') {
       drag = { kind: 'zoom', x: e.clientX, start: doc.view.zoom, at: p, moved: false, out: e.altKey };
     } else if (effectiveTool === 'rotateView') {
@@ -154,6 +164,11 @@
   function onPointerMove(e: PointerEvent) {
     if (!doc) return;
     const p = local(e);
+    if (SELECTION_TOOLS.includes(effectiveTool) && !drag) {
+      selTool.move(e, p);
+      if (app.tool === 'quickSelect') overlayTick++;
+      return;
+    }
     if (!drag) {
       hoverGuide = app.tool === 'move' ? guideAt(p) : null;
       return;
@@ -177,6 +192,10 @@
   }
 
   function onPointerUp(e: PointerEvent) {
+    if (SELECTION_TOOLS.includes(effectiveTool) && !drag) {
+      void selTool.up(e, local(e));
+      return;
+    }
     if (drag?.kind === 'zoom' && !drag.moved) app.zoomStep(drag.out || e.altKey ? -1 : 1, drag.at);
     if (drag?.kind === 'guide' && draggingGuide) finishGuide(e);
     drag = null;
@@ -214,6 +233,11 @@
     return t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement;
   }
   function onKey(e: KeyboardEvent, down: boolean) {
+    if (down && !editable(e.target) && selTool.key(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (e.code === 'Space' && !editable(e.target)) {
       spaceDown = down;
       if (down) e.preventDefault();
@@ -231,13 +255,21 @@
         return altDown ? 'zoom-out' : 'zoom-in';
       case 'rotateView':
         return 'alias';
+      case 'marqueeRect':
+      case 'marqueeEllipse':
+      case 'lasso':
+      case 'lassoPolygon':
+      case 'magicWand':
+        return 'crosshair';
+      case 'quickSelect':
+        return 'none';
       default:
         return 'default';
     }
   });
 </script>
 
-<svelte:window onkeydown={(e) => onKey(e, true)} onkeyup={(e) => onKey(e, false)} onblur={() => (spaceDown = false)} />
+<svelte:window onkeydowncapture={(e) => onKey(e, true)} onkeyup={(e) => onKey(e, false)} onblur={() => (spaceDown = false)} />
 
 <div class="canvas-area" class:no-rulers={!app.showRulers} dir={i18n.dir}>
   {#if app.showRulers}
@@ -251,7 +283,14 @@
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
-    onpointercancel={() => (drag = null)}
+    onpointercancel={() => {
+      drag = null;
+      selTool.cancel();
+    }}
+    onpointerleave={() => {
+      selTool.hover = null;
+      overlayTick++;
+    }}
     role="application"
   >
     <canvas class="gpu" bind:this={gpuCanvas}></canvas>

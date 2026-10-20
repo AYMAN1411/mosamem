@@ -85,3 +85,27 @@ pub fn thumbnail(cache: &Cache, tiles: &Arc<TileMap>, width: u32, height: u32, s
     m.insert(key, out.clone());
     out
 }
+
+/// Thumbnail of a layer mask (gray, opaque), same format as `thumbnail`.
+pub fn mask_thumbnail(cache: &Cache, mask: &lawha_core::mask::Mask, width: u32, height: u32, size: u32) -> Arc<Vec<u8>> {
+    let key = (Arc::as_ptr(&mask.tiles) as usize ^ (mask.outside as usize) << 1 ^ 1, size);
+    if let Some(hit) = cache.map.lock().get(&key) {
+        return hit.clone();
+    }
+    let scale = (width.max(height) as f64 / size as f64).max(1.0);
+    let (tw, th) = (((width as f64 / scale).round() as u32).max(1), ((height as f64 / scale).round() as u32).max(1));
+    let mut out = Vec::with_capacity(4 + (tw * th * 4) as usize);
+    out.extend_from_slice(&(tw as u16).to_le_bytes());
+    out.extend_from_slice(&(th as u16).to_le_bytes());
+    for cy in 0..th {
+        for cx in 0..tw {
+            // point-sample the cell center (masks are smooth enough for a thumbnail)
+            let (x, y) = (((cx as f64 + 0.5) * scale) as i32, ((cy as f64 + 0.5) * scale) as i32);
+            let v = mask.tile((x / TILE as i32, y / TILE as i32)).map_or(mask.outside, |t| t.get(x as usize % TILE, y as usize % TILE));
+            out.extend_from_slice(&[v, v, v, 255]);
+        }
+    }
+    let out = Arc::new(out);
+    cache.map.lock().insert(key, out.clone());
+    out
+}

@@ -7,3 +7,4 @@ description = "Lawha pixel math: one implementation shared by the app (WASM) and
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
+rayon = "1.12"

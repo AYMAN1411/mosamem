@@ -16,7 +16,7 @@ use lawha_core::tile::{downsample, Tile, TILE};
 use lawha_core::BlendMode;
 use parking_lot::Mutex;
 
-use super::composite::composite_nodes;
+use super::composite::{composite_nodes, mask_factor, MaskFactor};
 use super::model::{Content, Node, NodeKind};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -33,6 +33,8 @@ pub struct Session {
     below: Vec<Node>,
     above: Vec<Node>,
     layer_tiles: Arc<super::model::TileMap>,
+    /// The layer itself when it has an enabled mask (applied to the layer part).
+    mask: Option<Node>,
     cache: Mutex<HashMap<(Part, u8, i32, i32), Option<Arc<Tile>>>>,
 }
 
@@ -126,15 +128,33 @@ impl Session {
     pub fn begin(doc: u64, content: &Content, layer: u64) -> Option<Session> {
         let node = content.find(layer)?;
         let layer_tiles = node.tiles()?.clone();
+        let mask = node.mask.as_ref().filter(|m| m.enabled).map(|_| node.clone());
         let (below, above) = split(content, layer)?;
-        Some(Session { doc, width: content.width, height: content.height, below, above, layer_tiles, cache: Mutex::new(HashMap::new()) })
+        Some(Session { doc, width: content.width, height: content.height, below, above, layer_tiles, mask, cache: Mutex::new(HashMap::new()) })
     }
 
     fn lod0(&self, part: Part, tx: i32, ty: i32) -> Option<Tile> {
         match part {
             Part::Below => composite_nodes(&self.below, tx, ty),
             Part::Above => composite_nodes(&self.above, tx, ty),
-            Part::Layer => self.layer_tiles.get(&(tx, ty)).map(|t| (**t).clone()),
+            Part::Layer => {
+                let t = self.layer_tiles.get(&(tx, ty))?;
+                // the layer mask scales alpha (straight colors stay as they are)
+                match self.mask.as_ref().and_then(|n| mask_factor(n, (tx, ty))) {
+                    None => Some((**t).clone()),
+                    Some(f) => {
+                        let mut out = (**t).clone();
+                        for (i, px) in out.0.chunks_exact_mut(4).enumerate() {
+                            let k = match &f {
+                                MaskFactor::Const(k) => *k,
+                                MaskFactor::Each(v) => v[i],
+                            };
+                            px[3] = (px[3] as f32 * k + 0.5) as u8;
+                        }
+                        Some(out)
+                    }
+                }
+            }
         }
     }
 
@@ -149,7 +169,7 @@ impl Session {
             return hit.clone();
         }
         let result = if lod == 0 {
-            if part == Part::Layer {
+            if part == Part::Layer && self.mask.is_none() {
                 self.layer_tiles.get(&(tx, ty)).cloned()
             } else {
                 self.lod0(part, tx, ty).map(Arc::new)
@@ -217,7 +237,7 @@ mod tests {
         top.opacity = 0.5;
         let g = Node::group("g", vec![top]);
         let id = mid.id;
-        let c = Content { width: 256, height: 256, ppi: 72.0, active: id, root: vec![bg, mid, g] };
+        let c = Content::new(256, 256, 72.0, id, vec![bg, mid, g]);
         check(&c, id);
     }
 
@@ -231,7 +251,7 @@ mod tests {
         let id = target.id;
         let g = Node::group("g", vec![low, target, after]);
         let top = solid("top", [255, 255, 0, 40]);
-        let c = Content { width: 256, height: 256, ppi: 72.0, active: id, root: vec![bg, g, top] };
+        let c = Content::new(256, 256, 72.0, id, vec![bg, g, top]);
         check(&c, id);
     }
 
@@ -242,7 +262,7 @@ mod tests {
         let mut scr = solid("s", [0, 0, 255, 255]);
         scr.blend = BlendMode::Screen;
         let id = target.id;
-        let c = Content { width: 256, height: 256, ppi: 72.0, active: id, root: vec![bg, target, scr] };
+        let c = Content::new(256, 256, 72.0, id, vec![bg, target, scr]);
         assert!(Session::begin(1, &c, id).is_none());
     }
 }

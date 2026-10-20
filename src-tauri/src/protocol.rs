@@ -22,7 +22,9 @@ fn reply(status: StatusCode, body: Vec<u8>) -> Response<Vec<u8>> {
 pub fn handle<R: Runtime>(ctx: UriSchemeContext<'_, R>, request: Request<Vec<u8>>, responder: UriSchemeResponder) {
     let app = ctx.app_handle().clone();
     let path = request.uri().path().to_owned();
-    rayon::spawn(move || {
+    // Not on the rayon pool: a tile request may wait for a document lock held by an edit that is
+    // itself using rayon, and blocking rayon workers there would deadlock.
+    tauri::async_runtime::spawn_blocking(move || {
         let parts: Vec<&str> = path.trim_start_matches('/').split('/').collect();
         let response = match parts.as_slice() {
             ["composite", doc, _version, lod, tx, ty] => {
@@ -54,6 +56,32 @@ pub fn handle<R: Runtime>(ctx: UriSchemeContext<'_, R>, request: Request<Vec<u8>
                         None => reply(StatusCode::NO_CONTENT, Vec::new()),
                     },
                     (None, ..) => reply(StatusCode::GONE, Vec::new()),
+                    _ => reply(StatusCode::BAD_REQUEST, Vec::new()),
+                }
+            }
+            ["sel", doc, _version, lod, tx, ty] => {
+                let h = doc.parse::<u64>().ok().and_then(|d| app.state::<Engine>().get(d));
+                match (h, lod.parse::<u8>(), tx.parse::<i32>(), ty.parse::<i32>()) {
+                    (Some(h), Ok(lod), Ok(tx), Ok(ty)) if lod <= composite::MAX_LOD => match composite::selection_tile(&h, lod, tx, ty) {
+                        Some(t) => reply(StatusCode::OK, t.to_vec()),
+                        None => reply(StatusCode::NO_CONTENT, Vec::new()),
+                    },
+                    _ => reply(StatusCode::BAD_REQUEST, Vec::new()),
+                }
+            }
+            ["mthumb", doc, layer, _key, size] => {
+                let h = doc.parse::<u64>().ok().and_then(|d| app.state::<Engine>().get(d));
+                match (h, layer.parse::<u64>(), size.parse::<u32>()) {
+                    (Some(h), Ok(layer), Ok(size)) if (8..=512).contains(&size) => {
+                        let found = {
+                            let d = h.doc.read();
+                            d.content.find(layer).and_then(|n| n.mask.as_ref().map(|m| m.mask.clone())).map(|m| (m, d.content.width, d.content.height))
+                        };
+                        match found {
+                            Some((m, w, ht)) => reply(StatusCode::OK, thumbs::mask_thumbnail(&h.thumbs, &m, w, ht, size).to_vec()),
+                            None => reply(StatusCode::NO_CONTENT, Vec::new()),
+                        }
+                    }
                     _ => reply(StatusCode::BAD_REQUEST, Vec::new()),
                 }
             }

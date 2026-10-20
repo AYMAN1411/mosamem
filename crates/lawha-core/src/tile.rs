@@ -161,6 +161,24 @@ impl Accum {
         }
     }
 
+    /// Multiplies every pixel by a coverage factor (a layer mask).
+    pub fn mul_factors(&mut self, f: &[f32]) {
+        for (d, k) in self.0.iter_mut().zip(f) {
+            for c in d.iter_mut() {
+                *c *= k;
+            }
+        }
+    }
+
+    /// Per-pixel lerp toward `other` by `t[i]` (pass-through groups with a mask).
+    pub fn lerp_to_each(&mut self, other: &Accum, t: &[f32]) {
+        for ((d, o), k) in self.0.iter_mut().zip(other.0.iter()).zip(t) {
+            for c in 0..4 {
+                d[c] += (o[c] - d[c]) * k;
+            }
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.0.iter().all(|p| p[3] <= 0.0)
     }

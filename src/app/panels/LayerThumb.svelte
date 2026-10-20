@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { thumbUrl } from '../../engine/bridge';
+  import { thumbUrl, maskThumbUrl } from '../../engine/bridge';
 
-  let { doc, layer, thumbKey, size = 34 }: { doc: number; layer: number; thumbKey: number; size?: number } = $props();
+  let { doc, layer, thumbKey, size = 34, mask = false }: { doc: number; layer: number; thumbKey: number; size?: number; mask?: boolean } = $props();
   let canvas = $state<HTMLCanvasElement>();
 
   $effect(() => {
@@ -9,7 +9,7 @@
     if (!c) return;
     const px = Math.round(size * devicePixelRatio);
     let cancelled = false;
-    fetch(thumbUrl(doc, layer, thumbKey, px)).then(async (r) => {
+    fetch((mask ? maskThumbUrl : thumbUrl)(doc, layer, thumbKey, px)).then(async (r) => {
       if (cancelled || r.status !== 200) return;
       const buf = new Uint8Array(await r.arrayBuffer());
       const w = buf[0] | (buf[1] << 8);

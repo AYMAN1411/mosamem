@@ -55,6 +55,22 @@ export const MAX_ZOOM = 64;
 let guideId = 1;
 export const nextGuideId = () => guideId++;
 
+export interface SelectionOptions {
+  mode: 'replace' | 'add' | 'subtract' | 'intersect';
+  feather: number;
+  antialias: boolean;
+  style: 'normal' | 'ratio' | 'size';
+  ratioW: number;
+  ratioH: number;
+  sizeW: number;
+  sizeH: number;
+  tolerance: number;
+  contiguous: boolean;
+  allLayers: boolean;
+  /** Quick selection brush diameter, screen-independent document px. */
+  brush: number;
+}
+
 class AppState {
   docs = $state<DocState[]>([]);
   activeId = $state<number | null>(null);
@@ -66,8 +82,12 @@ class AppState {
   showGuides = $state(true);
   showPixelGrid = $state(true);
   gridSpacing = $state(100);
+  sel = $state<SelectionOptions>({ mode: 'replace', feather: 0, antialias: true, style: 'normal', ratioW: 1, ratioH: 1, sizeW: 1080, sizeH: 1080, tolerance: 32, contiguous: true, allLayers: false, brush: 30 });
   gridSubdivisions = $state(4);
-  dialog = $state<null | 'new' | 'export' | 'recovery' | 'unsaved'>(null);
+  dialog = $state<null | 'new' | 'export' | 'recovery' | 'unsaved' | 'modify' | 'refine'>(null);
+  modifyOp = $state<'feather' | 'expand' | 'contract' | 'border' | 'smooth'>('feather');
+  /** True when the layer mask (not the pixels) of the active layer is the editing target. */
+  maskTarget = $state(false);
   toast = $state<{ text: string; kind: 'info' | 'error' } | null>(null);
   /** Size of the canvas area in CSS px, kept current by the canvas view. */
   viewport = $state({ w: 800, h: 600 });

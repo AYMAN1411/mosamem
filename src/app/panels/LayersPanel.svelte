@@ -3,7 +3,7 @@
   import { t, fmt, type Key } from '../i18n/index.svelte';
   import { findLayer, walkLayers, type LayerInfo } from '../../engine/bridge';
   import { BLEND_MODES } from '../../engine/blend';
-  import { layer as act } from '../actions';
+  import { layer as act, mask as maskAct } from '../actions';
   import Icon from '../icons/Icon.svelte';
   import LayerThumb from './LayerThumb.svelte';
   import Scrub from './Scrub.svelte';
@@ -131,10 +131,10 @@
   <div class="panel">
     <div class="controls">
       <select class="field blend" value={blendValue(active)} onchange={(e) => setBlend(e.currentTarget.value)} title={t('layer.blend')}>
-        {#if active.kind === 'group'}<option value="passThrough">{t('blend.passThrough')}</option>{/if}
+        {#if active.kind === 'group'}<option value="passThrough" selected={blendValue(active) === 'passThrough'}>{t('blend.passThrough')}</option>{/if}
         {#each groups as g, gi (gi)}
           <optgroup label="―――">
-            {#each g as m (m)}<option value={m}>{t(`blend.${m}` as Key)}</option>{/each}
+            {#each g as m (m)}<option value={m} selected={blendValue(active) === m}>{t(`blend.${m}` as Key)}</option>{/each}
           </optgroup>
         {/each}
       </select>
@@ -189,7 +189,27 @@
           {#if l.kind === 'group'}
             <span class="folder"><Icon name="folder" size={22} /></span>
           {:else}
-            <LayerThumb doc={doc.info.id} layer={l.id} thumbKey={l.thumb} />
+            <button
+              class="thumb-btn"
+              class:target={l.id === doc.info.active && !app.maskTarget && !!l.mask}
+              onclick={(e) => { e.stopPropagation(); app.maskTarget = false; select(e, l.id); }}
+              aria-label={l.name}
+            ><LayerThumb doc={doc.info.id} layer={l.id} thumbKey={l.thumb} /></button>
+          {/if}
+          {#if l.mask}
+            <button
+              class="thumb-btn mask"
+              class:target={l.id === doc.info.active && app.maskTarget}
+              class:off={!l.mask.enabled}
+              title={t('mask.thumbHint')}
+              onclick={(e) => {
+                e.stopPropagation();
+                if (e.shiftKey) return maskAct.toggle(l.id);
+                if (e.metaKey || e.ctrlKey) return maskAct.toSelection(l.id);
+                app.maskTarget = true;
+                if (doc.info.active !== l.id) select(e, l.id);
+              }}
+            ><LayerThumb doc={doc.info.id} layer={l.id} thumbKey={l.mask.thumb} mask /></button>
           {/if}
           {#if renaming === l.id}
             <!-- svelte-ignore a11y_autofocus -->
@@ -212,6 +232,7 @@
     </ul>
 
     <div class="bar">
+      <button class="icon-btn" title={`${t('mask.add')} — ${t('mask.addHint')}`} disabled={!!active.mask} onclick={(e) => maskAct.addAuto(e.altKey)}><Icon name="adjustments" size={16} /></button>
       <button class="icon-btn" title={t('layer.newGroup')} onclick={act.newGroup}><Icon name="folder" size={16} /></button>
       <button class="icon-btn" title={t('layer.new')} onclick={act.new}><Icon name="plus" size={16} /></button>
       <button class="icon-btn" title={t('layer.delete')} onclick={act.delete}><Icon name="trash" size={16} /></button>
@@ -246,6 +267,9 @@
   .disclosure.open, :global([dir='rtl']) .disclosure.open { transform: none; }
   .clip { color: var(--fg-2); font-size: 14px; }
   .folder { color: var(--fg-2); display: grid; width: 34px; place-items: center; }
+  .thumb-btn { position: relative; display: grid; padding: 1px; border: 0; border-radius: 4px; background: none; }
+  .thumb-btn.target { box-shadow: 0 0 0 1.5px var(--fg-0); }
+  .thumb-btn.off::after { content: ''; position: absolute; inset: 0; background: linear-gradient(45deg, transparent 46%, var(--danger) 47% 53%, transparent 54%), linear-gradient(-45deg, transparent 46%, var(--danger) 47% 53%, transparent 54%); }
   .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .clipped-name { text-decoration: underline dotted var(--fg-3); }
   .rename { flex: 1; height: 24px; }

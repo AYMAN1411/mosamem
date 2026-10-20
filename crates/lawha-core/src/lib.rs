@@ -2,6 +2,8 @@
 //! shaders are tested against it.
 
 pub mod blend;
+pub mod mask;
+pub mod select;
 pub mod tile;
 
 pub use blend::BlendMode;

@@ -1,6 +1,6 @@
 // User-level actions, shared by menus, buttons and shortcuts.
 import { open, save } from '@tauri-apps/plugin-dialog';
-import { engine, findLayer, type DocInfo, type ExportFormat, type LayerProps } from '../engine/bridge';
+import { engine, findLayer, type DocInfo, type ExportFormat, type LayerProps, type Modify, type NewMask } from '../engine/bridge';
 import { app, type DocState } from './state.svelte';
 import { t } from './i18n/index.svelte';
 
@@ -170,4 +170,43 @@ export const view = {
   clearGuides: () => {
     if (app.active) app.active.guides = [];
   },
+};
+
+// ---- selection ----
+
+export const select = {
+  all: () => run((d) => engine.selectSimple(d.info.id, 'all')),
+  deselect: () => run((d) => engine.selectSimple(d.info.id, 'deselect')),
+  reselect: () => run((d) => engine.selectSimple(d.info.id, 'reselect')),
+  invert: () => run((d) => engine.selectSimple(d.info.id, 'invert')),
+  modify: (op: Modify) => run((d) => engine.selectModify(d.info.id, op)),
+  /** Opens the small amount dialog for a Modify command. */
+  ask: (op: Modify['op']) => {
+    app.modifyOp = op;
+    app.dialog = 'modify';
+  },
+  refine: () => {
+    if (app.active?.info.hasSelection) app.dialog = 'refine';
+  },
+};
+
+// ---- layer masks ----
+
+export const mask = {
+  add: (kind: NewMask) => run((d) => engine.maskAdd(d.info.id, d.info.active, kind)),
+  /** The panel's mask button: from the selection if there is one; Alt = the hiding variant. */
+  addAuto: (alt: boolean) => {
+    const sel = app.active?.info.hasSelection;
+    return mask.add(sel ? (alt ? 'hideSelection' : 'revealSelection') : alt ? 'hideAll' : 'revealAll');
+  },
+  delete: () => run((d) => engine.maskDelete(d.info.id, d.info.active)),
+  apply: () => run((d) => engine.maskApply(d.info.id, d.info.active)),
+  toggle: (id?: number) =>
+    run((d) => {
+      const l = findLayer(d.info.layers, id ?? d.info.active);
+      return l?.mask ? engine.maskSet(d.info.id, l.id, { enabled: !l.mask.enabled }) : Promise.resolve(d.info);
+    }),
+  invert: () => run((d) => engine.maskSet(d.info.id, d.info.active, { invert: true })),
+  set: (props: { density?: number; feather?: number }, transient = false) => run((d) => engine.maskSet(d.info.id, d.info.active, props, transient)),
+  toSelection: (id: number) => run((d) => engine.maskToSelection(d.info.id, id)),
 };

@@ -11,12 +11,13 @@
 //! - Fill fades a layer's own pixels; opacity fades everything (styles arrive in M8).
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
+use lawha_core::mask::Mask;
 use lawha_core::tile::{downsample, Accum, Tile, TILE};
 use parking_lot::Mutex;
 
-use super::model::{Content, Node, NodeKind};
+use super::model::{Content, LayerMask, Node, NodeKind};
 use super::DocHandle;
 
 pub const MAX_LOD: u8 = 6;
@@ -57,16 +58,93 @@ enum Source<'a> {
     Accum(Accum),
 }
 
-/// Isolated content of a node at one tile (None when it draws nothing there).
+/// The layer mask's effect on one tile: None = no mask (or disabled), Const = the same factor
+/// everywhere, Each = one factor per pixel. Factors include density: f = 1 − density·(1 − m).
+pub enum MaskFactor {
+    Const(f32),
+    Each(Vec<f32>),
+}
+
+static FEATHERED: OnceLock<Mutex<HashMap<(usize, u32), Arc<Mask>>>> = OnceLock::new();
+
+/// The mask after its render-time feather, cached by mask content and radius.
+fn feathered(m: &LayerMask) -> Arc<Mask> {
+    if m.feather <= 0.0 {
+        return Arc::new(m.mask.clone());
+    }
+    let key = (Arc::as_ptr(&m.mask.tiles) as usize, m.feather.to_bits());
+    let cache = FEATHERED.get_or_init(Default::default);
+    if let Some(hit) = cache.lock().get(&key) {
+        return hit.clone();
+    }
+    // the region the stored tiles cover, plus room for the blur to spread
+    let margin = ((m.feather * 2.0) as i32 / TILE as i32) + 1;
+    let (mx, my) = m.mask.tiles.keys().fold((0, 0), |(a, b), (x, y)| (a.max(*x), b.max(*y)));
+    let (w, h) = (((mx + 1 + margin) * TILE as i32) as u32, ((my + 1 + margin) * TILE as i32) as u32);
+    let dense = lawha_core::select::feather(&m.mask.to_dense(w, h), m.feather);
+    let out = Arc::new(Mask::from_dense(&dense, m.mask.outside));
+    let mut c = cache.lock();
+    if c.len() > 64 {
+        c.clear();
+    }
+    c.insert(key, out.clone());
+    out
+}
+
+pub fn mask_factor(node: &Node, key: (i32, i32)) -> Option<MaskFactor> {
+    let lm = node.mask.as_ref().filter(|m| m.enabled)?;
+    let mask = feathered(lm);
+    let d = lm.density;
+    Some(match mask.tile(key) {
+        None => MaskFactor::Const(1.0 - d * (1.0 - mask.outside as f32 / 255.0)),
+        Some(t) => MaskFactor::Each(t.0.iter().map(|m| 1.0 - d * (1.0 - *m as f32 / 255.0)).collect()),
+    })
+}
+
+fn apply_mask(acc: &mut Accum, f: &MaskFactor) {
+    match f {
+        MaskFactor::Const(k) if *k >= 1.0 => {}
+        MaskFactor::Const(k) => {
+            for p in acc.0.iter_mut() {
+                for c in p.iter_mut() {
+                    *c *= k;
+                }
+            }
+        }
+        MaskFactor::Each(v) => acc.mul_factors(v),
+    }
+}
+
+/// Isolated content of a node at one tile, with its layer mask applied (None when it draws
+/// nothing there).
 fn isolated(node: &Node, key: (i32, i32), origin: (i64, i64)) -> Option<Source<'_>> {
-    match &node.kind {
-        NodeKind::Pixel { tiles } => tiles.get(&key).map(|t| Source::Tile(t, node.fill)),
+    let mask = mask_factor(node, key);
+    if matches!(mask, Some(MaskFactor::Const(k)) if k <= 0.0) {
+        return None;
+    }
+    let src = match &node.kind {
+        NodeKind::Pixel { tiles } => Source::Tile(tiles.get(&key)?, node.fill),
         NodeKind::Group { children, .. } => {
             let mut acc = Accum::new();
             composite_stack(children, &mut acc, key, origin);
-            (!acc.is_empty()).then_some(Source::Accum(acc))
+            if acc.is_empty() {
+                return None;
+            }
+            Source::Accum(acc)
         }
-    }
+    };
+    Some(match (src, mask) {
+        (s, None) => s,
+        (Source::Tile(t, fill), Some(f)) => {
+            let mut a = Accum::from_tile(t, fill);
+            apply_mask(&mut a, &f);
+            Source::Accum(a)
+        }
+        (Source::Accum(mut a), Some(f)) => {
+            apply_mask(&mut a, &f);
+            Source::Accum(a)
+        }
+    })
 }
 
 /// Composites a list of sibling nodes (bottom to top) onto `acc`.
@@ -92,12 +170,17 @@ fn composite_unit(base: &Node, clipped: &[Node], acc: &mut Accum, key: (i32, i32
     // pass-through group without clipped layers: children go straight onto the backdrop
     if let NodeKind::Group { children, pass_through: true, .. } = &base.kind {
         if !has_clips {
-            if base.opacity >= 1.0 {
+            let mask = mask_factor(base, key);
+            if base.opacity >= 1.0 && mask.is_none() {
                 composite_stack(children, acc, key, origin);
-            } else {
-                let mut with = Accum(acc.0.clone());
-                composite_stack(children, &mut with, key, origin);
-                acc.lerp_to(&with, base.opacity);
+                return;
+            }
+            let mut with = Accum(acc.0.clone());
+            composite_stack(children, &mut with, key, origin);
+            match mask {
+                None => acc.lerp_to(&with, base.opacity),
+                Some(MaskFactor::Const(k)) => acc.lerp_to(&with, base.opacity * k),
+                Some(MaskFactor::Each(v)) => acc.lerp_to_each(&with, &v.iter().map(|k| k * base.opacity).collect::<Vec<_>>()),
             }
             return;
         }
@@ -176,6 +259,81 @@ fn tile_in(h: &DocHandle, c: &Content, version: u64, lod: u8, tx: i32, ty: i32) 
     result
 }
 
+/// Selection (or refine preview) as display tiles: the coverage repeated in all four channels.
+/// Mip levels average 2×2 blocks.
+pub fn selection_tile(h: &DocHandle, lod: u8, tx: i32, ty: i32) -> Option<Arc<Vec<u8>>> {
+    let doc = h.doc.read();
+    let mask = doc.preview.as_ref().or(doc.content.selection.as_ref())?.clone();
+    let version = doc.version;
+    let (tw, th) = doc.content.tiles_wide();
+    drop(doc);
+    fn level(h: &DocHandle, m: &Mask, version: u64, tw: i32, th: i32, lod: u8, tx: i32, ty: i32) -> Option<Arc<Vec<u8>>> {
+        let scale = 1i32 << lod;
+        if tx < 0 || ty < 0 || tx * scale >= tw || ty * scale >= th {
+            return None;
+        }
+        if let Some(hit) = h.selection.get(version, (lod, tx, ty)) {
+            return hit;
+        }
+        let out: Option<Arc<Vec<u8>>> = if lod == 0 {
+            let vals: Option<Vec<u8>> = match m.tile((tx, ty)) {
+                Some(t) => Some(t.0.to_vec()),
+                None if m.outside > 0 => Some(vec![m.outside; TILE * TILE]),
+                None => None,
+            };
+            vals.filter(|v| v.iter().any(|x| *x > 0)).map(|v| Arc::new(v.iter().flat_map(|x| [*x; 4]).collect()))
+        } else {
+            let kids: Vec<Option<Arc<Vec<u8>>>> = [(0, 0), (1, 0), (0, 1), (1, 1)].iter().map(|(dx, dy)| level(h, m, version, tw, th, lod - 1, tx * 2 + dx, ty * 2 + dy)).collect();
+            if kids.iter().all(Option::is_none) {
+                None
+            } else {
+                let mut o = vec![0u8; TILE * TILE * 4];
+                const H: usize = TILE / 2;
+                for (q, k) in kids.iter().enumerate() {
+                    let Some(k) = k else { continue };
+                    let (ox, oy) = ((q % 2) * H, (q / 2) * H);
+                    for y in 0..H {
+                        for x in 0..H {
+                            let s = |dx: usize, dy: usize| k[((2 * y + dy) * TILE + 2 * x + dx) * 4] as u32;
+                            let v = ((s(0, 0) + s(1, 0) + s(0, 1) + s(1, 1) + 2) / 4) as u8;
+                            let i = ((oy + y) * TILE + ox + x) * 4;
+                            o[i..i + 4].copy_from_slice(&[v; 4]);
+                        }
+                    }
+                }
+                Some(Arc::new(o))
+            }
+        };
+        h.selection.put(version, (lod, tx, ty), out.clone());
+        out
+    }
+    level(h, &mask, version, tw, th, lod, tx, ty)
+}
+
+/// Version-keyed cache of selection display tiles.
+#[derive(Default)]
+pub struct SelCache {
+    inner: Mutex<(u64, HashMap<(u8, i32, i32), Option<Arc<Vec<u8>>>>)>,
+}
+
+impl SelCache {
+    fn get(&self, version: u64, key: (u8, i32, i32)) -> Option<Option<Arc<Vec<u8>>>> {
+        let mut c = self.inner.lock();
+        if c.0 != version {
+            c.0 = version;
+            c.1.clear();
+            return None;
+        }
+        c.1.get(&key).cloned()
+    }
+    fn put(&self, version: u64, key: (u8, i32, i32), v: Option<Arc<Vec<u8>>>) {
+        let mut c = self.inner.lock();
+        if c.0 == version {
+            c.1.insert(key, v);
+        }
+    }
+}
+
 /// Copies tiles into a full RGBA8 image (straight alpha).
 pub fn assemble(width: u32, height: u32, tiles: impl IntoIterator<Item = ((i32, i32), Arc<Tile>)>) -> Vec<u8> {
     let (w, hgt) = (width as usize, height as usize);
@@ -216,7 +374,7 @@ mod tests {
     use lawha_core::BlendMode;
 
     pub fn doc(root: Vec<Node>, w: u32, h: u32) -> Document {
-        let c = Content { width: w, height: h, ppi: 72.0, active: 0, root };
+        let c = Content::new(w, h, 72.0, 0, root);
         Document::new("t".into(), None, c, Label::new("history.open"))
     }
 
@@ -317,6 +475,50 @@ mod tests {
         clip.clipped = true;
         let d = doc(vec![solid("bg", [0, 0, 0, 255]), base, clip], 300, 300);
         assert_eq!(px(&d.content, 5, 5), [128, 0, 0, 255]);
+    }
+
+    #[test]
+    fn layer_mask_hides_where_black_and_density_softens_it() {
+        use lawha_core::mask::Dense;
+        let mut top = solid("w", [255, 255, 255, 255]);
+        // mask: left half white (show), right half black (hide)
+        let mut d = Dense::new(300, 300, 0);
+        for y in 0..300 {
+            for x in 0..150 {
+                d.data[y * 300 + x] = 255;
+            }
+        }
+        top.mask = Some(crate::doc::model::LayerMask::new(Mask::from_dense(&d, 0)));
+        let c = Content::new(300, 300, 72.0, 0, vec![solid("b", [0, 0, 0, 255]), top.clone()]);
+        assert_eq!(px(&c, 10, 10), [255, 255, 255, 255]);
+        assert_eq!(px(&c, 290, 10), [0, 0, 0, 255]);
+        // density 50%: hidden areas show at half strength
+        top.mask.as_mut().unwrap().density = 0.5;
+        let c = Content::new(300, 300, 72.0, 0, vec![solid("b", [0, 0, 0, 255]), top.clone()]);
+        assert_eq!(px(&c, 290, 10), [128, 128, 128, 255]);
+        // disabled: no effect
+        top.mask.as_mut().unwrap().enabled = false;
+        let c = Content::new(300, 300, 72.0, 0, vec![solid("b", [0, 0, 0, 255]), top]);
+        assert_eq!(px(&c, 290, 10), [255, 255, 255, 255]);
+    }
+
+    #[test]
+    fn feathered_mask_ramps_across_the_edge() {
+        use lawha_core::mask::Dense;
+        let mut top = solid("w", [255, 255, 255, 255]);
+        let mut d = Dense::new(300, 300, 0);
+        for y in 0..300 {
+            for x in 0..150 {
+                d.data[y * 300 + x] = 255;
+            }
+        }
+        let mut lm = crate::doc::model::LayerMask::new(Mask::from_dense(&d, 0));
+        lm.feather = 20.0;
+        top.mask = Some(lm);
+        let c = Content::new(300, 300, 72.0, 0, vec![solid("b", [0, 0, 0, 255]), top]);
+        let mid = px(&c, 150, 100)[0];
+        assert!(mid > 100 && mid < 155, "{mid}");
+        assert!(px(&c, 120, 100)[0] > px(&c, 140, 100)[0]);
     }
 
     #[test]

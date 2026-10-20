@@ -19,7 +19,8 @@ use parking_lot::Mutex;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
-use crate::doc::model::{Locks, Node, NodeKind, TileMap};
+use crate::doc::model::{LayerMask, Locks, Node, NodeKind, TileMap};
+use lawha_core::mask::{Mask, MaskMap, MaskTile, MASK_TILE_BYTES};
 use crate::doc::{reserve_ids_above, Content};
 
 pub const FORMAT: &str = "lawha/1";
@@ -65,6 +66,18 @@ struct Props {
     pass_through: bool,
     #[serde(default)]
     expanded: bool,
+    /// Layer mask settings; its pixels are in the `masks` table.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    mask: Option<MaskProps>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MaskProps {
+    enabled: bool,
+    density: f32,
+    feather: f32,
+    outside: u8,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -86,6 +99,7 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS nodes (id INTEGER PRIMARY KEY, parent INTEGER, idx INTEGER NOT NULL, kind TEXT NOT NULL, props TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS tiles (node INTEGER NOT NULL, tx INTEGER NOT NULL, ty INTEGER NOT NULL, hash BLOB NOT NULL, PRIMARY KEY (node, tx, ty));
 CREATE TABLE IF NOT EXISTS blobs (hash BLOB PRIMARY KEY, data BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS masks (node INTEGER NOT NULL, tx INTEGER NOT NULL, ty INTEGER NOT NULL, hash BLOB NOT NULL, PRIMARY KEY (node, tx, ty));
 ";
 
 fn open_rw(path: &Path) -> Result<Connection, PersistError> {
@@ -104,8 +118,10 @@ pub fn save(path: &Path, content: &Content, name: &str, extra: &Extra, hashes: &
     use rayon::prelude::*;
     // hash every tile (cached) and collect the tile table rows
     let mut rows: Vec<(u64, i32, i32, Arc<Tile>)> = Vec::new();
+    let mut mask_rows: Vec<(u64, i32, i32, Arc<MaskTile>)> = Vec::new();
     let mut nodes: Vec<(u64, Option<u64>, usize, &'static str, String)> = Vec::new();
-    fn walk(list: &[Node], parent: Option<u64>, rows: &mut Vec<(u64, i32, i32, Arc<Tile>)>, nodes: &mut Vec<(u64, Option<u64>, usize, &'static str, String)>) {
+    type MaskRows = Vec<(u64, i32, i32, Arc<MaskTile>)>;
+    fn walk(list: &[Node], parent: Option<u64>, rows: &mut Vec<(u64, i32, i32, Arc<Tile>)>, mask_rows: &mut MaskRows, nodes: &mut Vec<(u64, Option<u64>, usize, &'static str, String)>) {
         for (i, n) in list.iter().enumerate() {
             let (kind, pass_through, expanded) = match &n.kind {
                 NodeKind::Pixel { tiles } => {
@@ -116,14 +132,21 @@ pub fn save(path: &Path, content: &Content, name: &str, extra: &Extra, hashes: &
                 }
                 NodeKind::Group { pass_through, expanded, .. } => ("group", *pass_through, *expanded),
             };
-            let props = Props { name: n.name.clone(), visible: n.visible, opacity: n.opacity, fill: n.fill, blend: n.blend, locks: n.locks, clipped: n.clipped, pass_through, expanded };
+            let mask = n.mask.as_ref().map(|m| {
+                for (&(tx, ty), t) in m.mask.tiles.iter() {
+                    mask_rows.push((n.id, tx, ty, t.clone()));
+                }
+                MaskProps { enabled: m.enabled, density: m.density, feather: m.feather, outside: m.mask.outside }
+            });
+            let props = Props { name: n.name.clone(), visible: n.visible, opacity: n.opacity, fill: n.fill, blend: n.blend, locks: n.locks, clipped: n.clipped, pass_through, expanded, mask };
             nodes.push((n.id, parent, i, kind, serde_json::to_string(&props).unwrap()));
             if let Some(c) = n.children() {
-                walk(c, Some(n.id), rows, nodes);
+                walk(c, Some(n.id), rows, mask_rows, nodes);
             }
         }
     }
-    walk(&content.root, None, &mut rows, &mut nodes);
+    walk(&content.root, None, &mut rows, &mut mask_rows, &mut nodes);
+    let mask_hashed: Vec<Hash> = mask_rows.par_iter().map(|r| *blake3::hash(&r.3.0).as_bytes()).collect();
     let hashed: Vec<Hash> = rows.par_iter().map(|r| hashes.hash(&r.3)).collect();
 
     let mut conn = open_rw(path)?;
@@ -136,11 +159,15 @@ pub fn save(path: &Path, content: &Content, name: &str, extra: &Extra, hashes: &
     let mut seen = HashSet::new();
     let fresh: Vec<(Hash, Arc<Tile>)> =
         rows.iter().zip(&hashed).filter(|(_, h)| !existing.contains(*h) && seen.insert(**h)).map(|(r, h)| (*h, r.3.clone())).collect();
-    let compressed: Vec<(Hash, Vec<u8>)> = fresh.par_iter().map(|(h, t)| (*h, lz4_flex::compress_prepend_size(&t.0))).collect();
+    let mut compressed: Vec<(Hash, Vec<u8>)> = fresh.par_iter().map(|(h, t)| (*h, lz4_flex::compress_prepend_size(&t.0))).collect();
+    let fresh_masks: Vec<(Hash, Arc<MaskTile>)> =
+        mask_rows.iter().zip(&mask_hashed).filter(|(_, h)| !existing.contains(*h) && seen.insert(**h)).map(|(r, h)| (*h, r.3.clone())).collect();
+    compressed.extend(fresh_masks.par_iter().map(|(h, t)| (*h, lz4_flex::compress_prepend_size(&t.0))).collect::<Vec<_>>());
 
     let tx = conn.transaction()?;
     tx.execute("DELETE FROM nodes", [])?;
     tx.execute("DELETE FROM tiles", [])?;
+    tx.execute("DELETE FROM masks", [])?;
     {
         let mut ins = tx.prepare("INSERT OR IGNORE INTO blobs (hash, data) VALUES (?1, ?2)")?;
         for (h, data) in &compressed {
@@ -154,8 +181,12 @@ pub fn save(path: &Path, content: &Content, name: &str, extra: &Extra, hashes: &
         for (r, h) in rows.iter().zip(&hashed) {
             ins.execute(params![r.0 as i64, r.1, r.2, &h[..]])?;
         }
+        let mut ins = tx.prepare("INSERT INTO masks (node, tx, ty, hash) VALUES (?1, ?2, ?3, ?4)")?;
+        for (r, h) in mask_rows.iter().zip(&mask_hashed) {
+            ins.execute(params![r.0 as i64, r.1, r.2, &h[..]])?;
+        }
     }
-    tx.execute("DELETE FROM blobs WHERE hash NOT IN (SELECT hash FROM tiles)", [])?;
+    tx.execute("DELETE FROM blobs WHERE hash NOT IN (SELECT hash FROM tiles UNION SELECT hash FROM masks)", [])?;
     tx.execute("DELETE FROM meta", [])?;
     {
         let mut ins = tx.prepare("INSERT INTO meta (key, value) VALUES (?1, ?2)")?;
@@ -201,6 +232,7 @@ pub fn load(path: &Path) -> Result<Loaded, PersistError> {
 
     // blobs → shared tiles
     let mut blobs: HashMap<Vec<u8>, Arc<Tile>> = HashMap::new();
+    let mut mask_blobs: HashMap<Vec<u8>, Arc<MaskTile>> = HashMap::new();
     {
         let mut st = conn.prepare("SELECT hash, data FROM blobs")?;
         let rows: Vec<(Vec<u8>, Vec<u8>)> = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?.filter_map(Result::ok).collect();
@@ -209,10 +241,15 @@ pub fn load(path: &Path) -> Result<Loaded, PersistError> {
             rows.into_par_iter().map(|(h, d)| (h, lz4_flex::decompress_size_prepended(&d).map_err(|e| e.to_string()))).collect();
         for (h, d) in decoded {
             let d = d.map_err(PersistError::Damaged)?;
-            if d.len() != TILE_BYTES {
-                return Err(PersistError::Damaged("bad tile size".into()));
+            match d.len() {
+                TILE_BYTES => {
+                    blobs.insert(h, Arc::new(Tile(d.into_boxed_slice())));
+                }
+                MASK_TILE_BYTES => {
+                    mask_blobs.insert(h, Arc::new(MaskTile(d.into_boxed_slice())));
+                }
+                _ => return Err(PersistError::Damaged("bad tile size".into())),
             }
-            blobs.insert(h, Arc::new(Tile(d.into_boxed_slice())));
         }
     }
     let mut tiles: HashMap<u64, TileMap> = HashMap::new();
@@ -225,6 +262,16 @@ pub fn load(path: &Path) -> Result<Loaded, PersistError> {
             tiles.entry(node).or_default().insert((tx, ty), t.clone());
         }
     }
+    let mut masks: HashMap<u64, MaskMap> = HashMap::new();
+    if conn.prepare("SELECT 1 FROM masks LIMIT 1").is_ok() {
+        let mut st = conn.prepare("SELECT node, tx, ty, hash FROM masks")?;
+        let it = st.query_map([], |r| Ok((r.get::<_, i64>(0)? as u64, r.get::<_, i32>(1)?, r.get::<_, i32>(2)?, r.get::<_, Vec<u8>>(3)?)))?;
+        for row in it {
+            let (node, tx, ty, hash) = row?;
+            let t = mask_blobs.get(&hash).ok_or_else(|| PersistError::Damaged("missing mask data".into()))?;
+            masks.entry(node).or_default().insert((tx, ty), t.clone());
+        }
+    }
     // nodes → tree
     let mut st = conn.prepare("SELECT id, parent, idx, kind, props FROM nodes ORDER BY idx")?;
     let rows: Vec<(u64, Option<u64>, i64, String, String)> =
@@ -235,7 +282,8 @@ pub fn load(path: &Path) -> Result<Loaded, PersistError> {
         max_id = max_id.max(r.0);
         by_parent.entry(r.1).or_default().push(r);
     }
-    fn build(parent: Option<u64>, by_parent: &HashMap<Option<u64>, Vec<&(u64, Option<u64>, i64, String, String)>>, tiles: &mut HashMap<u64, TileMap>, depth: usize) -> Result<Vec<Node>, PersistError> {
+    type ByParent<'a> = HashMap<Option<u64>, Vec<&'a (u64, Option<u64>, i64, String, String)>>;
+    fn build(parent: Option<u64>, by_parent: &ByParent, tiles: &mut HashMap<u64, TileMap>, masks: &mut HashMap<u64, MaskMap>, depth: usize) -> Result<Vec<Node>, PersistError> {
         if depth > 64 {
             return Err(PersistError::Damaged("layer tree too deep".into()));
         }
@@ -243,21 +291,27 @@ pub fn load(path: &Path) -> Result<Loaded, PersistError> {
         for (id, _, _, kind, props) in by_parent.get(&parent).map(|v| v.as_slice()).unwrap_or(&[]) {
             let p: Props = serde_json::from_str(props).map_err(|e| PersistError::Damaged(e.to_string()))?;
             let kind = match kind.as_str() {
-                "group" => NodeKind::Group { children: build(Some(*id), by_parent, tiles, depth + 1)?, pass_through: p.pass_through, expanded: p.expanded },
+                "group" => NodeKind::Group { children: build(Some(*id), by_parent, tiles, masks, depth + 1)?, pass_through: p.pass_through, expanded: p.expanded },
                 _ => NodeKind::Pixel { tiles: Arc::new(tiles.remove(id).unwrap_or_default()) },
             };
-            out.push(Node { id: *id, name: p.name, visible: p.visible, opacity: p.opacity, fill: p.fill, blend: p.blend, locks: p.locks, clipped: p.clipped, kind });
+            let mask = p.mask.map(|m| LayerMask {
+                mask: Mask { tiles: Arc::new(masks.remove(id).unwrap_or_default()), outside: m.outside },
+                enabled: m.enabled,
+                density: m.density,
+                feather: m.feather,
+            });
+            out.push(Node { id: *id, name: p.name, visible: p.visible, opacity: p.opacity, fill: p.fill, blend: p.blend, locks: p.locks, clipped: p.clipped, mask, kind });
         }
         Ok(out)
     }
-    let root = build(None, &by_parent, &mut tiles, 0)?;
+    let root = build(None, &by_parent, &mut tiles, &mut masks, 0)?;
     if root.is_empty() {
         return Err(PersistError::Damaged("no layers".into()));
     }
     reserve_ids_above(max_id);
     let active = meta.get("active").and_then(|v| v.parse().ok()).unwrap_or(root.last().unwrap().id);
     let name = meta.get("name").cloned().unwrap_or_default();
-    Ok(Loaded { content: Content { width, height, ppi, root, active }, name, meta })
+    Ok(Loaded { content: Content::new(width, height, ppi, active, root), name, meta })
 }
 
 /// True if the file at `path` is a Lawha database (checked by its meta table, not its extension).
@@ -288,16 +342,26 @@ mod tests {
         b.fill = 0.8;
         let mut c = Node::pixel("clip", filled_tiles(700, 500, [200, 10, 10, 255]));
         c.clipped = true;
+        let md = lawha_core::select::ellipse(700, 500, 100.0, 50.0, 600.0, 450.0, true);
+        let mut lm = LayerMask::new(Mask::from_dense(&md, 0));
+        lm.density = 0.8;
+        lm.feather = 3.0;
+        c.mask = Some(lm);
         let mut g = Node::group("مجموعة", vec![b, c]);
         g.opacity = 0.9;
         let active = g.id;
-        Content { width: 700, height: 500, ppi: 300.0, root: vec![a, g], active }
+        Content::new(700, 500, 300.0, active, vec![a, g])
     }
 
     fn same_tree(a: &[Node], b: &[Node]) {
         assert_eq!(a.len(), b.len());
         for (x, y) in a.iter().zip(b) {
             assert_eq!((x.id, &x.name, x.visible, x.opacity, x.fill, x.blend, x.locks, x.clipped), (y.id, &y.name, y.visible, y.opacity, y.fill, y.blend, y.locks, y.clipped));
+            assert_eq!(x.mask.is_some(), y.mask.is_some());
+            if let (Some(a), Some(b)) = (&x.mask, &y.mask) {
+                assert_eq!((a.enabled, a.density, a.feather, a.mask.outside), (b.enabled, b.density, b.feather, b.mask.outside));
+                assert_eq!(a.mask.to_dense(700, 500), b.mask.to_dense(700, 500));
+            }
             match (&x.kind, &y.kind) {
                 (NodeKind::Pixel { tiles: t1 }, NodeKind::Pixel { tiles: t2 }) => {
                     assert_eq!(t1.len(), t2.len());
@@ -336,7 +400,7 @@ mod tests {
         let path = dir.join("doc.lawha");
         let hashes = HashCache::default();
         let w = Node::pixel("white", filled_tiles(2560, 2560, [255, 255, 255, 255]));
-        let c = Content { width: 2560, height: 2560, ppi: 72.0, active: w.id, root: vec![w] };
+        let c = Content::new(2560, 2560, 72.0, w.id, vec![w]);
         save(&path, &c, "t", &vec![], &hashes).unwrap();
         let n: i64 = Connection::open(&path).unwrap().query_row("SELECT COUNT(*) FROM blobs", [], |r| r.get(0)).unwrap();
         assert_eq!(n, 1, "100 identical tiles → one blob");
