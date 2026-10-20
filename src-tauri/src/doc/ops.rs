@@ -297,7 +297,7 @@ pub fn merge_down(doc: &mut Document, id: u64) -> OpResult {
                 Some(t) => Accum::from_tile(t, 1.0),
                 None => Accum::new(),
             };
-            composite_stack(&top_alone, &mut acc, (tx, ty), origin);
+            composite_stack(&top_alone, &mut acc, 0, (tx, ty), origin);
             if acc.is_empty() {
                 return None;
             }

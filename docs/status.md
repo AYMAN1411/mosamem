@@ -127,7 +127,48 @@ optimized pixel code. Raw numbers are in `docs/perf-m1.json`.
 
 ### Not done or not verified in M3
 
-- Painting on a layer mask needs the brush (M4).
+- Painting on a layer mask needs the brush (done in M4).
 - No "view mask alone" (Alt-click) mode yet.
 - Quick select is the classic algorithm; the AI-assisted subject tools come in M10.
 - Selections are not saved inside `.lawha` files (same as other editors, which don't save them unless stored as a channel).
+
+## Milestone 4: painting ✔︎ (2026-10-20)
+
+| Feature | How it was checked |
+|---|---|
+| **Brush** and **eraser** with size, hardness, spacing, flow, opacity and smoothing. Opacity is a ceiling for the whole stroke and flow builds up inside it, as in other editors. Strokes are spaced evenly along the path, with Catmull-Rom curves between samples. | Rust tests (tip profiles, even spacing across batches, opacity ceiling and flow buildup, dabs crossing tile borders, one undo step per stroke); screenshots `m4-paint-*` |
+| **Pen pressure** to size and/or opacity, with a minimum size. WebKit on macOS reports a tablet pen as a mouse without pressure, so a native bridge forwards the pressure from the system's tablet events. | Simulated input only (see below); `m4-pressure` |
+| **Selections and locks** limit painting: the selection is a soft limit, locked pixels refuse the stroke, locked transparency keeps alpha (the eraser paints the background color). | Rust tests |
+| **Painting on layer masks**: black hides, white reveals, gray in between. The eraser paints the opposite. | Rust test (the layer's pixels stay untouched; undo) |
+| **Clone stamp** with aligned or fixed source and the option to sample all layers (Alt-click sets the source). | Rust test; demo (a cloned tree in `m4-paint-*`) |
+| **Healing brush**: the cloned texture blends into the surrounding colors with a membrane (Poisson) solve. **Spot healing**: fills the brushed area by patch search (PatchMatch), then heals it. | Rust tests (the membrane reproduces a linear ramp exactly; healing keeps texture and matches the surroundings; patch search continues a stripe pattern; spot heal removes a blemish) |
+| **Gradient**: linear, radial, angle, reflected and diamond, foreground→background or foreground→transparent, reverse and dither. **Paint bucket** with tolerance, contiguous, all layers. **Eyedropper** (also Alt with the brush). | Rust test (fill, gradient endpoints, sampled color); demo (Soft Light gradient layer in `m4-paint-*`) |
+| **Brushes panel** with presets, **color panel** (HSB picker, swap/reset, X/D keys), brush cursor at the real size, `[` `]` for size, Shift+`[` `]` for hardness, number keys for opacity (Shift for flow). | Screenshots; manual runs |
+| A stroke shows live on the GPU (the stroke layer over cached parts below and above) and is committed as one history step. | `m4-paint-*`; history panel shows one step per stroke |
+
+### Latency (6000×4000, 30 full layers, 500 px brush, 60 Hz display)
+
+Measured from the pointer event to the frame that shows the new paint, with synthetic pen events every 8 ms. Raw numbers are in `docs/perf-paint-m4.json`.
+
+| Zoom | p50 | p95 | max |
+|---|---|---|---|
+| Fit (25%) | 25 ms | 35 ms | 43 ms |
+| 100% | 14–16 ms | 34–39 ms | 42 ms |
+
+The engine itself paints a batch in 1–6 ms. The rest is waiting for the next display frame, so at 60 Hz the screen trails the pen by one to two frames. The plan's target of under 16 ms from event to screen can't be met at 60 Hz: a frame alone takes 16.7 ms. It is reported here as it was measured.
+
+### Fixed during this milestone
+
+- **Autosave slowed painting down.** It hashed and compressed tiles on the same threads as the brush, so the first autosave of a large document froze strokes for up to 1 s. Autosave now has its own small, low-priority thread pool (utility QoS on macOS, lower priority on Windows and Linux).
+- **The display could get stuck after a stroke.** A live tile still queued when the stroke was committed threw an error and stayed "loading" forever, using up one of the parallel download slots. Such tiles are now dropped.
+- When a stroke is committed, the new composite now loads behind the stroke's last tiles, so the final dabs don't arrive late.
+- Clone sampled the active layer instead of the painted one.
+- A stale tile could be marked fresh by an older request that finished late (tiles now carry an epoch).
+- The Brushes panel showed a horizontal scrollbar.
+
+### Not done or not verified in M4
+
+- **Real pen pressure is not verified**: there is no tablet to test with. Pressure was tested with simulated input on both paths: the browser's pen events and the native bridge (`tools/pressure-test.js`, size grows from 10 px to 58 px on both).
+- **Performance on a real Windows PC is not verified**: there is only a Windows 11 ARM VM.
+- No brush tip shapes beyond round (no textured, scattered or angled tips), and no mixer brush, smudge or dodge/burn.
+- The latency above was measured on a dev build with optimized code. The release build (LTO) should be the same or faster, but it was not measured separately.

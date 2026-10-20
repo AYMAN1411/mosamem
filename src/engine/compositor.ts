@@ -45,6 +45,8 @@ const REFINE_VIEWS: RefineView[] = ['ants', 'overlay', 'black', 'white', 'mask',
 
 export interface LiveState {
   session: number;
+  /** Identity of the layer's pixels (its thumbnail key): unchanged pixels keep their GPU tiles. */
+  layerKey?: number;
   blend: BlendMode;
   /** Layer opacity × fill. */
   alpha: number;
@@ -226,13 +228,15 @@ export class Compositor {
   private drawnVersion = -1;
   private live: LiveState | null = null;
   /** After a live edit is committed: keep drawing live until the new composite is ready. */
-  private ending: { session: number; onDone: () => void } | null = null;
+  private ending: { session: number; onDone: () => void; layerKey?: number } | null = null;
   pixelGrid = true;
   /** Preview offset of the selection outline while it is being dragged (document px). */
   selectionOffset: [number, number] = [0, 0];
   refineView: RefineView = 'ants';
   private antsTimer = 0;
   pasteboard: [number, number, number] = [0.086, 0.09, 0.106];
+  /** Test hook: when an array, receives [key, ms, queued-at] for every tile fetch. */
+  fetchLog: [string, number, number][] | null = null;
   /** Called after each drawn frame (for overlays, perf). */
   onFrame: ((ms: number) => void) | null = null;
 
@@ -309,18 +313,27 @@ export class Compositor {
     this.requestFrame();
   }
 
+  /** Session whose below/above tiles are still in the atlas (kept between strokes on a layer). */
+  private keptSession: number | null = null;
+  private keptLayerKey: number | undefined;
+
   /** Starts or updates a live preview. */
   setLive(live: LiveState) {
-    if (this.live && this.live.session !== live.session) this.dropSources([1, 2, 3]);
+    const prev = this.live?.session ?? this.keptSession;
+    if (prev != null && prev !== live.session) this.dropSources([1, 2, 3]);
+    // same session, but the layer changed since (undo, another tool): refresh its tiles
+    else if (prev === live.session && !this.live && live.layerKey !== this.keptLayerKey) this.dropSources([2]);
+    this.keptSession = null;
     this.live = { ...live };
     this.ending = null;
     this.requestFrame();
   }
 
-  /** The live edit was committed: switch back to the composite once it is fully loaded. */
-  endLive(onDone: () => void) {
+  /** The live edit was committed: switch back to the composite once it is fully loaded.
+   *  `layerKey` identifies the layer's pixels now, so a next stroke can keep its GPU tiles. */
+  endLive(onDone: () => void, layerKey?: number) {
     if (!this.live) return onDone();
-    this.ending = { session: this.live.session, onDone };
+    this.ending = { session: this.live.session, onDone, layerKey };
     this.requestFrame();
   }
 
@@ -409,10 +422,11 @@ export class Compositor {
     };
   }
 
-  private versionOf(src: number): number {
-    if (src === 0) return this.doc!.version;
-    if (src === 4) return this.doc!.selection;
-    return this.live!.session;
+  /** The version a source's tiles are fetched for; `null` once that source is gone. */
+  private versionOf(src: number): number | null {
+    if (src === 0) return this.doc?.version ?? null;
+    if (src === 4) return this.doc?.selection ?? null;
+    return this.live?.session ?? null;
   }
 
   /** Requests a tile; returns true if the current version is already loaded. */
@@ -435,10 +449,12 @@ export class Compositor {
     this.queue.sort((a, b) => a.prio - b.prio);
     while (this.active < CONCURRENCY && this.queue.length) {
       const job = this.queue.shift()!;
-      if (this.inflight.has(job.key)) continue;
-      this.inflight.add(job.key);
-      this.active++;
+      // a live part queued in a frame whose commit has just finished: its session is gone
       const version = this.versionOf(job.src);
+      if (version === null || this.inflight.has(job.key)) continue;
+      this.inflight.add(job.key);
+      this.fetchEpoch.set(job.key, this.keyEpoch.get(job.key) ?? 0);
+      this.active++;
       const url =
         job.src === 0
           ? tileUrl(this.doc!.id, version, job.lod, job.tx, job.ty)
@@ -446,6 +462,7 @@ export class Compositor {
             ? selUrl(this.doc!.id, version, job.lod, job.tx, job.ty)
             : liveUrl(version, PARTS[job.src] as 'below', job.lod, job.tx, job.ty);
       const gen = this.generation;
+      const t0 = performance.now();
       fetch(url)
         .then(async (r) => (r.status === 200 ? new Uint8Array(await r.arrayBuffer()) : r.status === 204 ? null : Promise.reject(r.status)))
         .then((data) => {
@@ -454,6 +471,7 @@ export class Compositor {
         })
         .catch(() => {})
         .finally(() => {
+          this.fetchLog?.push([job.key, performance.now() - t0, t0]);
           if (gen === this.generation) this.inflight.delete(job.key);
           this.active--;
           this.requestFrame();
@@ -476,7 +494,12 @@ export class Compositor {
       this.lru.delete(slot);
       this.lru.set(slot, key);
     }
-    this.entries.set(key, { slot, version });
+    // pixels fetched before the latest invalidation are shown but the tile stays stale
+    const started = this.fetchEpoch.get(key) ?? 0;
+    this.fetchEpoch.delete(key);
+    this.freshEpoch.set(key, started);
+    const stillStale = (this.keyEpoch.get(key) ?? 0) > started;
+    this.entries.set(key, { slot, version: stillStale ? -1 : version });
     this.pageData[src * LODS + lod][ty * this.pageW + tx] = slot;
     this.pagesDirty.add(src * LODS + lod);
   }
@@ -498,18 +521,25 @@ export class Compositor {
     this.free.push(slot);
   }
 
-  /** Requests the base level and the visible tiles of a source; true when all are current. */
-  private request(src: number, lod: number, base: number): boolean {
+  /** Requests the base level and the visible tiles of a source; true when all are current.
+   *  `after` queues them behind every other request. */
+  private request(src: number, lod: number, base: number, after = false): boolean {
+    const bias = after ? 3e9 : 0;
     let complete = true;
     const span = TILE << base;
-    for (let ty = 0; ty * span < this.doc!.height; ty++) for (let tx = 0; tx * span < this.doc!.width; tx++) complete = this.want(src, base, tx, ty, -1e9) && complete;
+    for (let ty = 0; ty * span < this.doc!.height; ty++)
+      for (let tx = 0; tx * span < this.doc!.width; tx++) {
+        // a stale base tile is still a usable fallback: refresh it after the visible ones
+        const stale = lod < base && this.entries.get(`${src}/${base}/${tx}/${ty}`)?.version === -1;
+        complete = this.want(src, base, tx, ty, (stale ? 1e9 : -1e9) + bias) && complete;
+      }
     if (lod < base) {
       const v = this.visibleTiles(lod);
       const sp = TILE << lod;
       for (let ty = v.ty0; ty <= v.ty1; ty++)
         for (let tx = v.tx0; tx <= v.tx1; tx++) {
           const d = Math.hypot((tx + 0.5) * sp - this.view.cx, (ty + 0.5) * sp - this.view.cy);
-          complete = this.want(src, lod, tx, ty, d + src) && complete;
+          complete = this.want(src, lod, tx, ty, d + src + bias) && complete;
         }
     }
     return complete;
@@ -530,12 +560,15 @@ export class Compositor {
     this.queued.clear();
     if (this.live) {
       for (const src of [1, 2, 3]) this.request(src, lod, base);
-      if (this.ending && this.request(0, lod, base)) {
-        // committed: the new composite is loaded, switch back to it
+      // the committed composite loads behind the live tiles: the stroke's last dabs come first
+      if (this.ending && this.request(0, lod, base, true)) {
+        // committed: the new composite is loaded, switch back to it; the below/above tiles stay
+        // in the atlas in case the next stroke is on the same layer (same session)
         const done = this.ending.onDone;
+        this.keptSession = this.live.session;
+        this.keptLayerKey = this.ending.layerKey;
         this.live = null;
         this.ending = null;
-        this.dropSources([1, 2, 3]);
         done();
       }
     } else {
@@ -578,8 +611,53 @@ export class Compositor {
     gl.uniform1i(this.u.uPages, 1);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     if (!this.live) this.drawnVersion = this.doc.version;
+    // painting: a waiter is done in the first frame where each of its on-screen tiles shows
+    // pixels fetched after its invalidation (off-screen tiles are never fetched and don't count)
+    if (this.freshWaiters.length) {
+      const now = performance.now();
+      this.freshWaiters = this.freshWaiters.filter((w) => {
+        for (const [k, ep] of w.need) {
+          const onScreen = this.queued.has(k) || this.inflight.has(k);
+          if (onScreen && (this.freshEpoch.get(k) ?? 0) < ep) return true;
+        }
+        w.resolve(now);
+        return false;
+      });
+    }
     this.onFrame?.(performance.now() - t0);
   }
+
+  /** Marks tiles of a source stale (lod-0 keys and every coarser level above them) and fetches
+   *  them right away; the old pixels stay on screen until the new ones arrive. Resolves with the
+   *  time of the first frame drawn after all of them were replaced. */
+  invalidate(src: 0 | 2, keys: [number, number][]): Promise<number> {
+    const epoch = ++this.epoch;
+    const need = new Map<string, number>();
+    const shown = this.doc ? this.lodFor(this.view.zoom) : 0;
+    for (const [tx, ty] of keys)
+      for (let lod = 0; lod < LODS; lod++) {
+        const k = `${src}/${lod}/${tx >> lod}/${ty >> lod}`;
+        const e = this.entries.get(k);
+        if (!e) continue;
+        e.version = -1;
+        this.keyEpoch.set(k, epoch);
+        if (lod === shown) need.set(k, epoch);
+      }
+    const done = new Promise<number>((resolve) => {
+      this.freshWaiters.push({ need, resolve });
+      setTimeout(() => resolve(performance.now()), 1000); // safety net
+    });
+    if (need.size && !this.frame) this.draw(); // queue and start the fetches now, not next frame
+    else this.requestFrame();
+    return done;
+  }
+
+  /** Per-key invalidation epochs: a fetch only counts as fresh if it started after the last one. */
+  private epoch = 0;
+  private keyEpoch = new Map<string, number>();
+  private fetchEpoch = new Map<string, number>(); // epoch a running fetch started at
+  private freshEpoch = new Map<string, number>(); // epoch of the pixels now in the atlas
+  private freshWaiters: { need: Map<string, number>; resolve: (t: number) => void }[] = [];
 
   /** True when every tile needed for the current view at full detail is loaded and drawn. */
   settled(): boolean {

@@ -5,6 +5,7 @@ mod fsx;
 #[cfg(any(debug_assertions, feature = "harness"))]
 mod harness;
 mod persist;
+mod pressure;
 mod protocol;
 mod recovery;
 
@@ -18,6 +19,7 @@ pub fn run() {
             let data = app.path().app_data_dir()?;
             let recovery = recovery::Recovery::new(&data);
             recovery.spawn(app.handle().clone());
+            pressure::install(app.handle());
             app.manage(recovery);
             #[cfg(any(debug_assertions, feature = "harness"))]
             harness::start(app.handle());
@@ -60,6 +62,12 @@ pub fn run() {
             commands::mask_apply,
             commands::mask_set,
             commands::mask_to_selection,
+            commands::paint_begin,
+            commands::paint_points,
+            commands::paint_end,
+            commands::paint_bucket,
+            commands::paint_gradient,
+            commands::sample_color,
             commands::live_begin,
             commands::live_end,
             commands::undo,

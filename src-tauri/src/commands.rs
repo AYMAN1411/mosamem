@@ -416,6 +416,99 @@ pub fn mask_to_selection(engine: State<'_, Engine>, doc: u64, id: u64) -> Res<Do
     edit(&engine, doc, |d| selection::mask_to_selection(d, id))
 }
 
+// ---- painting ----
+
+use crate::doc::paint::{self, BucketSpec, GradientSpec, StrokeSpec};
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StrokeStarted {
+    pub stroke: u64,
+    /// GPU live session showing the stroke, if the layer allows one.
+    pub live: Option<u64>,
+}
+
+#[tauri::command]
+pub async fn paint_begin(engine: State<'_, Engine>, doc: u64, spec: StrokeSpec) -> Res<StrokeStarted> {
+    let h = handle(&engine, doc)?;
+    let layer = spec.layer;
+    let e: &Engine = &engine;
+    let stroke = {
+        let d = h.doc.read();
+        paint::begin(&d, spec)?
+    };
+    let live = e.live_begin(doc, layer);
+    let id = crate::doc::next_id();
+    e.strokes.map.lock().insert(id, stroke);
+    Ok(StrokeStarted { stroke: id, live })
+}
+
+/// Adds pointer samples `(x, y, pressure)`; returns the lod-0 tiles that changed.
+#[tauri::command]
+pub async fn paint_points(engine: State<'_, Engine>, stroke: u64, live: Option<u64>, points: Vec<(f32, f32, f32)>) -> Res<Vec<(i32, i32)>> {
+    let e: &Engine = &engine;
+    let mut strokes = e.strokes.map.lock();
+    let s = strokes.get_mut(&stroke).ok_or("stroke not found")?;
+    let h = handle(e, s.doc)?;
+    let mut d = h.doc.write();
+    let keys = s.add(&mut d, &points);
+    match live.and_then(|id| e.live(id)) {
+        Some(session) => {
+            if let Some(n) = d.content.find(s.spec.layer) {
+                session.refresh_layer(n, &keys);
+            }
+        }
+        None => h.composite.invalidate(&keys),
+    }
+    Ok(keys)
+}
+
+#[tauri::command]
+pub async fn paint_end(engine: State<'_, Engine>, stroke: u64) -> Res<DocInfo> {
+    let e: &Engine = &engine;
+    let s = e.strokes.map.lock().remove(&stroke).ok_or("stroke not found")?;
+    let h = handle(e, s.doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = h.doc.write();
+        s.end(&mut d);
+        Ok(d.info())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn paint_bucket(engine: State<'_, Engine>, doc: u64, spec: BucketSpec) -> Res<DocInfo> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = h.doc.write();
+        paint::bucket(&mut d, spec)?;
+        Ok(d.info())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn paint_gradient(engine: State<'_, Engine>, doc: u64, spec: GradientSpec) -> Res<DocInfo> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut d = h.doc.write();
+        paint::gradient(&mut d, spec)?;
+        Ok(d.info())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn sample_color(engine: State<'_, Engine>, doc: u64, x: f64, y: f64, size: u32, all_layers: bool) -> Res<Option<[u8; 4]>> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || Ok(paint::sample_color(&h.doc.read(), x, y, size, all_layers)))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 // ---- live sessions (GPU previews) ----
 
 #[tauri::command]

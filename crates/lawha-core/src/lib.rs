@@ -2,7 +2,10 @@
 //! shaders are tested against it.
 
 pub mod blend;
+pub mod heal;
+pub mod inpaint;
 pub mod mask;
+pub mod paint;
 pub mod select;
 pub mod tile;
 

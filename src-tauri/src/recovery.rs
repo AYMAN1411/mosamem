@@ -35,6 +35,7 @@ pub struct Recovery {
     docs: Mutex<HashMap<DocId, Tracked>>,
     /// Sessions that ended without a clean exit, found at startup.
     pub crashed: Mutex<Vec<String>>,
+    pool: rayon::ThreadPool,
 }
 
 #[derive(Serialize)]
@@ -62,6 +63,38 @@ unsafe extern "C" {
     #[link_name = "kill"]
     fn libc_kill(pid: i32, sig: i32) -> i32;
 }
+/// Autosave runs at background priority so it never competes with painting and other edits.
+fn lower_priority() {
+    #[cfg(target_os = "macos")]
+    unsafe {
+        // QOS_CLASS_UTILITY
+        pthread_set_qos_class_self_np(0x11, 0);
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    unsafe {
+        nice(10);
+    }
+    #[cfg(windows)]
+    unsafe {
+        // THREAD_PRIORITY_BELOW_NORMAL
+        SetThreadPriority(GetCurrentThread(), -1);
+    }
+}
+#[cfg(target_os = "macos")]
+unsafe extern "C" {
+    fn pthread_set_qos_class_self_np(class: u32, relative_priority: i32) -> i32;
+}
+#[cfg(all(unix, not(target_os = "macos")))]
+unsafe extern "C" {
+    fn nice(inc: i32) -> i32;
+}
+#[cfg(windows)]
+#[link(name = "kernel32")]
+unsafe extern "system" {
+    fn GetCurrentThread() -> *mut std::ffi::c_void;
+    fn SetThreadPriority(thread: *mut std::ffi::c_void, priority: i32) -> i32;
+}
+
 #[cfg(windows)]
 fn pid_alive(pid: u32) -> bool {
     use std::process::Command;
@@ -92,7 +125,16 @@ impl Recovery {
             }
         }
         let _ = std::fs::write(dir.join(format!("{session}.lock")), std::process::id().to_string());
-        Arc::new(Recovery { dir, session, hashes: HashCache::default(), docs: Mutex::new(HashMap::new()), crashed: Mutex::new(crashed) })
+        // a small pool of its own: hashing and compressing a large document must not take the
+        // compute threads that painting and compositing share
+        let threads = std::thread::available_parallelism().map_or(2, |n| n.get() / 4).clamp(1, 4);
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads)
+            .thread_name(|i| format!("autosave-{i}"))
+            .start_handler(|_| lower_priority())
+            .build()
+            .expect("autosave pool");
+        Arc::new(Recovery { dir, session, hashes: HashCache::default(), docs: Mutex::new(HashMap::new()), crashed: Mutex::new(crashed), pool })
     }
 
     pub fn hashes(&self) -> &HashCache {
@@ -135,7 +177,7 @@ impl Recovery {
                 ("savedAt", now_secs().to_string()),
                 ("originalPath", path.map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()),
             ];
-            match persist::save(&file, &content, &name, &extra, &self.hashes) {
+            match self.pool.install(|| persist::save(&file, &content, &name, &extra, &self.hashes)) {
                 Ok(()) => {
                     let mut docs = self.docs.lock();
                     if let Some(t) = docs.get_mut(&id) {
@@ -206,9 +248,12 @@ impl Recovery {
         let me = self.clone();
         std::thread::Builder::new()
             .name("autosave".into())
-            .spawn(move || loop {
-                std::thread::sleep(Duration::from_millis(500));
-                me.tick(&app.state::<Engine>());
+            .spawn(move || {
+                lower_priority();
+                loop {
+                    std::thread::sleep(Duration::from_millis(500));
+                    me.tick(&app.state::<Engine>());
+                }
             })
             .expect("autosave thread");
     }

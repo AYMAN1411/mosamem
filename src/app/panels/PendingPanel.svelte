@@ -5,7 +5,7 @@
   let { panel }: { panel: PanelId } = $props();
 
   // Which milestone brings each panel's content (docs/plan.md).
-  const milestone: Partial<Record<PanelId, number>> = { adjustments: 5, brushes: 4 };
+  const milestone: Partial<Record<PanelId, number>> = { adjustments: 5 };
 </script>
 
 <div class="pending">

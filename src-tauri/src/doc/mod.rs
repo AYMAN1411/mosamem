@@ -5,6 +5,7 @@ pub mod history;
 pub mod live;
 pub mod model;
 pub mod ops;
+pub mod paint;
 pub mod selection;
 pub mod thumbs;
 
@@ -278,6 +279,7 @@ pub struct DocHandle {
 pub struct Engine {
     docs: RwLock<HashMap<DocId, Arc<DocHandle>>>,
     live: RwLock<HashMap<u64, Arc<live::Session>>>,
+    pub strokes: paint::Strokes,
 }
 
 impl Engine {
@@ -301,6 +303,16 @@ impl Engine {
     pub fn live_begin(&self, doc: DocId, layer: u64) -> Option<u64> {
         let h = self.get(doc)?;
         let content = h.doc.read().content.clone();
+        // reuse the document's session when only this layer changed since it was made: its below
+        // and above parts (and the GPU's copies of them) stay valid
+        let fp = live::Session::matches(&content, layer)?;
+        let existing = self.live.read().values().find(|s| s.doc == doc && s.layer == layer && s.fingerprint == fp).cloned();
+        if let Some((id, s)) = existing.map(|s| (self.live.read().iter().find(|(_, x)| Arc::ptr_eq(x, &s)).map(|(id, _)| *id), s)) {
+            if let (Some(id), Some(node)) = (id, content.find(layer)) {
+                s.reset_layer(node);
+                return Some(id);
+            }
+        }
         let id = next_id();
         let s = live::Session::begin(doc, &content, layer)?;
         let mut live = self.live.write();

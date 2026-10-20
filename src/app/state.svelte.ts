@@ -13,6 +13,7 @@ export type ToolId =
   | 'crop'
   | 'eyedropper'
   | 'heal'
+  | 'spotHeal'
   | 'brush'
   | 'clone'
   | 'eraser'
@@ -55,6 +56,35 @@ export const MAX_ZOOM = 64;
 let guideId = 1;
 export const nextGuideId = () => guideId++;
 
+export interface BrushSettings {
+  diameter: number;
+  /** 0–1 */
+  hardness: number;
+  opacity: number;
+  flow: number;
+  /** fraction of the diameter */
+  spacing: number;
+  /** 0–1: leash length for stroke smoothing */
+  smoothing: number;
+  pressureSize: boolean;
+  pressureOpacity: boolean;
+  minSize: number;
+}
+
+const brushDefaults = (o: Partial<BrushSettings> = {}): BrushSettings => ({
+  diameter: 30, hardness: 0, opacity: 1, flow: 1, spacing: 0.1, smoothing: 0.1, pressureSize: true, pressureOpacity: false, minSize: 0.1, ...o,
+});
+
+export interface PaintOptions {
+  brush: BrushSettings;
+  eraser: BrushSettings;
+  clone: BrushSettings & { aligned: boolean; sampleAll: boolean };
+  heal: BrushSettings & { sampleAll: boolean };
+  gradient: { kind: 'linear' | 'radial' | 'angle' | 'reflected' | 'diamond'; reverse: boolean; dither: boolean; opacity: number; toTransparent: boolean };
+  bucket: { tolerance: number; contiguous: boolean; allLayers: boolean; antialias: boolean; opacity: number };
+  eyedropper: { size: number; allLayers: boolean };
+}
+
 export interface SelectionOptions {
   mode: 'replace' | 'add' | 'subtract' | 'intersect';
   feather: number;
@@ -82,6 +112,15 @@ class AppState {
   showGuides = $state(true);
   showPixelGrid = $state(true);
   gridSpacing = $state(100);
+  paint = $state<PaintOptions>({
+    brush: brushDefaults(),
+    eraser: brushDefaults({ diameter: 60, hardness: 0.5 }),
+    clone: { ...brushDefaults({ diameter: 60, hardness: 0.3 }), aligned: true, sampleAll: false },
+    heal: { ...brushDefaults({ diameter: 40, hardness: 0.6 }), sampleAll: false },
+    gradient: { kind: 'linear', reverse: false, dither: true, opacity: 1, toTransparent: false },
+    bucket: { tolerance: 32, contiguous: true, allLayers: false, antialias: true, opacity: 1 },
+    eyedropper: { size: 1, allLayers: true },
+  });
   sel = $state<SelectionOptions>({ mode: 'replace', feather: 0, antialias: true, style: 'normal', ratioW: 1, ratioH: 1, sizeW: 1080, sizeH: 1080, tolerance: 32, contiguous: true, allLayers: false, brush: 30 });
   gridSubdivisions = $state(4);
   dialog = $state<null | 'new' | 'export' | 'recovery' | 'unsaved' | 'modify' | 'refine'>(null);

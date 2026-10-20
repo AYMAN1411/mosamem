@@ -41,3 +41,5 @@ objc2 = "0.6.5"
 objc2-core-foundation = "0.3.2"
 objc2-core-graphics = "0.3.2"
 objc2-image-io = "0.3.2"
+objc2-app-kit = { version = "0.3.2", features = ["NSEvent", "block2"] }
+block2 = "0.6"

@@ -67,13 +67,17 @@ pub fn shape(doc: &mut Document, s: Shape, mode: Combine, feather: f32) -> OpRes
 
 /// The pixels the wand and quick selection sample: the active layer, or everything visible.
 pub fn sample(doc: &Document, all_layers: bool) -> Vec<u8> {
+    sample_from(doc, if all_layers { None } else { Some(doc.content.active) })
+}
+
+/// One layer's pixels on their own (Some), or everything visible (None), as full-canvas RGBA8.
+pub fn sample_from(doc: &Document, layer: Option<u64>) -> Vec<u8> {
     use rayon::prelude::*;
     let c = &doc.content;
     let (tw, th) = c.tiles_wide();
-    let nodes: Vec<Node> = if all_layers {
-        c.root.clone()
-    } else {
-        match c.find(c.active) {
+    let nodes: Vec<Node> = match layer {
+        None => c.root.clone(),
+        Some(id) => match c.find(id) {
             Some(n) => {
                 let mut n = n.clone();
                 n.visible = true;
@@ -81,7 +85,7 @@ pub fn sample(doc: &Document, all_layers: bool) -> Vec<u8> {
                 vec![n]
             }
             None => Vec::new(),
-        }
+        },
     };
     let tiles: Vec<((i32, i32), Arc<Tile>)> = (0..th)
         .flat_map(|ty| (0..tw).map(move |tx| (tx, ty)))
@@ -333,7 +337,7 @@ pub fn mask_apply(doc: &mut Document, id: u64) -> OpResult {
         .par_iter()
         .filter_map(|(&key, t)| {
             let mut acc = Accum::from_tile(t, 1.0);
-            match super::composite::mask_factor(&node, key) {
+            match super::composite::mask_factor(&node, 0, key) {
                 Some(super::composite::MaskFactor::Const(k)) => acc.mul_factors(&vec![k; acc.0.len()]),
                 Some(super::composite::MaskFactor::Each(v)) => acc.mul_factors(&v),
                 None => {}

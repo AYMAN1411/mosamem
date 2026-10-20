@@ -6,6 +6,7 @@
   import { i18n } from '../i18n/index.svelte';
   import Rulers from './Rulers.svelte';
   import { SelectionInteraction, SELECTION_TOOLS } from './selectionTools';
+  import { PaintInteraction, PAINT_TOOLS, settingsFor } from './paintTools';
   import { drawOverlay } from './overlay';
 
   let stage = $state<HTMLDivElement>();
@@ -21,13 +22,14 @@
   /** Bumped whenever the overlay must be redrawn for an interaction in progress. */
   let overlayTick = $state(0);
   const selTool = new SelectionInteraction(() => overlayTick++);
+  const paintTool = new PaintInteraction(() => overlayTick++);
 
   const doc = $derived(app.active);
 
   onMount(() => {
     compositor = new Compositor(gpuCanvas!);
     display.compositor = compositor;
-    (window as unknown as { __lawha: unknown }).__lawha = { compositor, app };
+    (window as unknown as { __lawha: unknown }).__lawha = { compositor, app, paintTool };
     const ro = new ResizeObserver(([e]) => {
       const { width, height } = e.contentRect;
       app.viewport = { w: width, h: height };
@@ -81,6 +83,7 @@
       hot: hoverGuide ?? draggingGuide,
     });
     selTool.draw(ctx);
+    paintTool.draw(ctx);
   });
 
   function local(e: { clientX: number; clientY: number }) {
@@ -135,7 +138,11 @@
 
   function onPointerDown(e: PointerEvent) {
     if (!doc || e.button > 1) return;
-    stage!.setPointerCapture(e.pointerId);
+    try {
+      stage!.setPointerCapture(e.pointerId);
+    } catch {
+      /* the pointer is gone already (or synthetic); keep going without capture */
+    }
     const p = local(e);
     if (e.button === 1 || effectiveTool === 'hand') {
       drag = { kind: 'pan', x: e.clientX, y: e.clientY };
@@ -153,6 +160,10 @@
       void selTool.down(e, p);
       return;
     }
+    if (PAINT_TOOLS.includes(effectiveTool)) {
+      void paintTool.down(e, p);
+      return;
+    }
     if (effectiveTool === 'zoom') {
       drag = { kind: 'zoom', x: e.clientX, start: doc.view.zoom, at: p, moved: false, out: e.altKey };
     } else if (effectiveTool === 'rotateView') {
@@ -167,6 +178,10 @@
     if (SELECTION_TOOLS.includes(effectiveTool) && !drag) {
       selTool.move(e, p);
       if (app.tool === 'quickSelect') overlayTick++;
+      return;
+    }
+    if (PAINT_TOOLS.includes(effectiveTool) && !drag) {
+      paintTool.move(e, p);
       return;
     }
     if (!drag) {
@@ -194,6 +209,10 @@
   function onPointerUp(e: PointerEvent) {
     if (SELECTION_TOOLS.includes(effectiveTool) && !drag) {
       void selTool.up(e, local(e));
+      return;
+    }
+    if (PAINT_TOOLS.includes(effectiveTool) && !drag) {
+      void paintTool.up(e, local(e));
       return;
     }
     if (drag?.kind === 'zoom' && !drag.moved) app.zoomStep(drag.out || e.altKey ? -1 : 1, drag.at);
@@ -263,8 +282,13 @@
         return 'crosshair';
       case 'quickSelect':
         return 'none';
+      case 'gradient':
+      case 'eyedropper':
+        return 'crosshair';
+      case 'bucket':
+        return 'cell';
       default:
-        return 'default';
+        return settingsFor(effectiveTool) ? 'none' : 'default';
     }
   });
 </script>
@@ -289,6 +313,7 @@
     }}
     onpointerleave={() => {
       selTool.hover = null;
+      paintTool.hover = null;
       overlayTick++;
     }}
     role="application"

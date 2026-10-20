@@ -52,6 +52,16 @@ export interface DocInfo {
   selectionKey: number;
 }
 
+export interface StrokeSpec {
+  tool: 'brush' | 'eraser' | 'clone' | 'heal' | 'spotHeal';
+  target: 'pixels' | 'mask';
+  layer: number;
+  color: [number, number, number];
+  brush: { diameter: number; hardness: number; spacing: number; flow: number; opacity: number; pressureSize: boolean; pressureOpacity: boolean; minSize: number };
+  offset: [number, number] | null;
+  sampleAll: boolean;
+}
+
 export type Combine = 'replace' | 'add' | 'subtract' | 'intersect';
 export type Shape =
   | { kind: 'rect'; x0: number; y0: number; x1: number; y1: number }
@@ -162,6 +172,15 @@ export const engine = {
   maskSet: (doc: number, id: number, props: { enabled?: boolean; density?: number; feather?: number; invert?: boolean }, transient = false) =>
     invoke<DocInfo>('mask_set', { doc, id, props, transient }),
   maskToSelection: (doc: number, id: number) => invoke<DocInfo>('mask_to_selection', { doc, id }),
+
+  paintBegin: (doc: number, spec: StrokeSpec) => invoke<{ stroke: number; live: number | null }>('paint_begin', { doc, spec }),
+  paintPoints: (stroke: number, live: number | null, points: [number, number, number][]) => invoke<[number, number][]>('paint_points', { stroke, live, points }),
+  paintEnd: (stroke: number) => invoke<DocInfo>('paint_end', { stroke }),
+  paintBucket: (doc: number, spec: { layer: number; x: number; y: number; tolerance: number; contiguous: boolean; allLayers: boolean; antialias: boolean; color: [number, number, number]; opacity: number }) =>
+    invoke<DocInfo>('paint_bucket', { doc, spec }),
+  paintGradient: (doc: number, spec: { layer: number; kind: string; a: [number, number]; b: [number, number]; from: [number, number, number, number]; to: [number, number, number, number]; opacity: number; reverse: boolean; dither: boolean }) =>
+    invoke<DocInfo>('paint_gradient', { doc, spec }),
+  sampleColor: (doc: number, x: number, y: number, size: number, allLayers: boolean) => invoke<[number, number, number, number] | null>('sample_color', { doc, x, y, size, allLayers }),
 
   liveBegin: (doc: number, layer: number) => invoke<number | null>('live_begin', { doc, layer }),
   liveEnd: (session: number) => invoke<void>('live_end', { session }),

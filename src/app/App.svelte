@@ -21,12 +21,14 @@
   import { buildMenu } from './menu';
   import { openPaths, pendingClose } from './actions';
   import { installShortcuts } from './shortcuts';
+  import { installPressureBridge } from './canvas/pressure';
 
   let dropping = $state(false);
   let recovered = $state<RecoveredFile[]>([]);
 
   onMount(() => {
     installShortcuts();
+    installPressureBridge();
     engine.recoveryList().then((files) => {
       if (files.length) {
         recovered = files;

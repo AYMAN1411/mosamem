@@ -11,13 +11,13 @@
 //! - Fill fades a layer's own pixels; opacity fades everything (styles arrive in M8).
 
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, Weak};
 
-use lawha_core::mask::Mask;
+use lawha_core::mask::{Mask, MaskMap, MaskTile};
 use lawha_core::tile::{downsample, Accum, Tile, TILE};
 use parking_lot::Mutex;
 
-use super::model::{Content, LayerMask, Node, NodeKind};
+use super::model::{Content, LayerMask, Node, NodeKind, TileMap};
 use super::DocHandle;
 
 pub const MAX_LOD: u8 = 6;
@@ -50,12 +50,103 @@ impl Cache {
             c.tiles.insert(key, tile);
         }
     }
+
+    /// Forgets the cached composite at these lod-0 tiles and every coarser level above them (used
+    /// while painting, when the document version stays the same until the stroke ends).
+    pub fn invalidate(&self, keys: &[(i32, i32)]) {
+        let mut c = self.inner.lock();
+        for &(tx, ty) in keys {
+            for lod in 0..=MAX_LOD {
+                c.tiles.remove(&(lod, tx >> lod, ty >> lod));
+            }
+        }
+    }
 }
 
 /// What one node contributes to a tile, before its own blend mode and opacity are applied.
-enum Source<'a> {
-    Tile(&'a Tile, f32),
+enum Source {
+    Tile(Arc<Tile>, f32),
     Accum(Accum),
+}
+
+type MipKey = (usize, u8, i32, i32);
+type LayerMips = HashMap<MipKey, (Weak<TileMap>, Option<Arc<Tile>>)>;
+type MaskMips = HashMap<MipKey, (Weak<MaskMap>, Option<Arc<MaskTile>>)>;
+static LAYER_MIPS: OnceLock<Mutex<LayerMips>> = OnceLock::new();
+static MASK_MIPS: OnceLock<Mutex<MaskMips>> = OnceLock::new();
+const MIP_CACHE_LIMIT: usize = 60_000;
+
+/// A layer's pixels at a mip level (lod 0 = its own tiles). Zoomed-out views composite these
+/// directly, so a change to one layer only recomputes that layer's mips. Cached by the layer's tile
+/// map, which is never mutated in place (edits make a new map).
+pub fn layer_tile(tiles: &Arc<TileMap>, lod: u8, key: (i32, i32)) -> Option<Arc<Tile>> {
+    if lod == 0 {
+        return tiles.get(&key).cloned();
+    }
+    let ck = (Arc::as_ptr(tiles) as usize, lod, key.0, key.1);
+    let cache = LAYER_MIPS.get_or_init(Default::default);
+    if let Some((w, t)) = cache.lock().get(&ck) {
+        if w.upgrade().is_some_and(|a| Arc::ptr_eq(&a, tiles)) {
+            return t.clone();
+        }
+    }
+    let kids: Vec<Option<Arc<Tile>>> = [(0, 0), (1, 0), (0, 1), (1, 1)].iter().map(|(dx, dy)| layer_tile(tiles, lod - 1, (key.0 * 2 + dx, key.1 * 2 + dy))).collect();
+    let out = if kids.iter().all(Option::is_none) {
+        None
+    } else {
+        let mut o = Tile::transparent();
+        downsample([kids[0].as_deref(), kids[1].as_deref(), kids[2].as_deref(), kids[3].as_deref()], &mut o);
+        Some(Arc::new(o))
+    };
+    let mut c = cache.lock();
+    if c.len() > MIP_CACHE_LIMIT {
+        c.retain(|_, (w, _)| w.strong_count() > 0);
+        if c.len() > MIP_CACHE_LIMIT / 2 {
+            c.clear();
+        }
+    }
+    c.insert(ck, (Arc::downgrade(tiles), out.clone()));
+    out
+}
+
+/// A mask at a mip level; `None` where the whole tile has the mask's outside value.
+fn mask_tile(m: &Mask, lod: u8, key: (i32, i32)) -> Option<Arc<MaskTile>> {
+    if lod == 0 {
+        return m.tiles.get(&key).cloned();
+    }
+    let ck = (Arc::as_ptr(&m.tiles) as usize, lod, key.0, key.1);
+    let cache = MASK_MIPS.get_or_init(Default::default);
+    if let Some((w, t)) = cache.lock().get(&ck) {
+        if w.upgrade().is_some_and(|a| Arc::ptr_eq(&a, &m.tiles)) {
+            return t.clone();
+        }
+    }
+    let kids: Vec<Option<Arc<MaskTile>>> = [(0, 0), (1, 0), (0, 1), (1, 1)].iter().map(|(dx, dy)| mask_tile(m, lod - 1, (key.0 * 2 + dx, key.1 * 2 + dy))).collect();
+    let out = if kids.iter().all(Option::is_none) {
+        None
+    } else {
+        let mut o = MaskTile::filled(m.outside);
+        const H: usize = TILE / 2;
+        for (q, k) in kids.iter().enumerate() {
+            let (ox, oy) = ((q % 2) * H, (q / 2) * H);
+            for y in 0..H {
+                for x in 0..H {
+                    let v = match k {
+                        Some(k) => (k.get(2 * x, 2 * y) as u32 + k.get(2 * x + 1, 2 * y) as u32 + k.get(2 * x, 2 * y + 1) as u32 + k.get(2 * x + 1, 2 * y + 1) as u32 + 2) / 4,
+                        None => m.outside as u32,
+                    };
+                    o.0[(oy + y) * TILE + ox + x] = v as u8;
+                }
+            }
+        }
+        Some(Arc::new(o))
+    };
+    let mut c = cache.lock();
+    if c.len() > MIP_CACHE_LIMIT {
+        c.clear();
+    }
+    c.insert(ck, (Arc::downgrade(&m.tiles), out.clone()));
+    out
 }
 
 /// The layer mask's effect on one tile: None = no mask (or disabled), Const = the same factor
@@ -70,7 +161,7 @@ static FEATHERED: OnceLock<Mutex<HashMap<(usize, u32), Arc<Mask>>>> = OnceLock::
 /// The mask after its render-time feather, cached by mask content and radius.
 fn feathered(m: &LayerMask) -> Arc<Mask> {
     if m.feather <= 0.0 {
-        return Arc::new(m.mask.clone());
+        return Arc::new(m.mask.clone()); // shares the same tile map (its pointer keys the mip cache)
     }
     let key = (Arc::as_ptr(&m.mask.tiles) as usize, m.feather.to_bits());
     let cache = FEATHERED.get_or_init(Default::default);
@@ -91,11 +182,11 @@ fn feathered(m: &LayerMask) -> Arc<Mask> {
     out
 }
 
-pub fn mask_factor(node: &Node, key: (i32, i32)) -> Option<MaskFactor> {
+pub fn mask_factor(node: &Node, lod: u8, key: (i32, i32)) -> Option<MaskFactor> {
     let lm = node.mask.as_ref().filter(|m| m.enabled)?;
     let mask = feathered(lm);
     let d = lm.density;
-    Some(match mask.tile(key) {
+    Some(match mask_tile(&mask, lod, key) {
         None => MaskFactor::Const(1.0 - d * (1.0 - mask.outside as f32 / 255.0)),
         Some(t) => MaskFactor::Each(t.0.iter().map(|m| 1.0 - d * (1.0 - *m as f32 / 255.0)).collect()),
     })
@@ -117,16 +208,16 @@ fn apply_mask(acc: &mut Accum, f: &MaskFactor) {
 
 /// Isolated content of a node at one tile, with its layer mask applied (None when it draws
 /// nothing there).
-fn isolated(node: &Node, key: (i32, i32), origin: (i64, i64)) -> Option<Source<'_>> {
-    let mask = mask_factor(node, key);
+fn isolated(node: &Node, lod: u8, key: (i32, i32), origin: (i64, i64)) -> Option<Source> {
+    let mask = mask_factor(node, lod, key);
     if matches!(mask, Some(MaskFactor::Const(k)) if k <= 0.0) {
         return None;
     }
     let src = match &node.kind {
-        NodeKind::Pixel { tiles } => Source::Tile(tiles.get(&key)?, node.fill),
+        NodeKind::Pixel { tiles } => Source::Tile(layer_tile(tiles, lod, key)?, node.fill),
         NodeKind::Group { children, .. } => {
             let mut acc = Accum::new();
-            composite_stack(children, &mut acc, key, origin);
+            composite_stack(children, &mut acc, lod, key, origin);
             if acc.is_empty() {
                 return None;
             }
@@ -136,7 +227,7 @@ fn isolated(node: &Node, key: (i32, i32), origin: (i64, i64)) -> Option<Source<'
     Some(match (src, mask) {
         (s, None) => s,
         (Source::Tile(t, fill), Some(f)) => {
-            let mut a = Accum::from_tile(t, fill);
+            let mut a = Accum::from_tile(&t, fill);
             apply_mask(&mut a, &f);
             Source::Accum(a)
         }
@@ -147,8 +238,10 @@ fn isolated(node: &Node, key: (i32, i32), origin: (i64, i64)) -> Option<Source<'
     })
 }
 
-/// Composites a list of sibling nodes (bottom to top) onto `acc`.
-pub fn composite_stack(nodes: &[Node], acc: &mut Accum, key: (i32, i32), origin: (i64, i64)) {
+/// Composites a list of sibling nodes (bottom to top) onto `acc`, at a mip level (lod 0 = full
+/// resolution; above that, the layers' own mips are blended, which is how zoomed-out views stay
+/// cheap).
+pub fn composite_stack(nodes: &[Node], acc: &mut Accum, lod: u8, key: (i32, i32), origin: (i64, i64)) {
     let mut i = 0;
     while i < nodes.len() {
         let base = &nodes[i];
@@ -159,24 +252,24 @@ pub fn composite_stack(nodes: &[Node], acc: &mut Accum, key: (i32, i32), origin:
         // a clipped layer whose base is the first sibling (no base below) is drawn normally
         let clipped = &nodes[i + 1..j];
         if base.visible && base.opacity > 0.0 {
-            composite_unit(base, clipped, acc, key, origin);
+            composite_unit(base, clipped, acc, lod, key, origin);
         }
         i = j;
     }
 }
 
-fn composite_unit(base: &Node, clipped: &[Node], acc: &mut Accum, key: (i32, i32), origin: (i64, i64)) {
+fn composite_unit(base: &Node, clipped: &[Node], acc: &mut Accum, lod: u8, key: (i32, i32), origin: (i64, i64)) {
     let has_clips = clipped.iter().any(|c| c.visible && c.opacity > 0.0);
     // pass-through group without clipped layers: children go straight onto the backdrop
     if let NodeKind::Group { children, pass_through: true, .. } = &base.kind {
         if !has_clips {
-            let mask = mask_factor(base, key);
+            let mask = mask_factor(base, lod, key);
             if base.opacity >= 1.0 && mask.is_none() {
-                composite_stack(children, acc, key, origin);
+                composite_stack(children, acc, lod, key, origin);
                 return;
             }
             let mut with = Accum(acc.0.clone());
-            composite_stack(children, &mut with, key, origin);
+            composite_stack(children, &mut with, lod, key, origin);
             match mask {
                 None => acc.lerp_to(&with, base.opacity),
                 Some(MaskFactor::Const(k)) => acc.lerp_to(&with, base.opacity * k),
@@ -185,22 +278,22 @@ fn composite_unit(base: &Node, clipped: &[Node], acc: &mut Accum, key: (i32, i32
             return;
         }
     }
-    let Some(src) = isolated(base, key, origin) else { return };
+    let Some(src) = isolated(base, lod, key, origin) else { return };
     if !has_clips {
         match src {
-            Source::Tile(t, fill) => acc.composite(t, base.blend, base.opacity * fill, origin),
+            Source::Tile(t, fill) => acc.composite(&t, base.blend, base.opacity * fill, origin),
             Source::Accum(a) => acc.composite_accum(&a, base.blend, base.opacity, origin),
         }
         return;
     }
     // clipping unit: base content, then each clipped layer source-atop, then blend the unit
     let mut unit = match src {
-        Source::Tile(t, fill) => Accum::from_tile(t, fill),
+        Source::Tile(t, fill) => Accum::from_tile(&t, fill),
         Source::Accum(a) => a,
     };
     for c in clipped.iter().filter(|c| c.visible && c.opacity > 0.0) {
-        match isolated(c, key, origin) {
-            Some(Source::Tile(t, fill)) => unit.composite_atop(t, c.blend, c.opacity * fill),
+        match isolated(c, lod, key, origin) {
+            Some(Source::Tile(t, fill)) => unit.composite_atop(&t, c.blend, c.opacity * fill),
             Some(Source::Accum(a)) => unit.composite_accum_atop(&a, c.blend, c.opacity),
             None => {}
         }
@@ -210,8 +303,13 @@ fn composite_unit(base: &Node, clipped: &[Node], acc: &mut Accum, key: (i32, i32
 
 /// Composite of a list of nodes at lod 0 for one tile, onto transparency; `None` when empty.
 pub fn composite_nodes(nodes: &[Node], tx: i32, ty: i32) -> Option<Tile> {
+    composite_nodes_lod(nodes, 0, tx, ty)
+}
+
+/// Composite of a list of nodes at a mip level, onto transparency; `None` when empty.
+pub fn composite_nodes_lod(nodes: &[Node], lod: u8, tx: i32, ty: i32) -> Option<Tile> {
     let mut acc = Accum::new();
-    composite_stack(nodes, &mut acc, (tx, ty), (tx as i64 * TILE as i64, ty as i64 * TILE as i64));
+    composite_stack(nodes, &mut acc, lod, (tx, ty), (tx as i64 * TILE as i64, ty as i64 * TILE as i64));
     if acc.is_empty() {
         return None;
     }
@@ -221,6 +319,7 @@ pub fn composite_nodes(nodes: &[Node], tx: i32, ty: i32) -> Option<Tile> {
 }
 
 /// Composite of the whole tree at lod 0 for one tile; `None` when fully transparent.
+#[cfg(test)]
 pub fn composite_lod0(content: &Content, tx: i32, ty: i32) -> Option<Tile> {
     composite_nodes(&content.root, tx, ty)
 }
@@ -241,20 +340,8 @@ fn tile_in(h: &DocHandle, c: &Content, version: u64, lod: u8, tx: i32, ty: i32) 
     if let Some(hit) = h.composite.get(version, key) {
         return hit;
     }
-    let result = if lod == 0 {
-        composite_lod0(c, tx, ty).map(Arc::new)
-    } else {
-        use rayon::prelude::*;
-        let kids: Vec<Option<Arc<Tile>>> =
-            [(0, 0), (1, 0), (0, 1), (1, 1)].par_iter().map(|(dx, dy)| tile_in(h, c, version, lod - 1, tx * 2 + dx, ty * 2 + dy)).collect();
-        if kids.iter().all(Option::is_none) {
-            None
-        } else {
-            let mut out = Tile::transparent();
-            downsample([kids[0].as_deref(), kids[1].as_deref(), kids[2].as_deref(), kids[3].as_deref()], &mut out);
-            Some(Arc::new(out))
-        }
-    };
+    // full resolution is exact; zoomed-out levels blend the layers' own mips (display only)
+    let result = composite_nodes_lod(&c.root, lod, tx, ty).map(Arc::new);
     h.composite.put(version, key, result.clone());
     result
 }

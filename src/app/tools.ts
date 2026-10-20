@@ -19,7 +19,7 @@ export interface ToolGroup {
 }
 
 /** Tools whose milestone is at or below this are working. */
-export const DONE_MILESTONE = 3;
+export const DONE_MILESTONE = 4;
 
 export const TOOL_GROUPS: ToolGroup[] = [
   { code: 'KeyV', letter: 'V', tools: [{ id: 'move', icon: 'move', title: 'tool.move', milestone: 2 }] },
@@ -37,7 +37,10 @@ export const TOOL_GROUPS: ToolGroup[] = [
   ] },
   { code: 'KeyC', letter: 'C', tools: [{ id: 'crop', icon: 'crop', title: 'tool.crop', milestone: 6 }] },
   { code: 'KeyI', letter: 'I', tools: [{ id: 'eyedropper', icon: 'eyedropper', title: 'tool.eyedropper', milestone: 4 }] },
-  { code: 'KeyJ', letter: 'J', tools: [{ id: 'heal', icon: 'heal', title: 'tool.heal', milestone: 4 }] },
+  { code: 'KeyJ', letter: 'J', tools: [
+    { id: 'spotHeal', icon: 'heal', title: 'tool.spotHeal', milestone: 4 },
+    { id: 'heal', icon: 'heal', title: 'tool.heal', milestone: 4 },
+  ] },
   { code: 'KeyB', letter: 'B', tools: [{ id: 'brush', icon: 'brush', title: 'tool.brush', milestone: 4 }] },
   { code: 'KeyS', letter: 'S', tools: [{ id: 'clone', icon: 'clone', title: 'tool.clone', milestone: 4 }] },
   { code: 'KeyE', letter: 'E', tools: [{ id: 'eraser', icon: 'eraser', title: 'tool.eraser', milestone: 4 }] },

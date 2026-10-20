@@ -5,6 +5,8 @@
   import Icon from '../icons/Icon.svelte';
   import * as act from '../actions';
   import SelectionOptions from './SelectionOptions.svelte';
+  import PaintOptions from './PaintOptions.svelte';
+  import { PAINT_TOOLS } from '../canvas/paintTools';
   import { SELECTION_TOOLS } from '../canvas/selectionTools';
   import { DONE_MILESTONE } from '../tools';
 
@@ -36,6 +38,8 @@
     <button class="btn" onclick={act.view.resetRotation}>{t('opt.reset')}</button>
   {:else if SELECTION_TOOLS.includes(app.tool)}
     <SelectionOptions />
+  {:else if PAINT_TOOLS.includes(app.tool)}
+    <PaintOptions />
   {:else if tool.milestone > DONE_MILESTONE}
     <span class="note">{t('tool.notYet')}</span>
   {/if}

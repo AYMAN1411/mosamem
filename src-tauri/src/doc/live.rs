@@ -16,7 +16,7 @@ use lawha_core::tile::{downsample, Tile, TILE};
 use lawha_core::BlendMode;
 use parking_lot::Mutex;
 
-use super::composite::{composite_nodes, mask_factor, MaskFactor};
+use super::composite::{composite_nodes_lod, mask_factor, MaskFactor};
 use super::model::{Content, Node, NodeKind};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -28,13 +28,16 @@ pub enum Part {
 
 pub struct Session {
     pub doc: u64,
+    pub layer: u64,
+    /// Identity of everything except the layer: a new session is needed only when this changes.
+    pub fingerprint: u64,
     width: u32,
     height: u32,
     below: Vec<Node>,
     above: Vec<Node>,
-    layer_tiles: Arc<super::model::TileMap>,
+    layer_tiles: parking_lot::RwLock<Arc<super::model::TileMap>>,
     /// The layer itself when it has an enabled mask (applied to the layer part).
-    mask: Option<Node>,
+    mask: parking_lot::RwLock<Option<Node>>,
     cache: Mutex<HashMap<(Part, u8, i32, i32), Option<Arc<Tile>>>>,
 }
 
@@ -48,6 +51,36 @@ fn associative(n: &Node) -> bool {
         // pixel layers and isolated groups: only their final blend matters
         _ => n.blend == BlendMode::Normal,
     }
+}
+
+/// A hash of everything that shapes the below/above parts and how the layer is drawn: node
+/// structure, properties and pixel identities (tile maps are never mutated in place).
+fn fingerprint(below: &[Node], above: &[Node], layer: &Node) -> u64 {
+    use std::hash::{Hash, Hasher};
+    fn walk(nodes: &[Node], h: &mut std::collections::hash_map::DefaultHasher) {
+        for n in nodes {
+            n.id.hash(h);
+            (n.visible, n.clipped, n.blend.index()).hash(h);
+            (n.opacity.to_bits(), n.fill.to_bits()).hash(h);
+            if let Some(m) = &n.mask {
+                (Arc::as_ptr(&m.mask.tiles) as usize, m.mask.outside, m.enabled, m.density.to_bits(), m.feather.to_bits()).hash(h);
+            }
+            match &n.kind {
+                NodeKind::Pixel { tiles } => (Arc::as_ptr(tiles) as usize).hash(h),
+                NodeKind::Group { children, pass_through, .. } => {
+                    pass_through.hash(h);
+                    walk(children, h);
+                }
+            }
+        }
+    }
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    walk(below, &mut h);
+    0xabcdu16.hash(&mut h);
+    walk(above, &mut h);
+    // the layer's mask settings matter to the layer part; its pixels are refreshed separately
+    layer.mask.as_ref().map(|m| (m.enabled, m.density.to_bits(), m.feather.to_bits())).hash(&mut h);
+    h.finish()
 }
 
 /// Splits the tree around `layer`. Returns None when a live session can't be exact.
@@ -130,17 +163,19 @@ impl Session {
         let layer_tiles = node.tiles()?.clone();
         let mask = node.mask.as_ref().filter(|m| m.enabled).map(|_| node.clone());
         let (below, above) = split(content, layer)?;
-        Some(Session { doc, width: content.width, height: content.height, below, above, layer_tiles, mask, cache: Mutex::new(HashMap::new()) })
+        let fingerprint = fingerprint(&below, &above, node);
+        Some(Session { doc, layer, fingerprint, width: content.width, height: content.height, below, above, layer_tiles: parking_lot::RwLock::new(layer_tiles), mask: parking_lot::RwLock::new(mask), cache: Mutex::new(HashMap::new()) })
     }
 
     fn lod0(&self, part: Part, tx: i32, ty: i32) -> Option<Tile> {
         match part {
-            Part::Below => composite_nodes(&self.below, tx, ty),
-            Part::Above => composite_nodes(&self.above, tx, ty),
+            Part::Below => composite_nodes_lod(&self.below, 0, tx, ty),
+            Part::Above => composite_nodes_lod(&self.above, 0, tx, ty),
             Part::Layer => {
-                let t = self.layer_tiles.get(&(tx, ty))?;
+                let tiles = self.layer_tiles.read().clone();
+                let t = tiles.get(&(tx, ty))?;
                 // the layer mask scales alpha (straight colors stay as they are)
-                match self.mask.as_ref().and_then(|n| mask_factor(n, (tx, ty))) {
+                match self.mask.read().as_ref().and_then(|n| mask_factor(n, 0, (tx, ty))) {
                     None => Some((**t).clone()),
                     Some(f) => {
                         let mut out = (**t).clone();
@@ -158,6 +193,40 @@ impl Session {
         }
     }
 
+    /// The same session can serve a new stroke when nothing but the layer changed since it started.
+    pub fn matches(content: &Content, layer: u64) -> Option<u64> {
+        let node = content.find(layer)?;
+        node.tiles()?;
+        let (below, above) = split(content, layer)?;
+        Some(fingerprint(&below, &above, node))
+    }
+
+    /// Forgets every cached tile of the layer part (the layer may have changed in any way).
+    pub fn reset_layer(&self, node: &Node) {
+        if let Some(t) = node.tiles() {
+            *self.layer_tiles.write() = t.clone();
+        }
+        *self.mask.write() = node.mask.as_ref().filter(|m| m.enabled).map(|_| node.clone());
+        self.cache.lock().retain(|k, _| k.0 != Part::Layer);
+    }
+
+    /// The layer changed during a stroke: swap in its new pixels (and mask) and forget the cached
+    /// tiles of the layer part at those keys and every coarser level above them.
+    pub fn refresh_layer(&self, node: &Node, keys: &[(i32, i32)]) {
+        if let Some(t) = node.tiles() {
+            *self.layer_tiles.write() = t.clone();
+        }
+        if node.mask.as_ref().is_some_and(|m| m.enabled) {
+            *self.mask.write() = Some(node.clone());
+        }
+        let mut c = self.cache.lock();
+        for &(tx, ty) in keys {
+            for lod in 0..=super::composite::MAX_LOD {
+                c.remove(&(Part::Layer, lod, tx >> lod, ty >> lod));
+            }
+        }
+    }
+
     pub fn tile(&self, part: Part, lod: u8, tx: i32, ty: i32) -> Option<Arc<Tile>> {
         let (tw, th) = (self.width.div_ceil(TILE as u32) as i32, self.height.div_ceil(TILE as u32) as i32);
         let scale = 1i32 << lod;
@@ -169,11 +238,15 @@ impl Session {
             return hit.clone();
         }
         let result = if lod == 0 {
-            if part == Part::Layer && self.mask.is_none() {
-                self.layer_tiles.get(&(tx, ty)).cloned()
+            if part == Part::Layer && self.mask.read().is_none() {
+                self.layer_tiles.read().get(&(tx, ty)).cloned()
             } else {
                 self.lod0(part, tx, ty).map(Arc::new)
             }
+        } else if part == Part::Below {
+            composite_nodes_lod(&self.below, lod, tx, ty).map(Arc::new)
+        } else if part == Part::Above {
+            composite_nodes_lod(&self.above, lod, tx, ty).map(Arc::new)
         } else {
             use rayon::prelude::*;
             let kids: Vec<Option<Arc<Tile>>> = [(0, 0), (1, 0), (0, 1), (1, 1)].par_iter().map(|(dx, dy)| self.tile(part, lod - 1, tx * 2 + dx, ty * 2 + dy)).collect();
