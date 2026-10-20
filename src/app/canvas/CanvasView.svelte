@@ -314,8 +314,10 @@
   }
 
   // ---- keys that change the canvas tool temporarily ----
+  // keys typed into a field, or into the Text tool's editor (contenteditable), belong to it: Space
+  // must type a space there, not pan the view
   function editable(t: EventTarget | null) {
-    return t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement;
+    return t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || (t instanceof HTMLElement && t.isContentEditable);
   }
   function onKey(e: KeyboardEvent, down: boolean) {
     if (down && !editable(e.target)) {

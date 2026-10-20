@@ -165,9 +165,16 @@ function countLayers(info: DocInfo): number {
 
 // ---- history ----
 
+/** While the user types in a text field or the Text tool's editor, the menu's Undo, Redo and
+ * Select All act on that text (the native menu takes their keys before the page sees them). */
+function typing(): boolean {
+  const el = document.activeElement;
+  return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el instanceof HTMLElement && el.isContentEditable);
+}
+
 export const history = {
-  undo: () => run((d) => engine.undo(d.info.id)),
-  redo: () => run((d) => engine.redo(d.info.id)),
+  undo: () => (typing() ? document.execCommand('undo') : run((d) => engine.undo(d.info.id))),
+  redo: () => (typing() ? document.execCommand('redo') : run((d) => engine.redo(d.info.id))),
   jump: (i: number) => run((d) => engine.historyJump(d.info.id, i)),
 };
 
@@ -191,7 +198,7 @@ export const view = {
 // ---- selection ----
 
 export const select = {
-  all: () => run((d) => engine.selectSimple(d.info.id, 'all')),
+  all: () => (typing() ? document.execCommand('selectAll') : run((d) => engine.selectSimple(d.info.id, 'all'))),
   deselect: () => run((d) => engine.selectSimple(d.info.id, 'deselect')),
   reselect: () => run((d) => engine.selectSimple(d.info.id, 'reselect')),
   invert: () => run((d) => engine.selectSimple(d.info.id, 'invert')),

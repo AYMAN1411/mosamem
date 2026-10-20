@@ -26,6 +26,13 @@ const checks = {};
 await click(cx, cy, 0); // a quick click: press and release together
 checks.quickClickOpensEditor = !!editor();
 checks.editorHasFocus = document.activeElement === editor();
+// keys the app might take for itself must reach the editor (Space pans the view elsewhere)
+checks.keysReachEditor = ['Space', 'Enter', 'ArrowLeft', 'Backspace', 'KeyV', 'KeyT', 'BracketLeft', 'Digit5'].every((code) => {
+  const key = { Space: ' ', Enter: 'Enter', ArrowLeft: 'ArrowLeft', Backspace: 'Backspace', KeyV: 'v', KeyT: 't', BracketLeft: '[', Digit5: '5' }[code];
+  const ev = new KeyboardEvent('keydown', { key, code, bubbles: true, cancelable: true });
+  editor().dispatchEvent(ev);
+  return !ev.defaultPrevented;
+});
 document.execCommand('insertText', false, 'مرحبا Mosamem'); // goes to the focused element, like typing
 await sleep(300);
 await click(rc.left + 40, rc.top + 40, 100); // a click elsewhere commits

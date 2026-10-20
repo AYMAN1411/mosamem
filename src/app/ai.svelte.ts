@@ -96,6 +96,12 @@ export const aiActions = {
     return run(method === 'ai' ? 'fill' : null, 'ai.working.fill', (doc) => engine.aiSmartFill(doc, { method, newLayer: newLayer ? t('ai.fillLayer') : null }));
   },
   openSmartFill() {
+    // Shift+Backspace while typing deletes text; it's only Smart Fill on the canvas
+    const el = document.activeElement;
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el instanceof HTMLElement && el.isContentEditable)) {
+      document.execCommand('delete');
+      return;
+    }
     if (!app.active?.info.hasSelection) {
       app.notify(t('ai.err.noSelection'), 'error');
       return;
