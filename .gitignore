@@ -6,6 +6,6 @@ src-tauri/gen/
 .DS_Store
 spikes/out/
 tools/winid
-shots/
+/shots/
 target-release/
 src-tauri/target-release/
