@@ -30,6 +30,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::shape_new,
             commands::shape_set,
+            commands::path_select,
+            commands::path_fill,
+            commands::path_stroke,
+            commands::path_from_selection,
             commands::ai_status,
             commands::ai_download,
             commands::ai_cancel,

@@ -2,7 +2,7 @@
 import type { Adjustment, Histogram } from './adjust';
 import type { Filter } from './filter';
 import type { TextData, TextStyle } from './text';
-import type { ShapeData } from './vector';
+import type { Path, ShapeData } from './vector';
 import type { LayerStyle } from './style';
 import { invoke, Channel } from '@tauri-apps/api/core';
 import type { BlendMode } from './blend';
@@ -266,6 +266,11 @@ export const engine = {
   textSet: (doc: number, id: number, data: TextData, transient: boolean) => invoke<DocInfo>('text_set', { doc, id, data, transient }),
   shapeNew: (doc: number, data: ShapeData, name: string) => invoke<DocInfo>('shape_new', { doc, data, name }),
   shapeSet: (doc: number, id: number, data: ShapeData, transient: boolean) => invoke<DocInfo>('shape_set', { doc, id, data, transient }),
+  pathSelect: (doc: number, path: Path, mode: Combine, feather: number) => invoke<DocInfo>('path_select', { doc, path, mode, feather }),
+  pathFill: (doc: number, layer: number, path: Path, color: [number, number, number], opacity: number) => invoke<DocInfo>('path_fill', { doc, layer, path, color, opacity }),
+  pathStroke: (doc: number, layer: number, path: Path, color: [number, number, number], width: number, opacity: number) =>
+    invoke<DocInfo>('path_stroke', { doc, layer, path, color, width, opacity }),
+  pathFromSelection: (doc: number, tolerance: number) => invoke<Path | null>('path_from_selection', { doc, tolerance }),
   layerRasterize: (doc: number, id: number) => invoke<DocInfo>('layer_rasterize', { doc, id }),
   /** [ascent, descent] in px for a style's font and size. */
   textMetrics: (style: TextStyle) => invoke<[number, number]>('text_metrics', { style }),

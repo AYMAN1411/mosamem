@@ -112,7 +112,7 @@ pub fn begin(doc: &Document, spec: StrokeSpec) -> Result<Stroke, String> {
 }
 
 #[inline]
-fn sel_at(sel: &Option<Mask>, x: i64, y: i64) -> f32 {
+pub(crate) fn sel_at(sel: &Option<Mask>, x: i64, y: i64) -> f32 {
     match sel {
         None => 1.0,
         Some(m) => {
@@ -369,10 +369,11 @@ fn layer_for_fill(doc: &Document, id: u64) -> Result<(Arc<TileMap>, bool), Strin
 }
 
 /// Lays `color` over the layer with per-pixel alpha `alpha(x, y)` (already including opacity).
-fn fill_with(doc: &mut Document, id: u64, alpha: &(dyn Fn(i64, i64) -> f32 + Sync), color: &(dyn Fn(i64, i64) -> [f32; 4] + Sync), label: &str) -> Result<(), String> {
+pub(crate) fn fill_with(doc: &mut Document, id: u64, alpha: &(dyn Fn(i64, i64) -> f32 + Sync), color: &(dyn Fn(i64, i64) -> [f32; 4] + Sync), label: &str) -> Result<(), String> {
     use rayon::prelude::*;
     let (tiles, lock_alpha) = layer_for_fill(doc, id)?;
     let (tw, th) = doc.content.tiles_wide();
+    let (cw, ch) = (doc.content.width as i64, doc.content.height as i64);
     let t = TILE as i64;
     let map: TileMap = (0..th)
         .flat_map(|ty| (0..tw).map(move |tx| (tx, ty)))
@@ -385,6 +386,10 @@ fn fill_with(doc: &mut Document, id: u64, alpha: &(dyn Fn(i64, i64) -> f32 + Syn
             let mut any = false;
             for i in 0..TILE_PX {
                 let (x, y) = (ox + (i % TILE) as i64, oy + (i / TILE) as i64);
+                // the last tiles reach past the canvas; fills stay on it
+                if x >= cw || y >= ch {
+                    continue;
+                }
                 let a = alpha(x, y);
                 if a <= 0.0 {
                     continue;
@@ -669,6 +674,15 @@ mod tests {
         assert_eq!(t.px(110, 100), [255, 255, 255, 255]);
         d.undo();
         assert_eq!(composite_lod0(&d.content, 0, 0).unwrap().px(200, 100), [255, 255, 255, 255]);
+    }
+
+    #[test]
+    fn bucket_on_a_canvas_that_ends_inside_a_tile() {
+        let bg = Node::pixel("bg", crate::doc::filled_tiles(300, 200, [255, 255, 255, 255]));
+        let id = bg.id;
+        let mut d = Document::new("t".into(), None, crate::doc::Content::new(300, 200, 72.0, id, vec![bg]), Label::new("history.new"));
+        bucket(&mut d, BucketSpec { layer: id, x: 10.0, y: 10.0, tolerance: 10, contiguous: true, all_layers: true, antialias: false, color: [0, 0, 255], opacity: 1.0 }).unwrap();
+        assert_eq!(sample_color(&d, 299.0, 199.0, 1, true), Some([0, 0, 255, 255]));
     }
 
     #[test]

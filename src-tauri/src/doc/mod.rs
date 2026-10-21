@@ -12,6 +12,7 @@ pub mod paint;
 pub mod psd;
 pub mod raster;
 pub mod selection;
+pub mod paths;
 pub mod shape;
 pub mod styles;
 pub mod text;

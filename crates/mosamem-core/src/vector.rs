@@ -540,6 +540,140 @@ pub fn coverage(path: &Path, w: u32, h: u32) -> Vec<u8> {
     out
 }
 
+/// How much of each pixel a stroke along the path covers (round ends and joins, like a brush).
+pub fn stroke_coverage(path: &Path, width: f64, w: u32, h: u32) -> Vec<u8> {
+    let mut out = vec![0u8; (w * h) as usize];
+    let Some(sk) = path.to_skia() else { return out };
+    let st = tiny_skia::Stroke { width: width.max(0.1) as f32, line_cap: LineCap::Round, line_join: LineJoin::Round, ..Default::default() };
+    // a mask can't take a stroke directly: draw it on a pixmap and keep the alpha
+    let Some(mut pm) = Pixmap::new(w, h) else { return out };
+    let mut paint = Paint { anti_alias: true, ..Default::default() };
+    paint.set_color_rgba8(0, 0, 0, 255);
+    pm.stroke_path(&sk, &paint, &st, Transform::identity(), None);
+    for (o, px) in out.iter_mut().zip(pm.data().chunks_exact(4)) {
+        *o = px[3];
+    }
+    out
+}
+
+/// The outline of a mask (pixels at 128 or more are inside) as a path: one closed subpath per
+/// edge, outer edges clockwise and holes the other way, simplified to within `tolerance` px.
+/// Gentle bends become smooth points, sharp ones stay corners.
+pub fn trace(mask: &[u8], w: u32, h: u32, tolerance: f64) -> Path {
+    use std::collections::HashMap;
+    let (w, h) = (w as i64, h as i64);
+    let inside = |x: i64, y: i64| x >= 0 && y >= 0 && x < w && y < h && mask[(y * w + x) as usize] >= 128;
+    // directed edges between inside and outside pixels, keyed by their start corner
+    let mut edges: HashMap<(i64, i64), Vec<(i64, i64)>> = HashMap::new();
+    for y in 0..h {
+        for x in 0..w {
+            if !inside(x, y) {
+                continue;
+            }
+            if !inside(x, y - 1) {
+                edges.entry((x, y)).or_default().push((x + 1, y));
+            }
+            if !inside(x + 1, y) {
+                edges.entry((x + 1, y)).or_default().push((x + 1, y + 1));
+            }
+            if !inside(x, y + 1) {
+                edges.entry((x + 1, y + 1)).or_default().push((x, y + 1));
+            }
+            if !inside(x - 1, y) {
+                edges.entry((x, y + 1)).or_default().push((x, y));
+            }
+        }
+    }
+    let mut starts: Vec<(i64, i64)> = edges.keys().copied().collect();
+    starts.sort_unstable_by_key(|p| (p.1, p.0));
+    let mut subs = Vec::new();
+    for start in starts {
+        while let Some(first) = edges.get_mut(&start).and_then(|v| v.pop()) {
+            let mut ring = vec![start];
+            let (mut prev, mut cur) = (start, first);
+            while cur != start {
+                ring.push(cur);
+                let Some(outs) = edges.get_mut(&cur) else { break };
+                if outs.is_empty() {
+                    break;
+                }
+                // where two edges leave a corner (pixels touching only at it), turn right
+                let d = (cur.0 - prev.0, cur.1 - prev.1);
+                let right = (cur.0 - d.1, cur.1 + d.0);
+                let k = outs.iter().position(|o| *o == right).unwrap_or(0);
+                let next = outs.swap_remove(k);
+                (prev, cur) = (cur, next);
+            }
+            if ring.len() >= 4 {
+                let pts: Vec<Pt> = ring.iter().map(|p| [p.0 as f64, p.1 as f64]).collect();
+                let simple = simplify_closed(&pts, tolerance.max(0.5));
+                if simple.len() >= 3 {
+                    subs.push(SubPath { knots: smooth_knots(&simple), closed: true });
+                }
+            }
+        }
+    }
+    Path { subs }
+}
+
+/// Douglas–Peucker on a closed ring (split at the point farthest from the first).
+fn simplify_closed(pts: &[Pt], tol: f64) -> Vec<Pt> {
+    let n = pts.len();
+    let d2 = |a: Pt, b: Pt| (a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2);
+    let far = (1..n).max_by(|&a, &b| d2(pts[0], pts[a]).total_cmp(&d2(pts[0], pts[b]))).unwrap_or(0);
+    let mut out = Vec::new();
+    dp(&pts[..=far], tol, &mut out);
+    out.pop();
+    let mut back: Vec<Pt> = pts[far..].to_vec();
+    back.push(pts[0]);
+    dp(&back, tol, &mut out);
+    out.pop();
+    out
+}
+
+fn dp(pts: &[Pt], tol: f64, out: &mut Vec<Pt>) {
+    let (a, b) = (pts[0], pts[pts.len() - 1]);
+    let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+    let len = dx.hypot(dy);
+    let dist = |p: Pt| if len < 1e-9 { (p[0] - a[0]).hypot(p[1] - a[1]) } else { ((p[0] - a[0]) * dy - (p[1] - a[1]) * dx).abs() / len };
+    let (mut best, mut at) = (0.0, 0);
+    for (i, p) in pts.iter().enumerate().take(pts.len() - 1).skip(1) {
+        let d = dist(*p);
+        if d > best {
+            (best, at) = (d, i);
+        }
+    }
+    if best > tol {
+        dp(&pts[..=at], tol, out);
+        out.pop();
+        dp(&pts[at..], tol, out);
+    } else {
+        out.push(a);
+        out.push(b);
+    }
+}
+
+/// Knots through the points: smooth (handles along the neighbors' direction, a third of the way)
+/// where the outline bends by less than 50°, corners elsewhere.
+fn smooth_knots(pts: &[Pt]) -> Vec<Knot> {
+    let n = pts.len();
+    (0..n)
+        .map(|i| {
+            let (a, p, b) = (pts[(i + n - 1) % n], pts[i], pts[(i + 1) % n]);
+            let (u, v) = ([p[0] - a[0], p[1] - a[1]], [b[0] - p[0], b[1] - p[1]]);
+            let (lu, lv) = (u[0].hypot(u[1]), v[0].hypot(v[1]));
+            let cos = (u[0] * v[0] + u[1] * v[1]) / (lu * lv).max(1e-9);
+            if cos < 50f64.to_radians().cos() {
+                return Knot::corner(p);
+            }
+            let (tx, ty) = (b[0] - a[0], b[1] - a[1]);
+            let tl = tx.hypot(ty).max(1e-9);
+            let (ux, uy) = (tx / tl, ty / tl);
+            Knot { p, i: [p[0] - ux * lu / 3.0, p[1] - uy * lu / 3.0], o: [p[0] + ux * lv / 3.0, p[1] + uy * lv / 3.0], smooth: true }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -669,5 +803,46 @@ mod tests {
         assert!(matches!(line, Shape::Line { arrow_start: true, arrow_end: false, .. }));
         assert!(js.contains("\"kind\":\"star\"") && js.contains("\"align\":\"outside\""), "{js}");
         assert_eq!(serde_json::from_str::<(Shape, ShapePaint)>(&js).unwrap(), (s, p));
+    }
+    #[test]
+    fn tracing_a_mask_finds_its_outline_and_holes() {
+        // a 60 × 40 block with a 20 × 10 hole
+        let (w, h) = (100u32, 80u32);
+        let mut m = vec![0u8; (w * h) as usize];
+        for y in 20..60 {
+            for x in 20..80 {
+                let hole = (40..60).contains(&x) && (35..45).contains(&y);
+                m[(y * w + x) as usize] = if hole { 0 } else { 255 };
+            }
+        }
+        let p = trace(&m, w, h, 1.0);
+        assert_eq!(p.subs.len(), 2);
+        assert!(p.subs.iter().all(|s| s.closed && s.knots.len() == 4), "rectangles simplify to four corners");
+        // filled back, it gives the same pixels
+        let back = coverage(&p, w, h);
+        let diff = back.iter().zip(&m).filter(|(a, b)| (**a >= 128) != (**b >= 128)).count();
+        assert_eq!(diff, 0);
+    }
+
+    #[test]
+    fn a_traced_disc_comes_back_close() {
+        let (w, h) = (200u32, 200u32);
+        let m: Vec<u8> = (0..w * h).map(|i| if ((i % w) as f64 - 100.0).hypot((i / w) as f64 - 100.0) < 70.0 { 255 } else { 0 }).collect();
+        let p = trace(&m, w, h, 1.0);
+        assert_eq!(p.subs.len(), 1);
+        assert!(p.subs[0].knots.len() < 80, "{} points", p.subs[0].knots.len());
+        let back = coverage(&p, w, h);
+        let diff = back.iter().zip(&m).filter(|(a, b)| (**a >= 128) != (**b >= 128)).count();
+        // within about a pixel along the edge (2πr ≈ 440)
+        assert!(diff < 440, "{diff} pixels differ");
+    }
+
+    #[test]
+    fn a_stroke_covers_its_band() {
+        let p = Shape::Line { a: [10.0, 50.0], b: [90.0, 50.0], arrow_start: false, arrow_end: false }.path();
+        let c = stroke_coverage(&p, 10.0, 100, 100);
+        let area: f64 = c.iter().map(|v| *v as f64 / 255.0).sum();
+        // 80 × 10 plus two round ends (π·5²)
+        assert!((area - (800.0 + std::f64::consts::PI * 25.0)).abs() < 8.0, "{area}");
     }
 }

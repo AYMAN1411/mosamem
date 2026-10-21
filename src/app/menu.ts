@@ -10,6 +10,7 @@ import * as act from './actions';
 import { historyText } from './history';
 import { findLayer } from '../engine/bridge';
 import { aiActions } from './ai.svelte';
+import { pen } from './canvas/pen.svelte';
 
 const isMac = navigator.userAgent.includes('Mac');
 
@@ -157,6 +158,8 @@ export async function buildMenu() {
         ],
       }),
       await item(t('select.refine'), act.select.refine, 'CmdOrCtrl+Alt+R', hasSel),
+      await sep(),
+      await item(t('menu.select.workPath'), () => pen.fromSelection(), undefined, hasSel),
     ],
   });
   const layerMask = app.active ? findLayer(app.active.info.layers, app.active.info.active)?.mask : null;

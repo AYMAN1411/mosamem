@@ -10,6 +10,7 @@
   import CropOptions from './CropOptions.svelte';
   import TextOptions from './TextOptions.svelte';
   import ShapeOptions from './ShapeOptions.svelte';
+  import PathActions from './PathActions.svelte';
   import { SHAPE_TOOLS } from '../canvas/shapes.svelte';
   import { pen } from '../canvas/pen.svelte';
   import { transform } from '../canvas/transform.svelte';
@@ -37,10 +38,10 @@
       <option value="shape" selected={pen.mode === 'shape'}>{t('pen.mode.shape')}</option>
       <option value="path" selected={pen.mode === 'path'}>{t('pen.mode.path')}</option>
     </select>
-    {#if pen.mode === 'shape'}<div class="sep"></div><ShapeOptions />{/if}
-    <span class="note">{t('pen.hint')}</span>
+    {#if pen.mode === 'shape'}<div class="sep"></div><ShapeOptions />{:else}<div class="sep"></div><PathActions />{/if}
   {:else if app.tool === 'directSelect'}
-    <span class="note">{t('direct.hint')}</span>
+    <PathActions />
+    <span class="note hint">{t('direct.hint')}</span>
   {:else if app.tool === 'zoom'}
     <button class="icon-btn" title={t('opt.zoomIn')} onclick={act.view.zoomIn}><Icon name="zoom" /></button>
     <button class="icon-btn" title={t('opt.zoomOut')} onclick={act.view.zoomOut}><Icon name="zoomOut" /></button>
@@ -83,4 +84,5 @@
   .angle { width: 64px; }
   .lang { height: 26px; }
   .mode { height: 26px; }
+  .hint { margin-inline-start: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 </style>

@@ -967,6 +967,33 @@ pub async fn shape_set(engine: State<'_, Engine>, doc: u64, id: u64, data: Shape
     edit_async(&engine, doc, move |d| shape::set_shape(d, id, data, transient)).await
 }
 
+// ---- paths (M12) ----
+
+use crate::doc::paths;
+use mosamem_core::vector::Path as VectorPath;
+
+#[tauri::command]
+pub async fn path_select(engine: State<'_, Engine>, doc: u64, path: VectorPath, mode: Combine, feather: f32) -> Res<DocInfo> {
+    edit_async(&engine, doc, move |d| paths::select(d, &path, mode, feather)).await
+}
+
+#[tauri::command]
+pub async fn path_fill(engine: State<'_, Engine>, doc: u64, layer: u64, path: VectorPath, color: [u8; 3], opacity: f32) -> Res<DocInfo> {
+    edit_async(&engine, doc, move |d| paths::fill(d, layer, &path, color, opacity)).await
+}
+
+#[tauri::command]
+pub async fn path_stroke(engine: State<'_, Engine>, doc: u64, layer: u64, path: VectorPath, color: [u8; 3], width: f64, opacity: f32) -> Res<DocInfo> {
+    edit_async(&engine, doc, move |d| paths::stroke(d, layer, &path, color, width, opacity)).await
+}
+
+/// The selection's edge as a path (null without a selection).
+#[tauri::command]
+pub async fn path_from_selection(engine: State<'_, Engine>, doc: u64, tolerance: f64) -> Res<Option<VectorPath>> {
+    let h = handle(&engine, doc)?;
+    tauri::async_runtime::spawn_blocking(move || Ok(paths::from_selection(&h.doc.read(), tolerance))).await.map_err(|e| e.to_string())?
+}
+
 // ---- local AI (M10) ----
 
 use crate::ai::{self, models, Ai, FillSpec, ObjectSpec};

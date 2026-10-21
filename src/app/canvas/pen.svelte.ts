@@ -337,6 +337,62 @@ class PenTool {
     this.redraw();
   }
 
+  // ---- paths and selections ----
+
+  /** Loads the active path (a shape layer's outline, or the work path) as a selection. */
+  async toSelection() {
+    const tp = targetPath();
+    const d = app.active;
+    if (!tp || !d) return;
+    try {
+      app.update(await engine.pathSelect(d.info.id, $state.snapshot(tp.path) as Path, app.sel.mode, app.sel.feather));
+    } catch (e) {
+      fail(e);
+    }
+  }
+
+  /** Makes the selection's edge the work path. */
+  async fromSelection() {
+    const d = app.active;
+    if (!d) return;
+    try {
+      const p = await engine.pathFromSelection(d.info.id, 2);
+      if (!p) return app.notify(t('path.noSelection'), 'error');
+      d.workPath = p;
+      this.selected = { key: 'work', knots: [] };
+      // the work path shows with the path tools
+      if (!PATH_TOOLS.includes(app.tool)) app.tool = 'directSelect';
+      this.redraw();
+    } catch (e) {
+      fail(e);
+    }
+  }
+
+  /** Fills or strokes the work path on the active pixel layer, in the foreground color (a stroke
+   * as wide as the brush). */
+  async paintPath(how: 'fill' | 'stroke') {
+    const d = app.active;
+    const path = d?.workPath;
+    if (!d || !path) return;
+    const l = findLayer(d.info.layers, d.info.active);
+    if (l?.kind !== 'pixel') return app.notify(t('path.needPixels'), 'error');
+    const c = app.fg;
+    const rgb: [number, number, number] = [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+    const snap = $state.snapshot(path) as Path;
+    try {
+      app.update(how === 'fill' ? await engine.pathFill(d.info.id, l.id, snap, rgb, 1) : await engine.pathStroke(d.info.id, l.id, snap, rgb, app.paint.brush.diameter, 1));
+    } catch (e) {
+      fail(e);
+    }
+  }
+
+  deleteWorkPath() {
+    const d = app.active;
+    if (d) d.workPath = null;
+    this.selected = { key: '', knots: [] };
+    this.redraw();
+  }
+
   // ---- drawing on the overlay ----
 
   draw(ctx: CanvasRenderingContext2D) {
