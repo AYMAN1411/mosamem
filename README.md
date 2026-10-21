@@ -1,43 +1,101 @@
-<p align="center">
-  <img src="assets/icon.png" alt="" width="128">
-</p>
-
-<h1 align="center">Mosamem · مصمم</h1>
+<div dir="rtl">
 
 <p align="center">
-  <b>English</b> · <a href="README.ar.md">العربية</a>
+  <img src="docs/media/banner-ar.png" alt="مصمم: محرر صور عربي أولًا، مجاني ومفتوح المصدر">
 </p>
 
 <p align="center">
-  <a href="https://github.com/motalim-ai/mosamem/releases/latest"><img alt="Download" src="https://img.shields.io/github/v/release/motalim-ai/mosamem?label=Download&color=3FC4AA&style=for-the-badge"></a>
-  <img alt="macOS 13.4+" src="https://img.shields.io/badge/macOS-13.4%2B-111?style=for-the-badge&logo=apple">
-  <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%C2%B7%2011-0078D4?style=for-the-badge&logo=windows11&logoColor=white">
-  <a href="LICENSE"><img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPL%20v3-7CF2C8?style=for-the-badge"></a>
+  <b>العربية</b> · <a href="README.en.md">English</a>
 </p>
-
----
-
-**Mosamem** (مصمم, "designer") is a free, open-source image editor made for Arabic first. Layers, masks,
-adjustment layers, filters, Arabic text that stays editable, layer styles, PSD files, and AI tools that run on
-your own computer. The interface is Arabic, right to left, with English one click away.
 
 <p align="center">
-  <img src="docs/media/hero-en.jpg" alt="Mosamem: a poster with an Arabic title, layer styles and an adjustment layer" width="860">
+  <a href="https://github.com/motalim-ai/mosamem/releases/latest"><img alt="آخر إصدار" src="https://img.shields.io/github/v/release/motalim-ai/mosamem?label=release&color=3FC4AA&style=flat-square"></a>
+  <img alt="macOS 13.4+" src="https://img.shields.io/badge/macOS-13.4%2B-111?style=flat-square&logo=apple">
+  <img alt="Windows 10 و 11" src="https://img.shields.io/badge/Windows-10%20%C2%B7%2011-0078D4?style=flat-square&logo=windows11&logoColor=white">
+  <a href="LICENSE"><img alt="الرخصة: GPL v3" src="https://img.shields.io/badge/license-GPL%20v3-7CF2C8?style=flat-square"></a>
 </p>
 
-## Install
+**مصمم** محرر صور مجاني ومفتوح المصدر، صُنع **للعربية أولًا**: طبقات وأقنعة، وطبقات ضبط، وفلاتر، ونص عربي
+يبقى قابلًا للتحرير، وأنماط طبقة، وملفات فوتوشوب PSD، وأدوات ذكاء اصطناعي تعمل على جهازك أنت دون إنترنت.
+الواجهة عربية من اليمين إلى اليسار، والإنجليزية بضغطة زر. ويعمل على **الماك والويندوز**.
 
-### Mac
+<p align="center">
+  <a href="https://github.com/motalim-ai/mosamem/releases/latest/download/Mosamem.dmg"><img alt="تنزيل للماك" src="docs/media/button-mac-ar.png" height="52"></a>
+  &nbsp;
+  <a href="https://github.com/motalim-ai/mosamem/releases/latest/download/Mosamem-Setup-x64.exe"><img alt="تنزيل للويندوز" src="docs/media/button-win-ar.png" height="52"></a>
+</p>
 
-1. Download **[Mosamem.dmg](https://github.com/motalim-ai/mosamem/releases/latest/download/Mosamem.dmg)** from the latest release.
-2. Open it and drag **Mosamem** into **Applications**.
-3. Open **Mosamem** from Applications. macOS shows *"Mosamem" Not Opened*. Press **Done**, not Move to Trash.
-4. Open **System Settings → Privacy & Security**, scroll down to **Security**, and press **Open Anyway** next to
-   *"Mosamem" was blocked to protect your Mac*.
-5. Press **Open Anyway** again and enter your Mac password. Mosamem opens, and macOS will not ask again.
+> **نسخة تجريبية أولى (0.1).** بُني مصمم في يوم واحد، وما زال فيه ما لم يكتمل وما يحتاج إلى تجربة أكثر.
+> جرّبه، وأخبرنا بما تريد أن نضيفه أولًا في [صفحة Issues](https://github.com/motalim-ai/mosamem/issues).
+
+## شاهده وهو يعمل
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <b>إزالة الخلفية بضغطة</b><br>
+      تحديد الكائن ثم «إزالة الخلفية»: ذكاء اصطناعي على جهازك، والريش محفوظ بدقة.<br><br>
+      <img src="docs/media/demo-remove-background.gif" alt="إزالة خلفية صورة ببغاء بضغطة واحدة">
+    </td>
+    <td width="50%" valign="top">
+      <b>خلفية جديدة وأنماط الطبقة</b><br>
+      طبقة تحت العنصر بتدرّج أو لون، ثم «تراكب لون» بمعاينة مباشرة.<br><br>
+      <img src="docs/media/demo-new-background.gif" alt="إضافة تدرج وخلفية ملونة بأنماط الطبقة">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <b>نص عربي كما يجب أن يُكتب</b><br>
+      حروف متصلة من اليمين إلى اليسار، وخط Cairo عريض، ولون، وظل ساقط وحدّ. والنص يبقى قابلًا للتعديل.<br><br>
+      <img src="docs/media/demo-arabic-text.gif" alt="كتابة بسم الله الرحمن الرحيم وتنسيقها بخط وظل">
+    </td>
+    <td width="50%" valign="top">
+      <b>الأشكال</b><br>
+      مستطيل وشكل بيضاوي، وكل شكل طبقة مستقلة تغيّر لونها ومقاسها من لوحة الخصائص.<br><br>
+      <img src="docs/media/demo-shapes.gif" alt="رسم مستطيل وشكل بيضاوي كطبقات أشكال">
+    </td>
+  </tr>
+</table>
+
+## الكتابة العربية أولًا
+
+<p align="center">
+  <img src="docs/media/shot-mixed-text.jpg" alt="لوحة اختبار النص: عربي مع إنجليزي، وتشكيل كامل، وخطوط Plex وCairo وTajawal وAmiri، وضبط بالكشيدة" width="860">
+</p>
+
+العربي مع الإنجليزي في السطر نفسه، والتشكيل في مكانه، والضبط بالكشيدة، وأربعة خطوط عربية مدمجة:
+IBM Plex Sans Arabic وCairo وTajawal وAmiri.
+
+## لقطات من البرنامج
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/media/shot-refine-edges.jpg" alt="تنقيح الحواف"><br><b>تنقيح الحواف</b>: نعومة وتمويه وإزاحة للحافة، بمعاينة على خلفية سوداء أو حمراء.</td>
+    <td width="50%"><img src="docs/media/shot-color-overlay.jpg" alt="أنماط الطبقة"><br><b>أنماط الطبقة</b>: ظل ساقط وداخلي، وتوهج، وحدّ، وتراكب لون وتدرّج.</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/media/shot-brush.jpg" alt="الفرشاة"><br><b>الفرشاة</b>: الحجم والصلابة والتدفق، مع ختم النسخ والمعالجة والممحاة.</td>
+    <td width="50%"><img src="docs/media/shot-ai-models.jpg" alt="نماذج الذكاء الاصطناعي"><br><b>نماذج الذكاء الاصطناعي</b>: تُنزَّل مرة واحدة (28–115 ميجا)، ثم تعمل دون إنترنت.</td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/media/shot-windows.jpg" alt="مصمم على ويندوز 11"><br><b>على ويندوز أيضًا</b>: نفس البرنامج ونفس العربية على ويندوز 10 و11.</td>
+    <td width="50%"><img src="docs/media/shot-english.jpg" alt="الواجهة بالإنجليزية"><br><b>عربي ⇄ English</b>: زر واحد يقلب الواجهة كلها، والاختصارات تعمل مع لوحة المفاتيح العربية.</td>
+  </tr>
+</table>
+
+## التثبيت
+
+### ماك
+
+1. نزّل **[Mosamem.dmg](https://github.com/motalim-ai/mosamem/releases/latest/download/Mosamem.dmg)** من آخر إصدار.
+2. افتحه واسحب **Mosamem** إلى مجلد **Applications** (التطبيقات).
+3. افتح **Mosamem** من التطبيقات. سيظهر *لم يتم فتح "Mosamem"*. اضغط **تم**، لا «نقل إلى سلة المهملات».
+4. افتح **إعدادات النظام ← الخصوصية والأمن**، وانزل إلى قسم **الأمن**، واضغط **فتح على أي حال** بجانب
+   *تم حظر "Mosamem" لحماية جهاز Mac*.
+5. اضغط **فتح على أي حال** مرة أخرى وأدخل كلمة سر جهازك. يفتح مصمم، ولن يسألك macOS مرة أخرى.
 
 <details>
-<summary>Prefer Terminal? One command does steps 3 to 5</summary>
+<summary>تفضّل الطرفية (Terminal)؟ أمر واحد يغني عن الخطوات 3 إلى 5</summary>
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Mosamem.app && open /Applications/Mosamem.app
@@ -45,115 +103,118 @@ xattr -dr com.apple.quarantine /Applications/Mosamem.app && open /Applications/M
 
 </details>
 
-**Why does macOS ask?** Mosamem is not notarized by Apple yet, so macOS asks once before opening any app
-downloaded outside the App Store. The app is open source: you can read every line here, or build it yourself.
+**لماذا يسأل macOS؟** لأن مصمم لم يُوثَّق من أبل بعد، فيسأل النظام مرة واحدة قبل فتح أي تطبيق نُزّل من خارج
+متجر التطبيقات. البرنامج مفتوح المصدر: يمكنك قراءة كل سطر منه هنا، أو بناؤه بنفسك.
 
-Requires macOS 13.4 Ventura or later on Apple silicon.
+يحتاج macOS 13.4 (Ventura) أو أحدث على معالجات Apple (M1 وما بعده).
 
-### Windows
+### ويندوز
 
-1. Download **[Mosamem-Setup-x64.exe](https://github.com/motalim-ai/mosamem/releases/latest/download/Mosamem-Setup-x64.exe)**.
-   It also runs on Snapdragon and other ARM PCs, through Windows' built-in x64 emulation.
-2. Open the installer. If Windows shows *Windows protected your PC*, press **More info**, then **Run anyway**.
-   If your browser says the file is not commonly downloaded, choose **Keep**.
-3. Pick **العربية** or **English**, then **Next** and **Install**. No administrator password is needed: Mosamem
-   installs for your account only.
+1. نزّل **[Mosamem-Setup-x64.exe](https://github.com/motalim-ai/mosamem/releases/latest/download/Mosamem-Setup-x64.exe)**.
+   ويعمل أيضًا على أجهزة Snapdragon وغيرها من أجهزة ARM، عبر محاكاة x64 المدمجة في ويندوز.
+2. افتح المثبّت. إن ظهرت رسالة *Windows protected your PC*، اضغط **More info** (مزيد من المعلومات)، ثم
+   **Run anyway** (التشغيل على أي حال). وإن قال المتصفح إن الملف غير شائع التنزيل، اختر **Keep** (الاحتفاظ).
+3. اختر **العربية** أو **English**، ثم **التالي** و**تثبيت**. لا حاجة لكلمة سر المسؤول: يُثبَّت مصمم لحسابك فقط.
 
-**Why does Windows warn?** The installer is not code-signed yet, so SmartScreen does not know it. The SHA-256 of
-each installer is listed in the release notes.
+**لماذا يحذّر ويندوز؟** لأن المثبّت غير موقّع رقميًا بعد، فلا يعرفه SmartScreen. بصمة SHA-256 لكل مثبّت
+مكتوبة في ملاحظات الإصدار.
 
-Requires Windows 10 or 11, 64-bit, with the WebView2 runtime (built into Windows 11; the installer adds it on
-Windows 10 if it's missing). Remove it any time from **Settings → Apps**.
+يحتاج ويندوز 10 أو 11 بنظام 64 بت، مع WebView2 (مدمج في ويندوز 11، ويضيفه المثبّت على ويندوز 10 إن لم يكن
+موجودًا). يمكنك إزالته متى شئت من **الإعدادات ← التطبيقات**.
 
-## What it can do
+## كل ما يفعله
 
-- **Documents**: new from presets (Instagram, YouTube thumbnail, A4…), open PNG, JPEG, WebP, TIFF, HEIC (Mac)
-  and PSD; save as `.mosamem` with every layer kept; autosave and recovery after a crash.
-- **Layers**: groups, blend modes, opacity and fill, clipping, locks, layer masks.
-- **Non-destructive adjustments**: Levels, Curves, Hue/Saturation, Brightness/Contrast, Exposure, Vibrance,
-  Color Balance, Black & White, Gradient Map, Invert, Threshold.
-- **Selections**: marquee, lasso, polygon lasso, magic wand, quick selection, object selection, refine edge.
-- **Painting**: brush, eraser, clone stamp, healing and spot healing, gradient, paint bucket, eyedropper.
-- **Transform**: move, free transform, perspective, crop and straighten, image and canvas size.
-- **Arabic text**: four bundled fonts (IBM Plex Sans Arabic, Cairo, Tajawal, Amiri), right-to-left and mixed
-  text, diacritics, kashida justification. Text stays editable.
-- **Shapes and the Pen**: rectangle, ellipse, polygon, star and line tools, the Pen and Direct Selection,
-  with fill and stroke that stay editable; paths to selections and back, fill and stroke path.
-- **Layer styles**: drop shadow, inner shadow, outer glow, stroke, color and gradient overlay.
-- **Filters**: Gaussian blur, motion blur, unsharp mask, noise, pixelate, with live preview.
-- **PSD**: opens layered Photoshop files and saves a layered copy (see [docs/psd-report.md](docs/psd-report.md)).
-- **Local AI**: Select Subject, Remove Background, Object Selection (click or box) and Smart Fill. Each model
-  downloads once (28–115 MB) the first time you use it, then works offline.
-- **Export**: PNG, JPEG, WebP, TIFF, HEIC (Mac): the whole picture, one layer or the selection, at any size,
-  with the file size shown before you save.
+- **المستندات**: مستند جديد من مقاسات جاهزة (إنستغرام، صورة يوتيوب المصغرة، A4…)، وفتح PNG وJPEG وWebP وTIFF
+  وHEIC (على الماك) وPSD، والحفظ بصيغة `.mosamem` مع كل الطبقات، وحفظ تلقائي واسترجاع بعد الانهيار.
+- **الطبقات**: مجموعات، وأنماط مزج، وعتامة وتعبئة، وقص، وأقفال، وأقنعة طبقات.
+- **ضبط غير هدّام**: المستويات، والمنحنيات، والتدرج/التشبع، والسطوع/التباين، والتعريض، والحيوية، وتوازن
+  الألوان، والأبيض والأسود، وخريطة التدرج، والعكس، والعتبة.
+- **التحديد**: المستطيل والبيضاوي، والحبل، والحبل المضلّع، والعصا السحرية، والتحديد السريع، وتحديد الكائن،
+  وتنقيح الحواف.
+- **الرسم**: الفرشاة، والممحاة، وختم النسخ، والمعالجة والمعالجة الموضعية، والتدرج، والدلو، والقطارة.
+- **التحويل**: النقل، والتحويل الحر، والمنظور، والقص والتسوية، وحجم الصورة واللوحة.
+- **النص العربي**: أربعة خطوط مدمجة (IBM Plex Sans Arabic وCairo وTajawal وAmiri)، واتجاه من اليمين لليسار
+  ونص مختلط، وتشكيل، وضبط بالكشيدة. والنص يبقى قابلًا للتحرير.
+- **الأشكال والقلم**: أدوات المستطيل والشكل البيضاوي والمضلّع والنجمة والخط، والقلم وتحديد النقاط، مع تعبئة
+  وحدّ يبقيان قابلين للتعديل، وتحويل المسار إلى تحديد وبالعكس، وتعبئة المسار ورسم حدّه.
+- **أنماط الطبقة**: الظل المسقط، والظل الداخلي، والتوهج الخارجي، والحد، وتراكب اللون والتدرج.
+- **الفلاتر**: التمويه الغاوسي، وتمويه الحركة، والتوضيح، والضجيج، والبكسلة، مع معاينة حيّة.
+- **PSD**: يفتح ملفات فوتوشوب بطبقاتها، ويحفظ نسخة بطبقاتها (انظر [docs/psd-report.md](docs/psd-report.md)).
+- **ذكاء اصطناعي محلي**: تحديد العنصر، وإزالة الخلفية، وتحديد الكائن (بالنقر أو بمربع)، والملء الذكي. كل نموذج
+  يُنزَّل مرة واحدة (28–115 ميجا) عند أول استخدام، ثم يعمل دون إنترنت.
+- **التصدير**: PNG وJPEG وWebP وTIFF وHEIC (على الماك): الصورة كاملة، أو طبقة واحدة، أو التحديد، بأي مقاس،
+  مع عرض حجم الملف قبل الحفظ.
 
-What works and what isn't done yet, milestone by milestone, is in [docs/status.md](docs/status.md).
+ما يعمل وما لم يكتمل بعد، مرحلة مرحلة، في [docs/status.md](docs/status.md).
 
-## Arabic and English
+## العربية والإنجليزية
 
-The interface starts in Arabic, right to left. The language button in the corner switches to English (left to
-right) and back. Shortcuts follow the key's position, so they also work with an Arabic keyboard layout:
-**Help → Keyboard Shortcuts** lists them.
+تبدأ الواجهة بالعربية من اليمين إلى اليسار، وزر اللغة في الزاوية يحوّلها إلى الإنجليزية ويعيدها. والاختصارات
+تعمل بموضع المفتاح، فتعمل مع لوحة المفاتيح العربية أيضًا. تجدها كلها في **مساعدة ← اختصارات لوحة المفاتيح**.
 
-## Build from source
+## الخصوصية
 
-You need [Rust](https://rustup.rs) and [Node.js](https://nodejs.org) 20 or later. On Windows, also the
-Visual Studio C++ build tools.
+مصمم لا يرسل صورك إلى أي مكان. لا إحصاءات ولا حساب. الاستخدام الوحيد للإنترنت هو تنزيل نموذج ذكاء اصطناعي مرة
+واحدة، بعد موافقتك. واختبار (`tools/ai/no-network.sh`) يتحقق من أن أدوات الذكاء الاصطناعي لا تتصل بشيء بعد
+ذلك.
+
+## البناء من المصدر
+
+تحتاج [Rust](https://rustup.rs) و[Node.js](https://nodejs.org) الإصدار 20 أو أحدث. وعلى ويندوز أيضًا أدوات
+البناء C++ من Visual Studio.
 
 ```bash
 git clone https://github.com/motalim-ai/mosamem.git
 cd mosamem
 npm install
-npx tauri dev      # run it
-npx tauri build    # the installer: a .dmg on Mac, an .exe on Windows
+npx tauri dev      # للتشغيل
+npx tauri build    # المثبّت: ملف .dmg على الماك، و.exe على ويندوز
 ```
 
-The Windows installer can also be built on a Mac: `tools/windows/cross-build.sh`, then
-`tools/windows/make-installer-vm.sh`, which runs NSIS on a Windows machine over SSH.
+ويمكن بناء مثبّت ويندوز على الماك أيضًا: `tools/windows/cross-build.sh` ثم `tools/windows/make-installer-vm.sh`
+الذي يشغّل NSIS على جهاز ويندوز عبر SSH.
 
-The first build downloads ONNX Runtime's prebuilt library (for the AI tools). Tests: `cargo test --workspace`
-and `npx vitest run`.
+البناء الأول ينزّل مكتبة ONNX Runtime الجاهزة (لأدوات الذكاء الاصطناعي). الاختبارات: `cargo test --workspace`
+و`npx vitest run`.
 
 <details>
-<summary>Project layout</summary>
+<summary>تنظيم المشروع</summary>
 
-| Path | What's there |
+| المسار | ما فيه |
 | --- | --- |
-| `crates/mosamem-core` | Pixel math: blending, adjustments, filters, selections, painting, resampling, Arabic text |
-| `src-tauri/src/doc` | The document engine: layers, history, compositing, files, PSD |
-| `src-tauri/src/ai` | Local AI: model downloads, the ONNX Runtime setup, the three models |
-| `src/engine` | The GPU compositor (WebGL2) and the calls into the engine |
-| `src/app` | The interface: tools, panels, dialogs, menus, Arabic and English text |
-| `tools` | Test, measurement and screenshot scripts |
-| `docs` | The plan, research notes, status and reports |
+| `crates/mosamem-core` | حسابات البكسل: المزج، والضبط، والفلاتر، والتحديد، والرسم، وتغيير المقاس، والنص العربي |
+| `src-tauri/src/doc` | محرّك المستند: الطبقات، والسجل، والتركيب، والملفات، وPSD |
+| `src-tauri/src/ai` | الذكاء الاصطناعي المحلي: تنزيل النماذج، وتهيئة ONNX Runtime، والنماذج الثلاثة |
+| `src/engine` | المركّب على كرت الشاشة (WebGL2) والاتصال بالمحرّك |
+| `src/app` | الواجهة: الأدوات، واللوحات، والنوافذ، والقوائم، ونصوص العربية والإنجليزية |
+| `tools` | سكربتات الاختبار والقياس واللقطات |
+| `docs` | الخطة، وملاحظات البحث، والحالة، والتقارير |
 
 </details>
 
-## Privacy
+## الرخصة
 
-Mosamem never sends your pictures anywhere. It has no analytics and no account. The only network use is the
-one-time download of an AI model, after you agree to it. A test (`tools/ai/no-network.sh`) checks that the AI
-tools make no connections after that.
+مصمم برنامج حر بموجب [رخصة جنو العمومية الإصدار 3](LICENSE): يمكنك استخدامه ودراسته ومشاركته وتعديله. وإن
+وزّعت نسخة معدّلة فيجب أن تبقى حرة بالرخصة نفسها. الخطوط والمكتبات المدمجة ونماذج الذكاء الاصطناعي لها
+رخصها الخاصة: انظر [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-## License
+مصمم غير تابع لشركة Adobe، ولا يحتوي أي كود أو رسومات منها؛ سلوكه مأخوذ من التوثيق العام المنشور.
 
-Mosamem is free software under the [GNU General Public License v3.0](LICENSE): you can use it, study it, share
-it and change it. If you distribute a modified version, it has to stay free under the same license. Bundled
-fonts and libraries, and the AI models, keep their own licenses: see
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+اسم **مصمم** وأيقونته يعرّفان هذا المشروع، ولا تشملهما الرخصة.
 
-Mosamem is not affiliated with Adobe. It contains no Adobe code or artwork; its behavior was learned from public
-documentation.
+## من صنع متعلم
 
-The name **Mosamem** and its icon identify this project and are not covered by the license.
-
-## Made by Motalim
+</div>
 
 <p align="center">
-  <a href="https://www.youtube.com/@motalim-ai?sub_confirmation=1"><img alt="Subscribe to Motalim on YouTube" src="https://img.shields.io/badge/YouTube-Subscribe%20to%20Motalim-FF0000?style=for-the-badge&logo=youtube&logoColor=white"></a>
+  <a href="https://www.youtube.com/@motalim-ai?sub_confirmation=1"><img alt="اشترك في قناة متعلم على يوتيوب" src="docs/media/button-yt-ar.png" height="52"></a>
 </p>
 
-Mosamem is made by **Motalim**. Tutorials and new tools are on
-**[the Motalim YouTube channel](https://www.youtube.com/@motalim-ai?sub_confirmation=1)**.
+<div dir="rtl">
 
-Ideas, bugs or translations? [Open an issue](https://github.com/motalim-ai/mosamem/issues).
+مصمم من صنع **متعلم**. الشروحات والأدوات الجديدة على
+**[قناة متعلم على يوتيوب](https://www.youtube.com/@motalim-ai?sub_confirmation=1)**.
+
+أفكار أو مشكلات أو ترجمات؟ [افتح Issue](https://github.com/motalim-ai/mosamem/issues).
+
+</div>

@@ -1,10 +1,9 @@
-# Builds the installers when a version tag (v*) is pushed, and attaches them to a draft release:
+# Builds the installers and attaches them to a draft release:
 # Mosamem.dmg (Apple silicon), Mosamem-Setup-x64.exe and Mosamem-Setup-arm64.exe.
-# Not run yet: the repository isn't on GitHub. The same builds were made by hand (docs/status.md, M11).
+# Manual for now (Actions → release → Run workflow): v0.1.0 shipped the installers built and tested by hand
+# (docs/status.md, M11), so a tag push doesn't replace them with untested CI builds.
 name: release
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
 
 jobs:
