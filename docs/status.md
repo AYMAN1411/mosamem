@@ -375,3 +375,26 @@ Fixed in this milestone:
 - **Not tested with real keyboard and mouse input.** The tests drive the interface from inside the page: the agent has no Accessibility permission to post events. The user's own typing confirmed the Text tool fixes.
 - **Not run: the GitHub Actions workflow and the release links in the README.** The repository isn't on GitHub yet; the links assume `motalim-ai/mosamem`.
 - **Windows menu bar order.** The native menu bar runs left to right even in Arabic: Tauri's menus have no right-to-left mode.
+
+## Milestone 12: vector shapes and the Pen ✔︎ (2026-10-21)
+
+| Feature | How it was checked |
+|---|---|
+| **Shape layers** that stay editable: rectangle (with rounded corners), ellipse, polygon, star, line with arrowheads, and free paths. Fill (solid or none) and stroke (width, inside/center/outside, solid/dashed/dotted). Moving and scaling keep a rectangle or an ellipse live; turning makes it a free path. They take layer styles, save in `.mosamem`, and can be rasterized. | Rust tests: exact areas (rectangle, πr², rounded corners, hexagon), the stroke band for each alignment, dashes, arrowheads, the ellipse within 0.03 px of the circle, transforms, undo |
+| **Shape tools** (U): drag to draw, Shift for a square or a 45° line, Alt from the center, a click for a 100 px shape. The options bar sets the tool's and the selected layer's fill, stroke and shape settings. The Properties panel edits geometry as numbers. | `tools/shape-tools.js` (14 checks) with pointer events. Screenshots `m12-shapes-ar`, `m12-shapes-en` |
+| **Pen** (P): click for corners, drag for curves, close on the first point or finish with Enter/Esc; Shape or Path mode. Clicking the active path's outline adds a point; clicking a point removes it. **Direct Selection** (A): select (Shift adds), move points and segments, pull handles (smooth points keep them in line, Alt breaks them), Delete. | `tools/pen-tools.js` (11 checks). Screenshot `m12-pen-ar` |
+| **Paths and selections**: Make Selection from a path, Path from Selection (traced edge, simplified to 2 px, gentle bends smooth), Fill Path and Stroke Path on a pixel layer in the foreground color. | Rust tests: a rectangle's selection and its traced path match exactly; a disc traces back within about a pixel; holes wind the other way. `tools/path-ops.js` (8 checks). Screenshot `m12-paths-ar` |
+| **PSD**: Photoshop shape layers open as editable shapes when Mosamem draws them the same way (solid fill or none, solid stroke, paths that only combine, no raster mask). Live rectangles and ellipses stay live. Saving writes the vector mask, fill, stroke and the live-shape record. | The 90 public test files: every picture as close as before or closer (`pen-text.psd` 89% → 97.6% within one level), and about 15 files no longer list shapes as flattened (`docs/psd-report.md`). `tools/psd-shapes.js` (10 checks) writes four shapes, reads the file raw with ag-psd and opens it again |
+
+Fixed in this milestone:
+- **The paint bucket failed** on any canvas whose size isn't a multiple of 256 (since M4). Fills ran into the last tiles' spare pixels past the edge. Fills now stay on the canvas; a test covers it.
+- The engine read the fields inside shape variants in snake_case, so lines from the interface were refused. `tools/shape-tools.js` found it.
+
+### Not done or not verified in M12
+
+- **Not opened in Photoshop.** PSD files Mosamem writes were only read back by ag-psd and Mosamem, so whether Photoshop shows their shapes as live is not verified.
+- **PSD limits.** These still open as pixels with a vector mask: gradient or pattern fills, subtracted or intersected paths, and shapes with a raster mask. A line's arrowheads aren't written to PSD: the line is saved as an open path with a stroke.
+- **Not done yet**: boolean operations between shapes, custom shapes, text on a path, a Paths panel. The work path isn't saved with the document and isn't in the history.
+- Path from Selection makes straight segments with smooth points, with no real curve fitting, so a circle comes back with about 30 points.
+- Stroke Path uses a round brush of the Brush tool's size, without pressure or the brush's softness.
+- Same limits as before: no real keyboard or mouse input (the tests send pointer events from inside the page), no Windows run.

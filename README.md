@@ -78,6 +78,8 @@ Windows 10 if it's missing). Remove it any time from **Settings → Apps**.
 - **Transform**: move, free transform, perspective, crop and straighten, image and canvas size.
 - **Arabic text**: four bundled fonts (IBM Plex Sans Arabic, Cairo, Tajawal, Amiri), right-to-left and mixed
   text, diacritics, kashida justification. Text stays editable.
+- **Shapes and the Pen**: rectangle, ellipse, polygon, star and line tools, the Pen and Direct Selection,
+  with fill and stroke that stay editable; paths to selections and back, fill and stroke path.
 - **Layer styles**: drop shadow, inner shadow, outer glow, stroke, color and gradient overlay.
 - **Filters**: Gaussian blur, motion blur, unsharp mask, noise, pixelate, with live preview.
 - **PSD**: opens layered Photoshop files and saves a layered copy (see [docs/psd-report.md](docs/psd-report.md)).
