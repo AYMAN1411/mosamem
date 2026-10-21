@@ -7,6 +7,7 @@ import type { Adjustment } from './adjust';
 import type { BlendMode } from './blend';
 import type { LayerStyle } from './style';
 import type { TextData, Family } from './text';
+import { shapePath, type Path, type ShapeData, type Stroke } from './vector';
 
 // ag-psd asks for canvases; with `useImageData` it only needs plain pixel buffers
 initializeCanvas(
@@ -20,7 +21,7 @@ export interface Pixels { offset: number; x: number; y: number; w: number; h: nu
 export interface PsdMask { pixels: Pixels | null; defaultColor: number; enabled: boolean; density: number; feather: number }
 export interface PsdLayer {
   name: string;
-  kind: 'pixel' | 'group' | 'adjustment' | 'text';
+  kind: 'pixel' | 'group' | 'adjustment' | 'text' | 'shape';
   visible: boolean;
   opacity: number;
   fill: number;
@@ -34,6 +35,7 @@ export interface PsdLayer {
   children: PsdLayer[];
   adjustment: Adjustment | null;
   text: TextData | null;
+  shape: ShapeData | null;
   style: LayerStyle | null;
 }
 export interface PsdDoc { width: number; height: number; ppi: number; layers: PsdLayer[]; composite: Pixels | null }
@@ -359,6 +361,131 @@ function writeText(t: TextData): LayerTextData {
   } as LayerTextData;
 }
 
+// ---- shape layers ----
+
+type UnitsValue = { units: string; value: number };
+/** A length in document px (Photoshop keeps stroke widths in points). */
+const length = (u: UnitsValue | undefined, ppi: number, d = 0) =>
+  !u ? d : u.units === 'Points' ? (u.value * ppi) / 72 : u.units === 'Millimeters' ? (u.value * ppi) / 25.4 : u.units === 'Inches' ? u.value * ppi : u.value;
+const unit01 = (v: number | undefined) => (v == null ? 1 : v > 1 ? v / 100 : v);
+
+/** A Photoshop shape layer as an editable shape, when Mosamem can draw it as Photoshop does: a
+ * solid fill (or none), an optional solid stroke, and paths that only add to each other. Anything
+ * else stays pixels with a vector mask (the reader's other path). */
+function readShape(l: Layer, ppi: number, color: (c: Color) => [number, number, number]): ShapeData | null {
+  const vm = l.vectorMask;
+  const vs = l.vectorStroke;
+  const paths = vm?.paths?.filter((p) => p.knots.length > 0) ?? [];
+  if (!vm || !paths.length || vm.invert || vm.disable || !l.vectorFill) return null;
+  if (paths.some((p) => (p.operation ?? 'combine') !== 'combine') || (paths.length > 1 && paths.some((p) => p.fillRule === 'even-odd'))) return null;
+  const fillOn = vs?.fillEnabled !== false;
+  if (fillOn && l.vectorFill.type !== 'color') return null;
+  let stroke: Stroke | null = null;
+  if (vs?.strokeEnabled) {
+    if (vs.content?.type !== 'color') return null;
+    const width = length(vs.lineWidth, ppi, 1);
+    stroke = {
+      color: [...color(vs.content.color), Math.round(unit01(vs.opacity) * 255)],
+      width,
+      align: vs.lineAlignment ?? 'center',
+      cap: vs.lineCapType ?? 'butt',
+      join: vs.lineJoinType ?? 'miter',
+      dash: (vs.lineDashSet ?? []).map((d) => d.value),
+    };
+  }
+  const fill = fillOn && l.vectorFill.type === 'color' ? { kind: 'solid' as const, color: [...color(l.vectorFill.color), 255] as [number, number, number, number] } : null;
+  const path: Path = {
+    subs: paths.map((p) => ({
+      closed: !p.open,
+      knots: p.knots.map((k) => ({ i: [k.points[0], k.points[1]], p: [k.points[2], k.points[3]], o: [k.points[4], k.points[5]], smooth: k.linked })),
+    })),
+  };
+  return { shape: liveShape(l, path) ?? { kind: 'free', path }, paint: { fill, stroke } };
+}
+
+/** A rectangle, rounded rectangle or ellipse Photoshop drew as one (and that wasn't turned since). */
+function liveShape(l: Layer, path: Path): ShapeData['shape'] | null {
+  const list = l.vectorOrigination?.keyDescriptorList;
+  if (list?.length !== 1 || path.subs.length !== 1) return null;
+  const k = list[0];
+  const b = k.keyOriginShapeBoundingBox;
+  if (!b || ![1, 2, 5].includes(k.keyOriginType ?? 0)) return null;
+  const [x0, y0, x1, y1] = [b.left.value, b.top.value, b.right.value, b.bottom.value];
+  // the outline must still fill that box: a turned or edited shape is a free path
+  const ps = path.subs[0].knots.map((n) => n.p);
+  const near = (a: number, c: number) => Math.abs(a - c) < 0.75;
+  if (!near(Math.min(...ps.map((p) => p[0])), x0) || !near(Math.max(...ps.map((p) => p[0])), x1) || !near(Math.min(...ps.map((p) => p[1])), y0) || !near(Math.max(...ps.map((p) => p[1])), y1)) return null;
+  if (k.keyOriginType === 5) return ps.length === 4 ? { kind: 'ellipse', x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+  const radii = k.keyOriginRRectRadii;
+  const rs = radii ? [radii.topLeft, radii.topRight, radii.bottomLeft, radii.bottomRight].map((v) => v?.value ?? 0) : [0];
+  if (rs.some((v) => Math.abs(v - rs[0]) > 0.01)) return null;
+  if ((rs[0] > 0 ? 8 : 4) !== ps.length) return null;
+  return { kind: 'rect', x: x0, y: y0, w: x1 - x0, h: y1 - y0, radius: rs[0] };
+}
+
+const unitsPx = (value: number) => ({ units: 'Pixels' as const, value });
+
+/** A shape layer's outline, fill and stroke in Photoshop's terms (its pixels go along as well). */
+function writeShape(l: Layer, s: ShapeData, ppi: number) {
+  const path = shapePath(s.shape);
+  l.vectorMask = {
+    paths: path.subs.map((sub) => ({
+      open: !sub.closed,
+      operation: 'combine',
+      fillRule: 'non-zero',
+      knots: sub.knots.map((k) => ({ linked: k.smooth, points: [k.i[0], k.i[1], k.p[0], k.p[1], k.o[0], k.o[1]] })),
+    })),
+  };
+  const f = s.paint.fill;
+  const st = s.paint.stroke;
+  const firstStop = f?.kind === 'linear' ? f.stops[0]?.color : null;
+  l.vectorFill =
+    f?.kind === 'linear'
+      ? {
+          type: 'solid',
+          name: '',
+          style: 'linear',
+          angle: f.angle,
+          colorStops: f.stops.map((g) => ({ color: psdColor(g.color), location: Math.round(g.pos * 4096), midpoint: 50 })),
+          opacityStops: [{ opacity: 1, location: 0, midpoint: 50 }, { opacity: 1, location: 4096, midpoint: 50 }],
+        }
+      : { type: 'color', color: psdColor(f?.kind === 'solid' ? f.color : (firstStop ?? st?.color ?? [0, 0, 0])) };
+  l.vectorStroke = {
+    strokeEnabled: !!st,
+    fillEnabled: !!f,
+    lineWidth: unitsPx(st?.width ?? 1),
+    lineDashOffset: unitsPx(0),
+    miterLimit: 10,
+    lineCapType: st?.cap ?? 'butt',
+    lineJoinType: st?.join ?? 'miter',
+    lineAlignment: st?.align ?? 'center',
+    scaleLock: false,
+    strokeAdjust: false,
+    lineDashSet: (st?.dash ?? []).map((value) => ({ units: 'None' as const, value })),
+    blendMode: 'normal',
+    opacity: (st?.color[3] ?? 255) / 255,
+    content: { type: 'color', color: psdColor(st?.color ?? [0, 0, 0]) },
+    resolution: ppi,
+  };
+  // a rectangle or an ellipse stays live in Photoshop too
+  const sh = s.shape;
+  if (sh.kind === 'rect' || sh.kind === 'ellipse') {
+    const [x0, y0, x1, y1] = [sh.x, sh.y, sh.x + sh.w, sh.y + sh.h];
+    const r = sh.kind === 'rect' ? unitsPx(sh.radius) : unitsPx(0);
+    l.vectorOrigination = {
+      keyDescriptorList: [
+        {
+          keyOriginType: sh.kind === 'ellipse' ? 5 : sh.radius > 0 ? 2 : 1,
+          keyOriginResolution: ppi,
+          keyOriginShapeBoundingBox: { top: unitsPx(y0), left: unitsPx(x0), bottom: unitsPx(y1), right: unitsPx(x1) },
+          ...(sh.kind === 'rect' ? { keyOriginRRectRadii: { topRight: r, topLeft: r, bottomLeft: r, bottomRight: r } } : {}),
+          keyOriginBoxCorners: [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }],
+        },
+      ],
+    };
+  }
+}
+
 // ---- reading ----
 
 // ---- vector masks and shapes ----
@@ -463,6 +590,7 @@ export function readPsdFile(buffer: ArrayBuffer): ReadResult {
     warn('flattened', { error: e instanceof Error ? e.message : String(e) });
   }
   const bpc = psd.bitsPerChannel ?? 8;
+  const ppi = psd.imageResources?.resolutionInfo?.horizontalResolution ?? 72;
   const features = new Set<string>();
   const packer = new Packer();
   const pushPx = (data: { data: ArrayLike<number> & { buffer: ArrayBufferLike; byteOffset: number; byteLength: number }; width: number; height: number }, x: number, y: number): Pixels => ({
@@ -491,6 +619,7 @@ export function readPsdFile(buffer: ArrayBuffer): ReadResult {
       children: [],
       adjustment: null,
       text: null,
+      shape: null,
       style: null,
     };
     if (l.children) {
@@ -514,9 +643,32 @@ export function readPsdFile(buffer: ArrayBuffer): ReadResult {
         node.text = readText(l.text, node.name, warn);
         features.add('text');
       }
+      // an editable shape when it can be (no raster mask of the user's own beside it)
+      const userMask = l.mask?.fromVectorData ? l.realMask : l.mask;
+      const color32 = (c: Color) => rgb(c).map((v) => (bpc === 32 ? Math.round(srgb(v / 255) * 255) : v)) as [number, number, number];
+      const shape = !l.text && !userMask ? readShape(l, ppi, color32) : null;
+      if (shape) {
+        node.kind = 'shape';
+        node.shape = shape;
+        // the pixels until the shape changes: Photoshop's own drawing when the file has it (pixels
+        // already cut to the shape, or a fill with Photoshop's drawing of the outline); otherwise
+        // the engine draws it
+        if (l.mask?.fromVectorData) {
+          node.pixels = null;
+          const drawnMask = maskChannel(l.mask, bpc);
+          const f = shape.paint.fill;
+          if (drawnMask && f?.kind === 'solid' && !shape.paint.stroke) {
+            const a = place(drawnMask, l.mask.defaultColor ?? 0, psd.width, psd.height);
+            const px = new Uint8Array(a.length * 4);
+            for (let i = 0; i < a.length; i++) (px[i * 4] = f.color[0]), (px[i * 4 + 1] = f.color[1]), (px[i * 4 + 2] = f.color[2]), (px[i * 4 + 3] = a[i]);
+            node.pixels = { offset: packer.push(px), x: 0, y: 0, w: psd.width, h: psd.height };
+          }
+        }
+        features.add(`shape layers: ${shape.shape.kind}`);
+      }
       // a shape or fill layer saved without its pixels: fill the canvas with its color (its
       // vector mask, below, gives the shape)
-      if (!node.pixels && l.vectorFill) {
+      if (!shape && !node.pixels && l.vectorFill) {
         if (l.vectorFill.type === 'color') {
           // 32-bit documents keep fill colors in linear light, like their pixels
           const [r, g, b] = rgb(l.vectorFill.color).map((v) => (bpc === 32 ? Math.round(srgb(v / 255) * 255) : v));
@@ -526,7 +678,7 @@ export function readPsdFile(buffer: ArrayBuffer): ReadResult {
           features.add('shape layers (as pixels)');
         } else warn('fillWithoutPixels');
       }
-      if (l.vectorStroke?.strokeEnabled) warn('shapeStroke');
+      if (!shape && l.vectorStroke?.strokeEnabled) warn('shapeStroke');
       if (l.placedLayer) warn('smartObject');
     }
     // Photoshop keeps the user's raster mask in `realMask` when the layer also has a vector mask;
@@ -535,8 +687,8 @@ export function readPsdFile(buffer: ArrayBuffer): ReadResult {
     // A shape layer saved with its pixels and without a drawing of its mask was already cut to
     // its shape (Photoshop composites those pixels as they are); otherwise the vector mask applies.
     const drawn = l.vectorMask && l.mask?.fromVectorData ? maskChannel(l.mask, bpc) : null;
-    const cut = !!l.vectorFill && !!l.imageData?.width && !drawn;
-    if (cut && l.vectorMask) warn('vectorShape');
+    const cut = (!!l.vectorFill && !!l.imageData?.width && !drawn) || node.kind === 'shape';
+    if (cut && l.vectorMask && node.kind !== 'shape') warn('vectorShape');
     const vm = l.vectorMask?.paths?.length && !cut ? l.vectorMask : null;
     // Photoshop also saves its own drawing of the vector mask (matching its edges exactly); our
     // drawing of the paths is for files without one
@@ -591,14 +743,13 @@ export function readPsdFile(buffer: ArrayBuffer): ReadResult {
   const layers = (psd.children ?? []).map(map).filter((c): c is PsdLayer => !!c);
   // a flat file without layers: its composite is the one layer
   if (!layers.length && psd.imageData) {
-    layers.push({ name: 'Background', kind: 'pixel', visible: true, opacity: 1, fill: 1, blend: 'normal', passThrough: false, clipped: false, locks: { transparent: false, pixels: false, position: false }, expanded: false, pixels: pushPx(psd.imageData as never, 0, 0), mask: null, children: [], adjustment: null, text: null, style: null });
+    layers.push({ name: 'Background', kind: 'pixel', visible: true, opacity: 1, fill: 1, blend: 'normal', passThrough: false, clipped: false, locks: { transparent: false, pixels: false, position: false }, expanded: false, pixels: pushPx(psd.imageData as never, 0, 0), mask: null, children: [], adjustment: null, text: null, shape: null, style: null });
   }
   if (bpc !== 8) warn('depth', { bits: bpc });
   if (psd.colorMode !== undefined && psd.colorMode !== 3) warn('colorMode', { mode: psd.colorMode });
   // without "Maximize Compatibility" Photoshop stores a blank composite: nothing to compare with
   const merged = psd.imageResources?.versionInfo?.hasRealMergedData !== false;
   const composite = psd.imageData && merged ? pushPx(psd.imageData as never, 0, 0) : null;
-  const ppi = psd.imageResources?.resolutionInfo?.horizontalResolution ?? 72;
   const doc: PsdDoc = { width: psd.width, height: psd.height, ppi, layers, composite };
   return { message: pack(doc, packer), composite, warnings: [...warnings.values()], features: [...features] };
 }
@@ -642,6 +793,7 @@ export function writePsdFile(message: Uint8Array): Uint8Array {
         l.imageData = im;
       }
       if (n.kind === 'text' && n.text) l.text = writeText(n.text);
+      if (n.kind === 'shape' && n.shape) writeShape(l, n.shape, doc.ppi);
     }
     if (n.mask) {
       const im = img(n.mask.pixels, 1);

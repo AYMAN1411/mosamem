@@ -4,7 +4,7 @@
   "size": "1600×1200",
   "features": [],
   "warnings": [],
-  "openMs": 16,
+  "openMs": 40,
   "vsPhotoshop": {
    "max": 0,
    "mean": 0,
@@ -24,7 +24,7 @@
   "size": "150×150",
   "features": [],
   "warnings": [],
-  "openMs": 1,
+  "openMs": 2,
   "vsPhotoshop": {
    "max": 0,
    "mean": 0,
@@ -51,7 +51,7 @@
     }
    }
   ],
-  "openMs": 1,
+  "openMs": 3,
   "vsPhotoshop": {
    "max": 0,
    "mean": 0,
@@ -147,8 +147,7 @@
   "file": "300dpi.psd",
   "size": "100×150",
   "features": [
-   "shape layers (as pixels)",
-   "vector masks (as pixel masks)"
+   "shape layers: free"
   ],
   "warnings": [
    {
@@ -158,7 +157,7 @@
     }
    }
   ],
-  "openMs": 5,
+  "openMs": 7,
   "vsPhotoshop": {
    "max": 1,
    "mean": 0.12,
@@ -177,8 +176,7 @@
   "file": "32bit.psd",
   "size": "100×150",
   "features": [
-   "shape layers (as pixels)",
-   "vector masks (as pixel masks)"
+   "shape layers: free"
   ],
   "warnings": [
    {
@@ -236,15 +234,16 @@
   "features": [
    "shape layers (as pixels)",
    "layer masks",
+   "shape layers: free",
    "vector masks (as pixel masks)",
    "text"
   ],
   "warnings": [
    {
-    "key": "shapeStroke"
+    "key": "fillWithoutPixels"
    },
    {
-    "key": "fillWithoutPixels"
+    "key": "shapeStroke"
    },
    {
     "key": "font",
@@ -253,7 +252,7 @@
     }
    }
   ],
-  "openMs": 22,
+  "openMs": 24,
   "vsPhotoshop": "no composite in file",
   "structureKept": true,
   "reopened": {
@@ -271,7 +270,7 @@
    "layer masks"
   ],
   "warnings": [],
-  "openMs": 5,
+  "openMs": 10,
   "vsPhotoshop": "no composite in file",
   "structureKept": true,
   "reopened": {
@@ -285,23 +284,24 @@
   "file": "advanced-blending.psd",
   "size": "1200×628",
   "features": [
-   "vector masks (as pixel masks)",
+   "shape layers: free",
    "layer styles",
    "fill opacity",
+   "shape layers: rect",
    "clipping",
    "groups"
   ],
   "warnings": [],
-  "openMs": 30,
+  "openMs": 39,
   "vsPhotoshop": {
    "max": 193,
    "mean": 58.05,
    "within1": 64.04,
-   "within8": 64.05
+   "within8": 64.04
   },
   "structureKept": true,
   "reopened": {
-   "max": 1,
+   "max": 0,
    "mean": 0,
    "within1": 100,
    "within8": 100
@@ -344,7 +344,7 @@
     }
    }
   ],
-  "openMs": 36,
+  "openMs": 24,
   "vsPhotoshop": {
    "max": 40,
    "mean": 0.15,
@@ -364,7 +364,7 @@
   "size": "1000×867",
   "features": [],
   "warnings": [],
-  "openMs": 17,
+  "openMs": 11,
   "vsPhotoshop": {
    "max": 2,
    "mean": 0,
@@ -383,8 +383,7 @@
   "file": "blend-and-clipping.psd",
   "size": "512×512",
   "features": [
-   "shape layers (as pixels)",
-   "vector masks (as pixel masks)",
+   "shape layers: rect",
    "layer styles",
    "clipping",
    "text"
@@ -397,7 +396,7 @@
     }
    }
   ],
-  "openMs": 62,
+  "openMs": 6,
   "vsPhotoshop": "no composite in file",
   "structureKept": true,
   "reopened": {
@@ -414,7 +413,7 @@
    "groups"
   ],
   "warnings": [],
-  "openMs": 11,
+  "openMs": 7,
   "vsPhotoshop": {
    "max": 1,
    "mean": 0,
@@ -465,15 +464,12 @@
   "file": "clipping-mask.psd",
   "size": "360×200",
   "features": [
+   "shape layers: free",
    "groups",
    "clipping"
   ],
-  "warnings": [
-   {
-    "key": "vectorShape"
-   }
-  ],
-  "openMs": 3,
+  "warnings": [],
+  "openMs": 2,
   "vsPhotoshop": {
    "max": 1,
    "mean": 0,
@@ -492,21 +488,24 @@
   "file": "clipping-mask2.psd",
   "size": "512×512",
   "features": [
-   "vector masks (as pixel masks)",
+   "shape layers: free",
    "layer styles",
    "layer masks",
    "clipping",
+   "vector masks (as pixel masks)",
+   "shape layers: ellipse",
+   "shape layers: rect",
    "adjustment: brightnessContrast",
    "adjustment: colorBalance",
    "groups"
   ],
   "warnings": [],
-  "openMs": 33,
+  "openMs": 37,
   "vsPhotoshop": {
-   "max": 86,
-   "mean": 24.51,
-   "within1": 22.67,
-   "within8": 32.47
+   "max": 88,
+   "mean": 24.48,
+   "within1": 22.69,
+   "within8": 32.53
   },
   "structureKept": true,
   "reopened": {
@@ -520,15 +519,12 @@
   "file": "clipping-mask3.psd",
   "size": "32×32",
   "features": [
+   "shape layers: rect",
    "groups",
    "clipping"
   ],
-  "warnings": [
-   {
-    "key": "vectorShape"
-   }
-  ],
-  "openMs": 1,
+  "warnings": [],
+  "openMs": 2,
   "vsPhotoshop": {
    "max": 0,
    "mean": 0,
@@ -547,15 +543,12 @@
   "file": "clipping-mask4.psd",
   "size": "32×32",
   "features": [
+   "shape layers: rect",
    "blend modes",
    "groups",
    "clipping"
   ],
-  "warnings": [
-   {
-    "key": "vectorShape"
-   }
-  ],
+  "warnings": [],
   "openMs": 1,
   "vsPhotoshop": {
    "max": 255,
@@ -576,15 +569,12 @@
   "size": "32×32",
   "features": [
    "layer masks",
+   "shape layers: rect",
    "blend modes",
    "groups",
    "clipping"
   ],
-  "warnings": [
-   {
-    "key": "vectorShape"
-   }
-  ],
+  "warnings": [],
   "openMs": 1,
   "vsPhotoshop": {
    "max": 1,
@@ -674,7 +664,7 @@
   "file": "empty-layer.psd",
   "size": "100×150",
   "features": [
-   "vector masks (as pixel masks)",
+   "shape layers: rect",
    "groups"
   ],
   "warnings": [],
@@ -697,7 +687,7 @@
   "file": "fill_adjustments.psd",
   "size": "256×256",
   "features": [
-   "vector masks (as pixel masks)",
+   "shape layers: rect",
    "layer styles",
    "adjustment: brightnessContrast",
    "layer masks",
@@ -747,7 +737,7 @@
     }
    }
   ],
-  "openMs": 5,
+  "openMs": 7,
   "vsPhotoshop": {
    "max": 211,
    "mean": 51.17,
@@ -779,7 +769,7 @@
     }
    }
   ],
-  "openMs": 5,
+  "openMs": 4,
   "vsPhotoshop": {
    "max": 245,
    "mean": 11.66,
@@ -831,7 +821,7 @@
     "key": "vectorShape"
    }
   ],
-  "openMs": 3,
+  "openMs": 2,
   "vsPhotoshop": {
    "max": 2,
    "mean": 0.11,
@@ -858,7 +848,7 @@
     }
    }
   ],
-  "openMs": 4,
+  "openMs": 3,
   "vsPhotoshop": {
    "max": 1,
    "mean": 0.03,
@@ -876,7 +866,9 @@
  {
   "file": "gray1.psd",
   "size": "1800×1200",
-  "features": [],
+  "features": [
+   "shape layers: free"
+  ],
   "warnings": [
    {
     "key": "vectorShape"
@@ -888,7 +880,7 @@
     }
    }
   ],
-  "openMs": 35,
+  "openMs": 24,
   "vsPhotoshop": {
    "max": 0,
    "mean": 0,
@@ -907,14 +899,11 @@
   "file": "group.psd",
   "size": "100×200",
   "features": [
+   "shape layers: free",
    "groups"
   ],
-  "warnings": [
-   {
-    "key": "vectorShape"
-   }
-  ],
-  "openMs": 2,
+  "warnings": [],
+  "openMs": 1,
   "vsPhotoshop": {
    "max": 0,
    "mean": 0,
@@ -933,13 +922,10 @@
   "file": "hidden-groups.psd",
   "size": "100×200",
   "features": [
+   "shape layers: free",
    "groups"
   ],
-  "warnings": [
-   {
-    "key": "vectorShape"
-   }
-  ],
+  "warnings": [],
   "openMs": 1,
   "vsPhotoshop": {
    "max": 0,
@@ -958,12 +944,10 @@
  {
   "file": "hidden-layer.psd",
   "size": "100×150",
-  "features": [],
-  "warnings": [
-   {
-    "key": "vectorShape"
-   }
+  "features": [
+   "shape layers: free"
   ],
+  "warnings": [],
   "openMs": 1,
   "vsPhotoshop": {
    "max": 0,
@@ -1020,18 +1004,16 @@
   "file": "layer_comps.psd",
   "size": "200×200",
   "features": [
+   "shape layers: free",
    "layer styles",
    "groups"
   ],
   "warnings": [
    {
-    "key": "vectorShape"
-   },
-   {
     "key": "bevel"
    }
   ],
-  "openMs": 3,
+  "openMs": 2,
   "vsPhotoshop": {
    "max": 199,
    "mean": 9.34,
@@ -1074,7 +1056,7 @@
     "key": "satin"
    }
   ],
-  "openMs": 12,
+  "openMs": 11,
   "vsPhotoshop": {
    "max": 133,
    "mean": 6.95,
@@ -1093,8 +1075,9 @@
   "file": "layer_mask_data.psd",
   "size": "200×200",
   "features": [
-   "vector masks (as pixel masks)",
-   "layer masks"
+   "shape layers: free",
+   "layer masks",
+   "vector masks (as pixel masks)"
   ],
   "warnings": [
    {
@@ -1104,9 +1087,9 @@
   "openMs": 4,
   "vsPhotoshop": {
    "max": 95,
-   "mean": 16.93,
-   "within1": 26.3,
-   "within8": 32.95
+   "mean": 16.85,
+   "within1": 26.31,
+   "within8": 33.04
   },
   "structureKept": true,
   "reopened": {
@@ -1133,7 +1116,7 @@
     "key": "bevel"
    }
   ],
-  "openMs": 6,
+  "openMs": 5,
   "vsPhotoshop": {
    "max": 241,
    "mean": 3.27,
@@ -1222,14 +1205,11 @@
   "file": "mask-disabled.psd",
   "size": "100×150",
   "features": [
-   "layer masks"
+   "layer masks",
+   "shape layers: free"
   ],
-  "warnings": [
-   {
-    "key": "vectorShape"
-   }
-  ],
-  "openMs": 2,
+  "warnings": [],
+  "openMs": 1,
   "vsPhotoshop": {
    "max": 0,
    "mean": 0,
@@ -1251,7 +1231,7 @@
    "layer masks"
   ],
   "warnings": [],
-  "openMs": 25,
+  "openMs": 14,
   "vsPhotoshop": {
    "max": 0,
    "mean": 0,
@@ -1319,13 +1299,10 @@
   "file": "mask.psd",
   "size": "100×150",
   "features": [
-   "layer masks"
+   "layer masks",
+   "shape layers: free"
   ],
-  "warnings": [
-   {
-    "key": "vectorShape"
-   }
-  ],
+  "warnings": [],
   "openMs": 1,
   "vsPhotoshop": {
    "max": 0,
@@ -1348,7 +1325,7 @@
    "vector masks (as pixel masks)"
   ],
   "warnings": [],
-  "openMs": 3,
+  "openMs": 2,
   "vsPhotoshop": "no composite in file",
   "structureKept": true,
   "reopened": {
@@ -1363,10 +1340,12 @@
   "size": "640×1394",
   "features": [
    "layer masks",
-   "vector masks (as pixel masks)",
+   "shape layers: rect",
    "text",
+   "shape layers: free",
    "layer styles",
    "fill opacity",
+   "vector masks (as pixel masks)",
    "groups"
   ],
   "warnings": [
@@ -1392,11 +1371,11 @@
     "key": "rasterMaskDropped"
    }
   ],
-  "openMs": 135,
+  "openMs": 98,
   "vsPhotoshop": {
    "max": 173,
    "mean": 0.47,
-   "within1": 96.48,
+   "within1": 96.49,
    "within8": 99.39
   },
   "structureKept": true,
@@ -1428,7 +1407,7 @@
     }
    }
   ],
-  "openMs": 38,
+  "openMs": 31,
   "vsPhotoshop": {
    "max": 64,
    "mean": 1.57,
@@ -1455,7 +1434,7 @@
     "key": "vectorShape"
    }
   ],
-  "openMs": 2,
+  "openMs": 1,
   "vsPhotoshop": {
    "max": 1,
    "mean": 0.12,
@@ -1515,11 +1494,10 @@
   "file": "note.psd",
   "size": "300×300",
   "features": [
-   "shape layers (as pixels)",
-   "vector masks (as pixel masks)"
+   "shape layers: free"
   ],
   "warnings": [],
-  "openMs": 37,
+  "openMs": 2,
   "vsPhotoshop": "no composite in file",
   "structureKept": true,
   "reopened": {
@@ -1777,6 +1755,7 @@
   "size": "256×256",
   "features": [
    "vector masks (as pixel masks)",
+   "shape layers: rect",
    "layer styles"
   ],
   "warnings": [
@@ -1784,7 +1763,7 @@
     "key": "patternOverlay"
    }
   ],
-  "openMs": 13,
+  "openMs": 16,
   "vsPhotoshop": {
    "max": 105,
    "mean": 13.28,
@@ -1804,8 +1783,7 @@
   "size": "300×300",
   "features": [
    "text",
-   "shape layers (as pixels)",
-   "vector masks (as pixel masks)"
+   "shape layers: free"
   ],
   "warnings": [
    {
@@ -1827,12 +1805,12 @@
     }
    }
   ],
-  "openMs": 23,
+  "openMs": 18,
   "vsPhotoshop": {
    "max": 255,
-   "mean": 22.38,
-   "within1": 89.41,
-   "within8": 89.6
+   "mean": 1.26,
+   "within1": 97.6,
+   "within8": 97.76
   },
   "structureKept": true,
   "reopened": {
@@ -1911,16 +1889,15 @@
  {
   "file": "smart-object-slice.psd",
   "size": "100×100",
-  "features": [],
+  "features": [
+   "shape layers: free"
+  ],
   "warnings": [
    {
     "key": "smartObject"
-   },
-   {
-    "key": "vectorShape"
    }
   ],
-  "openMs": 2,
+  "openMs": 3,
   "vsPhotoshop": {
    "max": 0,
    "mean": 0,
@@ -1962,16 +1939,11 @@
  {
   "file": "stroke-center-no-fill.psd",
   "size": "100×100",
-  "features": [],
-  "warnings": [
-   {
-    "key": "shapeStroke"
-   },
-   {
-    "key": "vectorShape"
-   }
+  "features": [
+   "shape layers: rect"
   ],
-  "openMs": 2,
+  "warnings": [],
+  "openMs": 1,
   "vsPhotoshop": {
    "max": 0,
    "mean": 0,
@@ -1989,15 +1961,10 @@
  {
   "file": "stroke-center.psd",
   "size": "100×100",
-  "features": [],
-  "warnings": [
-   {
-    "key": "shapeStroke"
-   },
-   {
-    "key": "vectorShape"
-   }
+  "features": [
+   "shape layers: rect"
   ],
+  "warnings": [],
   "openMs": 1,
   "vsPhotoshop": {
    "max": 0,
@@ -2016,15 +1983,10 @@
  {
   "file": "stroke-outer-no-fill.psd",
   "size": "100×100",
-  "features": [],
-  "warnings": [
-   {
-    "key": "shapeStroke"
-   },
-   {
-    "key": "vectorShape"
-   }
+  "features": [
+   "shape layers: rect"
   ],
+  "warnings": [],
   "openMs": 1,
   "vsPhotoshop": {
    "max": 0,
@@ -2043,15 +2005,10 @@
  {
   "file": "stroke-outer.psd",
   "size": "100×100",
-  "features": [],
-  "warnings": [
-   {
-    "key": "shapeStroke"
-   },
-   {
-    "key": "vectorShape"
-   }
+  "features": [
+   "shape layers: rect"
   ],
+  "warnings": [],
   "openMs": 1,
   "vsPhotoshop": {
    "max": 0,
@@ -2070,7 +2027,10 @@
  {
   "file": "stroke.psd",
   "size": "256×256",
-  "features": [],
+  "features": [
+   "shape layers: rect",
+   "shape layers: ellipse"
+  ],
   "warnings": [
    {
     "key": "shapeStroke"
@@ -2079,7 +2039,7 @@
     "key": "vectorShape"
    }
   ],
-  "openMs": 3,
+  "openMs": 2,
   "vsPhotoshop": {
    "max": 1,
    "mean": 0,
@@ -2108,7 +2068,7 @@
     }
    }
   ],
-  "openMs": 4,
+  "openMs": 3,
   "vsPhotoshop": {
    "max": 0,
    "mean": 0,
@@ -2147,8 +2107,7 @@
   "file": "transparentbg.psd",
   "size": "100×150",
   "features": [
-   "shape layers (as pixels)",
-   "vector masks (as pixel masks)"
+   "shape layers: free"
   ],
   "warnings": [
    {
@@ -2158,12 +2117,12 @@
     }
    }
   ],
-  "openMs": 3,
+  "openMs": 1,
   "vsPhotoshop": {
-   "max": 137,
-   "mean": 0.97,
-   "within1": 98.64,
-   "within8": 98.79
+   "max": 133,
+   "mean": 0.96,
+   "within1": 98.83,
+   "within8": 98.83
   },
   "structureKept": true,
   "reopened": {
@@ -2180,7 +2139,7 @@
    "shape layers (as pixels)"
   ],
   "warnings": [],
-  "openMs": 17,
+  "openMs": 12,
   "vsPhotoshop": "no composite in file",
   "structureKept": true,
   "reopened": {
@@ -2194,7 +2153,7 @@
   "file": "vector-mask-disabled.psd",
   "size": "100×150",
   "features": [
-   "shape layers (as pixels)",
+   "shape layers: free",
    "vector masks (as pixel masks)"
   ],
   "warnings": [
@@ -2224,7 +2183,7 @@
   "file": "vector-mask.psd",
   "size": "100×150",
   "features": [
-   "shape layers (as pixels)",
+   "shape layers: free",
    "vector masks (as pixel masks)"
   ],
   "warnings": [
@@ -2235,12 +2194,12 @@
     }
    }
   ],
-  "openMs": 8,
+  "openMs": 5,
   "vsPhotoshop": {
    "max": 37,
-   "mean": 0.18,
-   "within1": 96.97,
-   "within8": 98.4
+   "mean": 0.16,
+   "within1": 96.86,
+   "within8": 98.51
   },
   "structureKept": true,
   "reopened": {
@@ -2285,7 +2244,7 @@
    "groups"
   ],
   "warnings": [],
-  "openMs": 2,
+  "openMs": 3,
   "vsPhotoshop": {
    "max": 0,
    "mean": 0,

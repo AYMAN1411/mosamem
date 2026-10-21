@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use super::composite;
 use super::model::{Content, LayerMask, Locks, Node, NodeKind, TileMap};
 use super::raster;
+use super::shape::ShapeData;
 use super::text::TextData;
 use super::{Document, Label};
 
@@ -43,7 +44,7 @@ pub struct PsdMask {
 #[serde(rename_all = "camelCase")]
 pub struct PsdLayer {
     pub name: String,
-    /// "pixel", "group", "adjustment" or "text"
+    /// "pixel", "group", "adjustment", "text" or "shape"
     pub kind: String,
     pub visible: bool,
     pub opacity: f32,
@@ -62,6 +63,8 @@ pub struct PsdLayer {
     pub children: Vec<PsdLayer>,
     pub adjustment: Option<Adjustment>,
     pub text: Option<TextData>,
+    #[serde(default)]
+    pub shape: Option<ShapeData>,
     pub style: Option<LayerStyle>,
 }
 
@@ -100,14 +103,14 @@ fn mask_of(m: &PsdMask, px: &[u8]) -> Result<LayerMask, String> {
     Ok(LayerMask { mask, enabled: m.enabled, density: m.density.clamp(0.0, 1.0), feather: m.feather.max(0.0) })
 }
 
-fn node_of(l: &PsdLayer, px: &[u8]) -> Result<Node, String> {
+fn node_of(l: &PsdLayer, px: &[u8], w: u32, h: u32) -> Result<Node, String> {
     let tiles = match &l.pixels {
         Some(p) => raster::write(slice(px, p, 4)?, p.x, p.y, p.w, p.h),
         None => TileMap::new(),
     };
     let mut n = match (l.kind.as_str(), &l.adjustment, &l.text) {
         ("group", _, _) => {
-            let children = l.children.iter().map(|c| node_of(c, px)).collect::<Result<Vec<_>, _>>()?;
+            let children = l.children.iter().map(|c| node_of(c, px, w, h)).collect::<Result<Vec<_>, _>>()?;
             let mut g = Node::group(l.name.clone(), children);
             if let NodeKind::Group { pass_through, expanded, .. } = &mut g.kind {
                 *pass_through = l.pass_through;
@@ -120,6 +123,14 @@ fn node_of(l: &PsdLayer, px: &[u8]) -> Result<Node, String> {
             let mut n = Node::pixel(l.name.clone(), TileMap::new());
             // the file's own pixels stay until the text is edited
             n.kind = NodeKind::Text { data: TextData { keep_pixels: true, ..t.clone() }, tiles: Arc::new(tiles) };
+            n
+        }
+        ("shape", _, _) if l.shape.is_some() => {
+            let data = l.shape.clone().unwrap();
+            // the file's pixels when it has them (Photoshop's own drawing), until the shape changes
+            let tiles = if l.pixels.is_some() { tiles } else { super::shape::render(&data, w, h) };
+            let mut n = Node::pixel(l.name.clone(), TileMap::new());
+            n.kind = NodeKind::Shape { data, tiles: Arc::new(tiles) };
             n
         }
         _ => Node::pixel(l.name.clone(), tiles),
@@ -146,7 +157,7 @@ pub fn import(body: &[u8], name: String) -> Result<Document, String> {
     if doc.width == 0 || doc.height == 0 || doc.width > 300_000 || doc.height > 300_000 {
         return Err("bad document size".into());
     }
-    let root = doc.layers.iter().map(|l| node_of(l, px)).collect::<Result<Vec<_>, _>>()?;
+    let root = doc.layers.iter().map(|l| node_of(l, px, doc.width, doc.height)).collect::<Result<Vec<_>, _>>()?;
     let active = root.last().map_or(0, |n| n.id);
     let content = Content::new(doc.width, doc.height, if doc.ppi > 0.0 { doc.ppi } else { 72.0 }, active, root);
     Ok(Document::new(name, None, content, Label::new("history.open")))
@@ -182,8 +193,7 @@ pub fn export(d: &Document, flat: (u32, u32, Vec<u8>)) -> Vec<u8> {
                     NodeKind::Adjustment { .. } => ("adjustment", false, false, Vec::new()),
                     NodeKind::Text { .. } => ("text", false, false, Vec::new()),
                     NodeKind::Pixel { .. } => ("pixel", false, false, Vec::new()),
-                    // written as its pixels for now (vector shapes in PSD: M12 step 6)
-                    NodeKind::Shape { .. } => ("pixel", false, false, Vec::new()),
+                    NodeKind::Shape { .. } => ("shape", false, false, Vec::new()),
                 };
                 PsdLayer {
                     name: n.name.clone(),
@@ -201,6 +211,7 @@ pub fn export(d: &Document, flat: (u32, u32, Vec<u8>)) -> Vec<u8> {
                     children,
                     adjustment: n.adjustment_settings().cloned(),
                     text: n.text_data().cloned(),
+                    shape: n.shape_data().cloned(),
                     style: n.style.clone(),
                 }
             })
@@ -265,5 +276,28 @@ mod tests {
         let (_, _, flat) = flatten_content(&back.content);
         let (_, _, want) = flatten_content(&d.content);
         assert_eq!(flat, want);
+    }
+
+    #[test]
+    fn a_shape_layer_comes_back_a_shape() {
+        use mosamem_core::vector::{Fill, Shape, ShapePaint};
+        let bg = Node::pixel("bg", filled_tiles(300, 200, [255, 255, 255, 255]));
+        let data = ShapeData { shape: Shape::Star { cx: 150.0, cy: 100.0, r: 80.0, inner: 0.5, points: 5, angle: 0.0 }, paint: ShapePaint { fill: Some(Fill::Solid { color: [30, 90, 200, 255] }), stroke: None } };
+        let mut star = Node::pixel("نجمة", Default::default());
+        star.kind = NodeKind::Shape { tiles: Arc::new(super::super::shape::render(&data, 300, 200)), data: data.clone() };
+        let active = star.id;
+        let d = Document::new("t".into(), None, Content::new(300, 200, 72.0, active, vec![bg, star]), Label::new("history.new"));
+        let back = import(&export(&d, flatten_content(&d.content)), "back".into()).unwrap();
+        assert_eq!(back.content.root[1].shape_data(), Some(&data));
+        assert_eq!(flatten_content(&back.content).2, flatten_content(&d.content).2);
+        // a shape sent without pixels is drawn from its outline
+        let (mut doc, px) = split(&export(&d, flatten_content(&d.content))).map(|(m, p)| (m, p.to_vec())).unwrap();
+        doc.layers[1].pixels = None;
+        let json = serde_json::to_vec(&doc).unwrap();
+        let mut msg = (json.len() as u32).to_le_bytes().to_vec();
+        msg.extend_from_slice(&json);
+        msg.extend_from_slice(&px);
+        let drawn = import(&msg, "drawn".into()).unwrap();
+        assert_eq!(flatten_content(&drawn.content).2, flatten_content(&d.content).2);
     }
 }
