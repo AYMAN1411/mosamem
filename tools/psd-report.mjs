@@ -3,6 +3,8 @@
 // tools/front.sh on) over every .psd in a folder, then writes the raw results and a report.
 //   node tools/psd-report.mjs          the public fixtures → docs/psd-roundtrip-m9.json, docs/psd-report.md
 //   node tools/psd-report.mjs <dir>    your own files → <dir>/results.json, <dir>/report.md
+// On another machine (the app reached through a tunnel, e.g. the Windows VM), with the same files
+// copied there: PSD_REMOTE_DIR='C:\Mosamem\test\psd' PSD_OUT=<local dir> node tools/psd-report.mjs
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,9 +16,11 @@ if (!existsSync(dir)) {
   console.error(own ? `no folder ${own}` : 'no fixtures: run tools/fetch-psd-fixtures.sh first');
   process.exit(1);
 }
-const jsonOut = own ? join(own, 'results.json') : join(root, 'docs/psd-roundtrip-m9.json');
-const mdOut = own ? join(own, 'report.md') : join(root, 'docs/psd-report.md');
-const files = readdirSync(dir).filter((f) => /\.ps[db]$/i.test(f)).sort().map((f) => join(dir, f));
+const remote = process.env.PSD_REMOTE_DIR;
+const outDir = process.env.PSD_OUT ? resolve(process.env.PSD_OUT) : own;
+const jsonOut = outDir ? join(outDir, 'results.json') : join(root, 'docs/psd-roundtrip-m9.json');
+const mdOut = outDir ? join(outDir, 'report.md') : join(root, 'docs/psd-report.md');
+const files = readdirSync(dir).filter((f) => /\.ps[db]$/i.test(f)).sort().map((f) => (remote ? `${remote}\\${f}` : join(dir, f)));
 const script = readFileSync(join(root, 'tools/psd-roundtrip.js'), 'utf8').replace('__FILES__', JSON.stringify(files));
 const res = await fetch('http://127.0.0.1:47811/', { method: 'POST', body: script });
 const out = JSON.parse(await res.text());

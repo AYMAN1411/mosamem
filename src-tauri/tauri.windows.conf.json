@@ -8,6 +8,8 @@
         "displayLanguageSelector": true,
         "installMode": "currentUser",
         "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "sidebarImage": "windows/sidebar.bmp",
         "installerHooks": "windows/hooks.nsh"
       }
     }

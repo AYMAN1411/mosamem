@@ -52,9 +52,8 @@ Requires macOS 13.4 Ventura or later on Apple silicon.
 
 ### Windows
 
-1. Download **[Mosamem-Setup-x64.exe](https://github.com/motalim-ai/mosamem/releases/latest/download/Mosamem-Setup-x64.exe)**
-   (most PCs) or **[Mosamem-Setup-arm64.exe](https://github.com/motalim-ai/mosamem/releases/latest/download/Mosamem-Setup-arm64.exe)**
-   (Snapdragon and other ARM PCs).
+1. Download **[Mosamem-Setup-x64.exe](https://github.com/motalim-ai/mosamem/releases/latest/download/Mosamem-Setup-x64.exe)**.
+   It also runs on Snapdragon and other ARM PCs, through Windows' built-in x64 emulation.
 2. Open the installer. If Windows shows *Windows protected your PC*, press **More info**, then **Run anyway**.
    If your browser says the file is not commonly downloaded, choose **Keep**.
 3. Pick **العربية** or **English**, then **Next** and **Install**. No administrator password is needed: Mosamem
@@ -108,6 +107,9 @@ npm install
 npx tauri dev      # run it
 npx tauri build    # the installer: a .dmg on Mac, an .exe on Windows
 ```
+
+The Windows installer can also be built on a Mac: `tools/windows/cross-build.sh`, then
+`tools/windows/make-installer-vm.sh`, which runs NSIS on a Windows machine over SSH.
 
 The first build downloads ONNX Runtime's prebuilt library (for the AI tools). Tests: `cargo test --workspace`
 and `npx vitest run`.

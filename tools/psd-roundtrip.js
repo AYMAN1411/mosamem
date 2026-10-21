@@ -2,8 +2,9 @@
 // 1. open it (ag-psd reader → engine), render it, compare with the composite the file stores;
 // 2. save it as PSD again, re-open that, compare structure and rendering with the first open.
 const { app, engine, actions } = __h;
-const { unpack } = await import('/src/engine/psd.ts');
-const { readPsd, writePsd } = await import('/src/engine/psdClient.ts');
+// from the dev server's sources, or (in a harness build, e.g. on Windows) from the test hooks
+const { unpack } = __h.psdCodec ?? (await import('/src/engine/psd.ts'));
+const { readPsd, writePsd } = __h.psd ?? (await import('/src/engine/psdClient.ts'));
 const FILES = __FILES__;
 
 function flatOf(buf) {
@@ -37,7 +38,7 @@ function structure(layers, depth = 0, out = []) {
 }
 const results = [];
 for (const path of FILES) {
-  const name = path.split('/').pop();
+  const name = path.split(/[\\/]/).pop();
   const r = { file: name };
   try {
     const t0 = performance.now();

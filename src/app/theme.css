@@ -55,3 +55,11 @@ select.field { padding-inline-end: 4px; }
 label.check { display: inline-flex; align-items: center; gap: 6px; }
 input[type='checkbox'] { accent-color: var(--accent); }
 .sep { width: 1px; align-self: stretch; margin: 6px 4px; background: var(--line); }
+
+/* Scroll bars: thin and dark, without arrow buttons. macOS overlays its own; Windows' default bars
+   are light and boxy in a dark interface. */
+::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
+::-webkit-scrollbar-button { display: none; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border: 2px solid transparent; border-radius: 5px; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: #5a5f6a; }

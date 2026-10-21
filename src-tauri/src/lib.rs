@@ -25,6 +25,7 @@ pub fn run() {
             app.manage(std::sync::Arc::new(ai::Ai::new(data.join("models"))));
             #[cfg(any(debug_assertions, feature = "harness"))]
             harness::start(app.handle());
+            fit_to_screen(app);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -139,4 +140,16 @@ pub fn run() {
                 }
             }
         });
+}
+
+/// The window opens at 1440×900; on a smaller screen (a laptop at 150% scaling has 1280×720) that
+/// would hang past the taskbar, so it opens maximized instead.
+fn fit_to_screen(app: &tauri::App) {
+    use tauri::Manager;
+    let Some(win) = app.get_webview_window("main") else { return };
+    let (Ok(Some(monitor)), Ok(size)) = (win.current_monitor(), win.outer_size()) else { return };
+    let area = monitor.work_area().size;
+    if size.width > area.width || size.height > area.height {
+        let _ = win.maximize();
+    }
 }

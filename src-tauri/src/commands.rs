@@ -11,7 +11,7 @@ use crate::persist;
 use crate::recovery::{RecoveredFile, Recovery};
 use crate::doc::export::{self, ExportSource};
 use crate::doc::ops::{self, LayerProps};
-use crate::doc::{composite, filled_tiles, tiles_from_rgba, Content, DocHandle, DocInfo, Document, Engine, Label, Node, TileMap};
+use crate::doc::{filled_tiles, tiles_from_rgba, Content, DocHandle, DocInfo, Document, Engine, Label, Node, TileMap};
 
 type Res<T> = Result<T, String>;
 
@@ -611,7 +611,7 @@ pub fn history_jump(engine: State<'_, Engine>, doc: u64, index: usize) -> Res<Do
 #[tauri::command]
 pub fn debug_doc_hash(engine: State<'_, Engine>, doc: u64) -> Res<String> {
     let h = handle(&engine, doc)?;
-    let (w, ht, rgba) = composite::flatten(&h);
+    let (w, ht, rgba) = crate::doc::composite::flatten(&h);
     Ok(format!("{w}x{ht}:{}", blake3::hash(&rgba).to_hex()))
 }
 

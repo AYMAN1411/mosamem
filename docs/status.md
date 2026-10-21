@@ -398,3 +398,31 @@ Fixed in this milestone:
 - Path from Selection makes straight segments with smooth points, with no real curve fitting, so a circle comes back with about 30 points.
 - Stroke Path uses a round brush of the Brush tool's size, without pressure or the brush's softness.
 - Same limits as before: no real keyboard or mouse input (the tests send pointer events from inside the page), no Windows run.
+
+## Windows x64 (2026-10-21)
+
+The x64 build with everything through M12, tested in the Windows 11 VM (an ARM Mac running Windows 11
+ARM, which runs the x64 build through emulation).
+
+| Area | How it was checked |
+|---|---|
+| **Building on a Mac**: `tools/windows/cross-build.sh` (cargo-xwin, clang-cl with SSE4.1, lld), then `tools/windows/make-installer-vm.sh` (NSIS in the VM). | Built from a clean target folder |
+| **The installer's wizard** in Arabic (right to left) and English: language choice, welcome, "already installed" (reinstall or uninstall), install folder, progress, finish (open Mosamem, desktop shortcut). A Mosamem side picture (`tools/windows/make-sidebar.sh`) replaces NSIS's generic one; the uninstaller has the app's icon; the publisher is Motalim. | Every page driven through `tools/windows/wizard.ps1` (UI Automation and window messages, no mouse) and photographed. `docs/shots/win-installer.jpg` |
+| **Silent install and uninstall**: files, Start menu and desktop shortcuts, the Apps entry; uninstalling (silent or through its wizard) removes all of them, and keeps the app data (the AI models) unless asked. | Checked file by file and in the registry |
+| **Painting, layers, groups and blend modes, undo/redo, an adjustment layer, a filter, Arabic text, a shape, a selection and a mask, `.mosamem` save and open, PNG/JPEG/WebP export and open, PSD out and in** | `tools/feature-tour.js`: 13 checks, all passing in the Windows build. It checks pixels at every step |
+| **Shape tools, Pen and Direct Selection, paths, the Text tool's typing** | The same pointer-driven tests as on the Mac: `shape-tools` 14, `pen-tools` 11, `path-ops` 8, `text-typing` 6. All pass |
+| **PSD**: the 90 public files | `PSD_REMOTE_DIR=… tools/psd-report.mjs` in the VM: the same results as on the Mac for 89 of 90. `vector-mask.psd` differs by 0.02%, from the browser canvas smoothing edges differently (WebView2 against WebKit) |
+| **Local AI**: Select Subject, Object Selection, Smart Fill, Remove Background | All four ran on the CPU (the VM has no DirectML GPU): 36 s, 7 s, 1.6 s and 49 s on a 512 px picture, under x64 emulation, so not representative |
+
+Fixed for Windows:
+- **The window was taller than the screen.** It opens at 1440×900, which a laptop at 150% scaling (1280×720) can't show: the status bar and color swatches were under the taskbar. Now it opens maximized when it doesn't fit the screen's work area.
+- **Scroll bars** were Windows' light ones, with arrow buttons, in the dark interface. They're now thin and dark.
+- **The Arabic copyright line came out jumbled** («© … 2026» with the year moved to the end). It now starts with a Latin word.
+
+### Not done or not verified on Windows
+
+- **Not on a real PC.** Not tried: an x64 PC, DirectML on a real GPU, and speed on real hardware.
+- **No real mouse and keyboard.** The tests send events from inside the page, and the wizard was driven through window messages.
+- **The Visual C++ runtime prompt** wasn't seen: the VM already has the runtime.
+- **The native menu bar runs left to right** even in Arabic: Tauri's menus have no right-to-left mode.
+- **No arm64 build.** ARM PCs run the x64 build through emulation.

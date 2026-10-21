@@ -54,9 +54,8 @@ xattr -dr com.apple.quarantine /Applications/Mosamem.app && open /Applications/M
 
 ### ويندوز
 
-1. نزّل **[Mosamem-Setup-x64.exe](https://github.com/motalim-ai/mosamem/releases/latest/download/Mosamem-Setup-x64.exe)**
-   (لأغلب الأجهزة)، أو **[Mosamem-Setup-arm64.exe](https://github.com/motalim-ai/mosamem/releases/latest/download/Mosamem-Setup-arm64.exe)**
-   (لأجهزة Snapdragon وغيرها من أجهزة ARM).
+1. نزّل **[Mosamem-Setup-x64.exe](https://github.com/motalim-ai/mosamem/releases/latest/download/Mosamem-Setup-x64.exe)**.
+   ويعمل أيضًا على أجهزة Snapdragon وغيرها من أجهزة ARM، عبر محاكاة x64 المدمجة في ويندوز.
 2. افتح المثبّت. إن ظهرت رسالة *Windows protected your PC*، اضغط **More info** (مزيد من المعلومات)، ثم
    **Run anyway** (التشغيل على أي حال). وإن قال المتصفح إن الملف غير شائع التنزيل، اختر **Keep** (الاحتفاظ).
 3. اختر **العربية** أو **English**، ثم **التالي** و**تثبيت**. لا حاجة لكلمة سر المسؤول: يُثبَّت مصمم لحسابك فقط.
@@ -109,6 +108,9 @@ npm install
 npx tauri dev      # للتشغيل
 npx tauri build    # المثبّت: ملف .dmg على الماك، و.exe على ويندوز
 ```
+
+ويمكن بناء مثبّت ويندوز على الماك أيضًا: `tools/windows/cross-build.sh` ثم `tools/windows/make-installer-vm.sh`
+الذي يشغّل NSIS على جهاز ويندوز عبر SSH.
 
 البناء الأول ينزّل مكتبة ONNX Runtime الجاهزة (لأدوات الذكاء الاصطناعي). الاختبارات: `cargo test --workspace`
 و`npx vitest run`.
