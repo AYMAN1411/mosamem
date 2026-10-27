@@ -1,9 +1,22 @@
-
-# Build only the Windows x64 installer and attach it to a draft release.
+# Build the Windows x64 installer and attach it to a draft release.
 name: release
 
 on:
+  # Automatic: push a version tag, e.g. `git tag v0.1.0 && git push origin v0.1.0`
+  push:
+    tags:
+      - "v*"
+  # Manual: Actions -> release -> Run workflow
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.1.0)"
+        required: true
+        default: "v0.1.0"
+
+# Required so the release step can create a release (fixes "Resource not accessible by integration")
+permissions:
+  contents: write
 
 jobs:
   test:
@@ -67,6 +80,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || inputs.tag }}
           draft: true
           files: |
             Mosamem-Setup-x64.exe
