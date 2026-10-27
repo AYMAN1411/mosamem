@@ -1,8 +1,7 @@
-# Builds the installers and attaches them to a draft release:
-# Mosamem.dmg (Apple silicon), Mosamem-Setup-x64.exe and Mosamem-Setup-arm64.exe.
-# Manual for now (Actions → release → Run workflow): v0.1.0 shipped the installers built and tested by hand
-# (docs/status.md, M11), so a tag push doesn't replace them with untested CI builds.
+
+# Build only the Windows x64 installer and attach it to a draft release.
 name: release
+
 on:
   workflow_dispatch:
 
@@ -11,9 +10,14 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
+        with:
+          node-version: 22
+          cache: npm
+
       - uses: dtolnay/rust-toolchain@stable
+
       - run: npm ci
       - run: cargo test --workspace
       - run: npx vitest run
@@ -21,32 +25,49 @@ jobs:
 
   build:
     needs: test
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: macos-14, target: aarch64-apple-darwin, out: Mosamem.dmg }
-          - { os: windows-latest, target: x86_64-pc-windows-msvc, out: Mosamem-Setup-x64.exe }
-          - { os: windows-11-arm, target: aarch64-pc-windows-msvc, out: Mosamem-Setup-arm64.exe }
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: npm }
+        with:
+          node-version: 22
+          cache: npm
+
       - uses: dtolnay/rust-toolchain@stable
-        with: { targets: '${{ matrix.target }}' }
+        with:
+          targets: x86_64-pc-windows-msvc
+
       - run: npm ci
-      - run: npx tauri build --target ${{ matrix.target }}
-      - name: Name the installer
+
+      - name: Build Windows x64 installer
+        run: npx tauri build --target x86_64-pc-windows-msvc
+
+      - name: Prepare installer
         shell: bash
         run: |
-          dir=target/${{ matrix.target }}/release/bundle
-          f=$(ls $dir/dmg/*.dmg $dir/nsis/*-setup.exe 2>/dev/null | head -1)
-          cp "$f" "${{ matrix.out }}"
-          shasum -a 256 "${{ matrix.out }}" > "${{ matrix.out }}.sha256"
+          set -euo pipefail
+
+          dir="src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis"
+
+          if [ ! -d "$dir" ]; then
+            dir="target/x86_64-pc-windows-msvc/release/bundle/nsis"
+          fi
+
+          f=$(find "$dir" -maxdepth 1 -type f -iname '*-setup.exe' | head -n 1)
+
+          if [ -z "$f" ]; then
+            echo "ERROR: NSIS installer was not found."
+            exit 1
+          fi
+
+          cp "$f" Mosamem-Setup-x64.exe
+          sha256sum Mosamem-Setup-x64.exe > Mosamem-Setup-x64.exe.sha256
+
       - uses: softprops/action-gh-release@v2
         with:
           draft: true
           files: |
-            ${{ matrix.out }}
-            ${{ matrix.out }}.sha256
+            Mosamem-Setup-x64.exe
+            Mosamem-Setup-x64.exe.sha256
